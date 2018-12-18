@@ -10,8 +10,10 @@ If you want to try it, you can clone the repo and run this `bash`-script from th
 ```bash
 npm install
 
-chmod +x ./dev.sh
+#1 on Unix-based system
+npm start
 
-./dev.sh
+#2 on Windows
+npm run start:win
 ```
 
