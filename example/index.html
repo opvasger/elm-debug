@@ -5,23 +5,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Example App</title>
+    <title>Example</title>
     <script src="dist/index.js"></script>
 </head>
 
 <body>
     <script>
 
-        var example = Elm.Main.init({
+        var name = "example"
+
+        var main = Elm.Main.init({
             node: document.body,
             flags: {
-                devTools: localStorage.getItem("elm-dev-tools")
+                debug: localStorage.getItem(name)
             }
         })
 
-        example.ports.output.subscribe(function (output) {
+        main.ports.debug.subscribe(function onUpdate(model) {
 
-            if (output.devTools) localStorage.setItem("elm-dev-tools", output.devTools);
+            localStorage.setItem(name, model);
         })
 
     </script>

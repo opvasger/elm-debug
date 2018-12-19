@@ -3,7 +3,7 @@ port module Main exposing (main)
 import Browser
 import Browser.Dom as Bd
 import Browser.Events as Be
-import DevTools.Browser
+import Debug.Browser
 import Html as H exposing (Html)
 import Html.Attributes as Ha
 import Html.Events as He
@@ -13,7 +13,7 @@ import Task
 import Time
 
 
-port output : Je.Value -> Cmd msg
+port debug : Je.Value -> Cmd msg
 
 
 type alias Velocity =
@@ -75,16 +75,16 @@ type alias Model =
 
 {--}
 main =
-    DevTools.Browser.document
+    Debug.Browser.document
         { init = init
         , update = update
         , view = view
         , subscriptions = subscriptions
-        , devTools =
+        , debug =
             { printModel = Debug.toString
-            , output = output
-            , msgDecoder = msgDecoder
             , encodeMsg = encodeMsg
+            , msgDecoder = msgDecoder
+            , toPort = debug
             }
         }
 --}
