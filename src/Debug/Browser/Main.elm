@@ -68,7 +68,7 @@ wrapInit config =
     ( { history = History.init config.model
       , position = Position 0 0
       , viewportSize = Size 0 0
-      , isModelOverlayed = True
+      , isModelOverlayed = False
       }
     , Cmd.batch
         [ mapUpdate config.cmds
@@ -152,11 +152,13 @@ view printModel model viewApp =
     View.toBody
         (View.nothing
             :: View.debugger
-                { position = model.position }
+                { position = model.position
+                }
             :: View.overlay
                 printModel
-                { size = model.viewportSize
+                { height = model.viewportSize.height
                 , model = History.now model.history
+                , isEnabled = model.isModelOverlayed
                 }
             :: viewApp
         )

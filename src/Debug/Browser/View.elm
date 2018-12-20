@@ -28,22 +28,27 @@ debugger { position } =
 overlay :
     (model -> String)
     ->
-        { size : Size
+        { height : Int
         , model : model
+        , isEnabled : Bool
         }
     -> Html msg
-overlay printModel { size, model } =
-    div
-        [ style "top" "0"
-        , style "left" "0"
-        , style "color" "black"
-        , style "padding" "5vw"
-        , style "position" "fixed"
-        , style "background-color" "rgba(255,255,255,.95)"
-        , style "z-index" (String.fromInt (fromMaxZIndex 1))
-        , style "height" (toPx size.height)
-        ]
-        [ text (printModel model) ]
+overlay printModel config =
+    if config.isEnabled then
+        div
+            [ style "top" "0"
+            , style "left" "0"
+            , style "color" "black"
+            , style "padding" "5vw"
+            , style "position" "fixed"
+            , style "z-index" "2147483646"
+            , style "background-color" "rgba(255,255,255,.95)"
+            , style "height" (toPx config.height)
+            ]
+            [ text (printModel config.model) ]
+
+    else
+        nothing
 
 
 nothing : Html msg
@@ -54,7 +59,3 @@ nothing =
 toPx : Int -> String
 toPx n =
     String.fromInt n ++ "px"
-
-
-fromMaxZIndex n =
-    2147483647 - n
