@@ -24,13 +24,14 @@ sandbox { init, view, update, debug } =
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
-                    , modelCmdPair = ( init, Cmd.none )
+                    , model = init
+                    , cmds = Cmd.none
                     }
         , view =
             Main.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
-                , toDocument = \model -> { title = "", body = view model :: [] }
+                , view = \model -> { title = "", body = view model :: [] }
                 }
         , update =
             Main.wrapUpdate
@@ -59,17 +60,22 @@ element { init, view, update, subscriptions, debug } =
     Browser.element
         { init =
             \flags ->
+                let
+                    ( model, cmds ) =
+                        init flags
+                in
                 Main.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
-                    , modelCmdPair = init flags
+                    , model = model
+                    , cmds = cmds
                     }
         , view =
             Main.wrapHtml
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
-                , toHtml = view
+                , view = view
                 }
         , update =
             Main.wrapUpdate
@@ -98,17 +104,22 @@ document { init, view, update, subscriptions, debug } =
     Browser.document
         { init =
             \flags ->
+                let
+                    ( model, cmds ) =
+                        init flags
+                in
                 Main.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
-                    , modelCmdPair = init flags
+                    , model = model
+                    , cmds = cmds
                     }
         , view =
             Main.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
-                , toDocument = view
+                , view = view
                 }
         , update =
             Main.wrapUpdate
@@ -139,17 +150,22 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, debu
     Browser.application
         { init =
             \flags url key ->
+                let
+                    ( model, cmds ) =
+                        init flags url key
+                in
                 Main.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
-                    , modelCmdPair = init flags url key
+                    , model = model
+                    , cmds = cmds
                     }
         , view =
             Main.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
-                , toDocument = view
+                , view = view
                 }
         , update =
             Main.wrapUpdate
