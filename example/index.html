@@ -1,32 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Example</title>
-    <script src="dist/index.js"></script>
-</head>
+    <script defer src="./main.js"></script>
+  </head>
 
-<body>
-    <script>
-
-        var name = "example"
-
-        var main = Elm.Main.init({
-            node: document.body,
-            flags: {
-                debug: localStorage.getItem(name)
-            }
-        })
-
-        main.ports.debug.subscribe(function onUpdate(model) {
-
-            localStorage.setItem(name, model);
-        })
-
-    </script>
-</body>
-
+  <body></body>
 </html>
