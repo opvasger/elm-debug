@@ -1,7 +1,7 @@
 {
   "scripts": {
     "start": "live-server --watch=./dist & nodemon --watch ../src --watch src --ext elm --exec 'elm make src/Main.elm --output=dist/index.js'",
-    "start:win": "start live-server --watch=./dist && nodemon --watch ../src --watch src --ext elm --exec 'elm make src/Main.elm --output=dist/index.js'"
+    "start:win": "start live-server --watch=./dist && nodemon --watch ../src --watch src --ext elm --exec \"elm make src/Main.elm --output=dist/index.js\""
   },
   "dependencies": {
     "live-server": "1.2.1",
