@@ -10,10 +10,15 @@ module Debug.Browser.Main exposing
     )
 
 import Browser
+import Browser.Dom as Dom
 import Debug.Browser.History as History exposing (History)
+import Debug.Browser.View as View
 import Html exposing (Html)
 import Json.Decode
 import Json.Encode
+import Position exposing (Position)
+import Size exposing (Size)
+import Task
 
 
 type alias Configuration model msg =
@@ -30,11 +35,15 @@ type alias Program model msg =
 
 type alias Model model msg =
     { history : History model msg
+    , position : Position
+    , viewportSize : Size
+    , isModelOverlayed : Bool
     }
 
 
 type Msg msg
     = Update msg
+    | ResizeViewport Size
 
 
 mapUpdate : Cmd msg -> Cmd (Msg msg)
@@ -55,9 +64,16 @@ wrapInit :
     , update : msg -> model -> ( model, Cmd msg )
     }
     -> ( Model model msg, Cmd (Msg msg) )
-wrapInit { update, msgDecoder, flags, model, cmds } =
-    ( { history = History.init model }
-    , mapUpdate cmds
+wrapInit config =
+    ( { history = History.init config.model
+      , position = Position 0 0
+      , viewportSize = Size 0 0
+      , isModelOverlayed = True
+      }
+    , Cmd.batch
+        [ mapUpdate config.cmds
+        , Task.perform ResizeViewport Size.getViewportSize
+        ]
     )
 
 
@@ -67,8 +83,8 @@ wrapSubscriptions :
     }
     -> Model model msg
     -> Sub (Msg msg)
-wrapSubscriptions { msgDecoder, subscriptions } model =
-    Sub.map Update (subscriptions (History.now model.history))
+wrapSubscriptions config model =
+    Sub.map Update (config.subscriptions (History.now model.history))
 
 
 wrapUpdate :
@@ -80,17 +96,24 @@ wrapUpdate :
     -> Msg msg
     -> Model model msg
     -> ( Model model msg, Cmd (Msg msg) )
-wrapUpdate { msgDecoder, encodeMsg, update, toPort } msg model =
+wrapUpdate config msg model =
     case msg of
         Update updateMsg ->
             let
                 ( updatedModel, updateCmds ) =
-                    update updateMsg (History.now model.history)
+                    config.update updateMsg (History.now model.history)
             in
             ( { model
                 | history = History.insert ( updateMsg, updatedModel ) model.history
               }
             , mapUpdate updateCmds
+            )
+
+        ResizeViewport viewportSize ->
+            ( { model
+                | viewportSize = viewportSize
+              }
+            , Cmd.none
             )
 
 
@@ -101,13 +124,15 @@ wrapDocument :
     }
     -> Model model msg
     -> Browser.Document (Msg msg)
-wrapDocument { printModel, encodeMsg, view } model =
+wrapDocument config model =
     let
         { title, body } =
-            view (History.now model.history)
+            config.view (History.now model.history)
     in
     { title = title
-    , body = List.map (Html.map Update) body
+    , body =
+        [ view config.printModel model (List.map (Html.map Update) body)
+        ]
     }
 
 
@@ -118,5 +143,20 @@ wrapHtml :
     }
     -> Model model msg
     -> Html (Msg msg)
-wrapHtml { printModel, encodeMsg, view } model =
-    Html.map Update (view (History.now model.history))
+wrapHtml config model =
+    view config.printModel model [ Html.map Update (config.view (History.now model.history)) ]
+
+
+view : (model -> String) -> Model model msg -> List (Html (Msg msg)) -> Html (Msg msg)
+view printModel model viewApp =
+    View.toBody
+        (View.nothing
+            :: View.debugger
+                { position = model.position }
+            :: View.overlay
+                printModel
+                { size = model.viewportSize
+                , model = History.now model.history
+                }
+            :: viewApp
+        )
