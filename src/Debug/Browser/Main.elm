@@ -149,12 +149,13 @@ wrapHtml config model =
 
 view : (model -> String) -> Model model msg -> List (Html (Msg msg)) -> Html (Msg msg)
 view printModel model viewApp =
-    View.toBody
-        (View.nothing
-            :: View.debugger
+    View.selectable True
+        []
+        (View.viewNothing
+            :: View.viewDebugger
                 { position = model.position
                 }
-            :: View.overlay
+            :: View.viewOverlay
                 printModel
                 { height = model.viewportSize.height
                 , model = History.now model.history

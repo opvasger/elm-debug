@@ -1,4 +1,4 @@
-module Debug.Browser.View exposing (debugger, nothing, overlay, toBody)
+module Debug.Browser.View exposing (selectable, viewDebugger, viewNothing, viewOverlay)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -7,16 +7,31 @@ import Position exposing (Position)
 import Size exposing (Size)
 
 
-toBody : List (Html msg) -> Html msg
-toBody =
-    div []
+selectable :
+    Bool
+    -> List (Attribute msg)
+    -> List (Html msg)
+    -> Html msg
+selectable isSelectable attributes =
+    div <|
+        if isSelectable then
+            attributes
+
+        else
+            style "-webkit-touch-callout" "none"
+                :: style "-webkit-user-select" "none"
+                :: style "-khtml-user-select" "none"
+                :: style "-moz-user-select" "none"
+                :: style "-ms-user-select" "none"
+                :: style "user-select" "none"
+                :: attributes
 
 
-debugger :
+viewDebugger :
     { position : Position
     }
     -> Html msg
-debugger { position } =
+viewDebugger { position } =
     div
         [ style "top" (toPx position.top)
         , style "left" (toPx position.left)
@@ -25,7 +40,7 @@ debugger { position } =
         ]
 
 
-overlay :
+viewOverlay :
     (model -> String)
     ->
         { height : Int
@@ -33,7 +48,7 @@ overlay :
         , isEnabled : Bool
         }
     -> Html msg
-overlay printModel config =
+viewOverlay printModel config =
     if config.isEnabled then
         div
             [ style "top" "0"
@@ -45,14 +60,15 @@ overlay printModel config =
             , style "background-color" "rgba(255,255,255,.95)"
             , style "height" (toPx config.height)
             ]
-            [ text (printModel config.model) ]
+            [ text (printModel config.model)
+            ]
 
     else
-        nothing
+        viewNothing
 
 
-nothing : Html msg
-nothing =
+viewNothing : Html msg
+viewNothing =
     text ""
 
 
