@@ -1,4 +1,4 @@
-module Debug.Browser exposing (application, document, element, sandbox)
+module Debug.Browser exposing (Program, application, document, element, sandbox)
 
 import Browser
 import Browser.Navigation
@@ -7,6 +7,10 @@ import Html exposing (Html)
 import Json.Decode
 import Json.Encode
 import Url exposing (Url)
+
+
+type alias Program model msg =
+    Main.Program model msg
 
 
 sandbox :

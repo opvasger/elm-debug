@@ -74,6 +74,7 @@ type alias Model =
 
 
 {--}
+main : Debug.Browser.Program Model Msg
 main =
     Debug.Browser.document
         { init = init
