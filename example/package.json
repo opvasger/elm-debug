@@ -1,12 +1,11 @@
 {
   "scripts": {
-    "start": "parcel ./index.html"
+    "start": "live-server --watch=./dist & nodemon --watch ../src --watch src --ext elm --exec 'elm make src/Main.elm --output=dist/index.js'",
+    "start:win": "start live-server --watch=./dist && nodemon --watch ../src --watch src --ext elm --exec 'elm make src/Main.elm --output=dist/index.js'"
   },
   "dependencies": {
-    "parcel-bundler": "^1.11.0"
-  },
-  "devDependencies": {
-    "elm-hot": "^1.0.1",
-    "node-elm-compiler": "^5.0.1"
+    "live-server": "1.2.1",
+    "nodemon": "1.18.7",
+    "elm": "0.19.0-bugfix2"
   }
 }
