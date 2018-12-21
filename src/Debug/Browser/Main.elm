@@ -13,6 +13,7 @@ import Browser
 import Browser.Dom as Dom
 import Debug.Browser.History as History exposing (History)
 import Debug.Browser.View as View
+import Drag
 import Html exposing (Html)
 import Json.Decode
 import Json.Encode
@@ -21,92 +22,96 @@ import Size exposing (Size)
 import Task
 
 
-type alias Configuration model msg =
-    { printModel : model -> String
-    , encodeMsg : msg -> Json.Encode.Value
-    , msgDecoder : Json.Decode.Decoder msg
-    , toPort : Json.Encode.Value -> Cmd (Msg msg)
+type alias Configuration appModel appMsg =
+    { printModel : appModel -> String
+    , encodeMsg : appMsg -> Json.Encode.Value
+    , msgDecoder : Json.Decode.Decoder appMsg
+    , toPort : Json.Encode.Value -> Cmd (Msg appMsg)
     }
 
 
-type alias Program model msg =
-    Platform.Program Json.Decode.Value (Model model msg) (Msg msg)
+type alias Program appModel appMsg =
+    Platform.Program Json.Decode.Value (Model appModel appMsg) (Msg appMsg)
 
 
-type alias Model model msg =
-    { history : History model msg
-    , position : Position
+type alias Model appModel appMsg =
+    { history : History appModel appMsg
+    , debuggerDrag : Drag.Model
     , viewportSize : Size
     , isModelOverlayed : Bool
     }
 
 
-type Msg msg
-    = Update msg
+type Msg appMsg
+    = UpdateApp appMsg
     | ResizeViewport Size
+    | DragDebugger Drag.Msg
 
 
-mapUpdate : Cmd msg -> Cmd (Msg msg)
-mapUpdate =
-    Cmd.map Update
+mapAppUpdate : Cmd appMsg -> Cmd (Msg appMsg)
+mapAppUpdate =
+    Cmd.map UpdateApp
 
 
-wrapMsg : (a -> msg) -> a -> Msg msg
+wrapMsg : (a -> appMsg) -> a -> Msg appMsg
 wrapMsg toMsg =
-    Update << toMsg
+    UpdateApp << toMsg
 
 
 wrapInit :
-    { model : model
-    , cmds : Cmd msg
+    { model : appModel
+    , cmds : Cmd appMsg
     , flags : Json.Decode.Value
-    , msgDecoder : Json.Decode.Decoder msg
-    , update : msg -> model -> ( model, Cmd msg )
+    , msgDecoder : Json.Decode.Decoder appMsg
+    , update : appMsg -> appModel -> ( appModel, Cmd appMsg )
     }
-    -> ( Model model msg, Cmd (Msg msg) )
+    -> ( Model appModel appMsg, Cmd (Msg appMsg) )
 wrapInit config =
     ( { history = History.init config.model
-      , position = Position 0 0
+      , debuggerDrag = Drag.init
       , viewportSize = Size 0 0
       , isModelOverlayed = False
       }
     , Cmd.batch
-        [ mapUpdate config.cmds
+        [ mapAppUpdate config.cmds
         , Task.perform ResizeViewport Size.getViewportSize
         ]
     )
 
 
 wrapSubscriptions :
-    { msgDecoder : Json.Decode.Decoder msg
-    , subscriptions : model -> Sub msg
+    { msgDecoder : Json.Decode.Decoder appMsg
+    , subscriptions : appModel -> Sub appMsg
     }
-    -> Model model msg
-    -> Sub (Msg msg)
+    -> Model appModel appMsg
+    -> Sub (Msg appMsg)
 wrapSubscriptions config model =
-    Sub.map Update (config.subscriptions (History.now model.history))
+    Sub.batch
+        [ Sub.map UpdateApp (config.subscriptions (History.now model.history))
+        , Sub.map DragDebugger (Drag.subscriptions model.debuggerDrag)
+        ]
 
 
 wrapUpdate :
-    { msgDecoder : Json.Decode.Decoder msg
-    , encodeMsg : msg -> Json.Encode.Value
-    , update : msg -> model -> ( model, Cmd msg )
-    , toPort : Json.Encode.Value -> Cmd (Msg msg)
+    { msgDecoder : Json.Decode.Decoder appMsg
+    , encodeMsg : appMsg -> Json.Encode.Value
+    , update : appMsg -> appModel -> ( appModel, Cmd appMsg )
+    , toPort : Json.Encode.Value -> Cmd (Msg appMsg)
     }
-    -> Msg msg
-    -> Model model msg
-    -> ( Model model msg, Cmd (Msg msg) )
+    -> Msg appMsg
+    -> Model appModel appMsg
+    -> ( Model appModel appMsg, Cmd (Msg appMsg) )
 wrapUpdate config msg model =
     case msg of
-        Update updateMsg ->
+        UpdateApp appMsg ->
             let
-                ( updatedModel, updateCmds ) =
-                    config.update updateMsg (History.now model.history)
+                ( appModel, appCmd ) =
+                    config.update appMsg (History.now model.history)
             in
             ( { model
-                | history = History.insert ( updateMsg, updatedModel ) model.history
+                | history = History.insert ( appMsg, appModel ) model.history
               }
-            , mapUpdate updateCmds
+            , mapAppUpdate appCmd
             )
 
         ResizeViewport viewportSize ->
@@ -116,44 +121,52 @@ wrapUpdate config msg model =
             , Cmd.none
             )
 
+        DragDebugger debuggerDrag ->
+            ( { model
+                | debuggerDrag = Drag.update debuggerDrag model.debuggerDrag
+              }
+            , Cmd.none
+            )
+
 
 wrapDocument :
-    { encodeMsg : msg -> Json.Encode.Value
-    , printModel : model -> String
-    , view : model -> Browser.Document msg
+    { encodeMsg : appMsg -> Json.Encode.Value
+    , printModel : appModel -> String
+    , view : appModel -> Browser.Document appMsg
     }
-    -> Model model msg
-    -> Browser.Document (Msg msg)
-wrapDocument config model =
+    -> Model appModel appMsg
+    -> Browser.Document (Msg appMsg)
+wrapDocument config appModel =
     let
         { title, body } =
-            config.view (History.now model.history)
+            config.view (History.now appModel.history)
     in
     { title = title
     , body =
-        [ view config.printModel model (List.map (Html.map Update) body)
+        [ view config.printModel appModel (List.map (Html.map UpdateApp) body)
         ]
     }
 
 
 wrapHtml :
-    { encodeMsg : msg -> Json.Encode.Value
-    , printModel : model -> String
-    , view : model -> Html msg
+    { encodeMsg : appMsg -> Json.Encode.Value
+    , printModel : appModel -> String
+    , view : appModel -> Html appMsg
     }
-    -> Model model msg
-    -> Html (Msg msg)
-wrapHtml config model =
-    view config.printModel model [ Html.map Update (config.view (History.now model.history)) ]
+    -> Model appModel appMsg
+    -> Html (Msg appMsg)
+wrapHtml config appModel =
+    view config.printModel appModel [ Html.map UpdateApp (config.view (History.now appModel.history)) ]
 
 
-view : (model -> String) -> Model model msg -> List (Html (Msg msg)) -> Html (Msg msg)
+view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 view printModel model viewApp =
     View.selectable True
         []
         (View.viewNothing
             :: View.viewDebugger
-                { position = model.position
+                { position = model.debuggerDrag.position
+                , onMouseDown = Drag.enable DragDebugger
                 }
             :: View.viewOverlay
                 printModel

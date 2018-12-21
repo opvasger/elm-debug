@@ -29,12 +29,15 @@ selectable isSelectable attributes =
 
 viewDebugger :
     { position : Position
+    , onMouseDown : msg
     }
     -> Html msg
-viewDebugger { position } =
+viewDebugger config =
     div
-        [ style "top" (toPx position.top)
-        , style "left" (toPx position.left)
+        [ style "position" "absolute"
+        , style "top" (toPx config.position.top)
+        , style "left" (toPx config.position.left)
+        , onMouseDown config.onMouseDown
         ]
         [ text "Debugger"
         ]

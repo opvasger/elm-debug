@@ -1,7 +1,17 @@
-module Position exposing (Position)
+module Position exposing (Position, mouseMoveDecoder)
+
+import Json.Decode as Jd
 
 
 type alias Position =
-    { top : Int
-    , left : Int
+    { left : Int
+    , top : Int
     }
+
+
+mouseMoveDecoder : Jd.Decoder Position
+mouseMoveDecoder =
+    Jd.map2
+        Position
+        (Jd.field "clientX" Jd.int)
+        (Jd.field "clientY" Jd.int)
