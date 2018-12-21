@@ -1,29 +1,65 @@
 module Debug.Browser.History exposing (History, init, insert, now)
 
+import Array exposing (Array)
 
-type alias Model model msg =
-    { initial : model
-    , entries : List ( msg, model )
+
+snapshotSize : Int
+snapshotSize =
+    5
+
+
+type alias History model msg =
+    { oldSnapshots : Array (Snapshot model msg)
+    , currentSnapshot : Snapshot model msg
+    , model : model
+    , messageCount : Int
     }
 
 
-type History model msg
-    = History (Model model msg)
+type alias Snapshot model msg =
+    { initialModel : model
+    , messages : Array msg
+    }
 
 
 init : model -> History model msg
 init model =
-    History
-        { initial = model
-        , entries = []
-        }
+    { oldSnapshots = Array.empty
+    , currentSnapshot = emptySnapshot model
+    , model = model
+    , messageCount = 0
+    }
 
 
 now : History model msg -> model
-now (History { initial, entries }) =
-    Maybe.withDefault initial (Maybe.map Tuple.second (List.head entries))
+now { model } =
+    model
 
 
 insert : ( msg, model ) -> History model msg -> History model msg
-insert entry (History model) =
-    History { model | entries = entry :: model.entries }
+insert (( _, newModel ) as entry) ({ oldSnapshots, currentSnapshot, messageCount } as history) =
+    if messageCount == snapshotSize then
+        { history
+            | oldSnapshots = Array.push currentSnapshot oldSnapshots
+            , currentSnapshot = emptySnapshot history.model |> insertSnapshotEntry entry
+            , model = newModel
+            , messageCount = 1
+        }
+
+    else
+        { history
+            | oldSnapshots = oldSnapshots
+            , currentSnapshot = currentSnapshot |> insertSnapshotEntry entry
+            , model = newModel
+            , messageCount = messageCount + 1
+        }
+
+
+emptySnapshot : model -> Snapshot model msg
+emptySnapshot model =
+    Snapshot model Array.empty
+
+
+insertSnapshotEntry : ( msg, model ) -> Snapshot model msg -> Snapshot model msg
+insertSnapshotEntry ( msg, _ ) snapshot =
+    Snapshot snapshot.initialModel (Array.push msg snapshot.messages)
