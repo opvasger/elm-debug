@@ -41,12 +41,14 @@ insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot } as history) =
         { history
             | oldSnapshots = Array.push currentSnapshot oldSnapshots
             , currentSnapshot = emptySnapshot model |> insertSnapshotEntry entry
+            , model = model
         }
 
     else
         { history
             | oldSnapshots = oldSnapshots
             , currentSnapshot = currentSnapshot |> insertSnapshotEntry entry
+            , model = model
         }
 
 
