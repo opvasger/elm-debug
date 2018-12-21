@@ -37,12 +37,12 @@ now { model } =
 
 
 insert : ( msg, model ) -> History model msg -> History model msg
-insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot, messageCount } as history) =
+insert (( _, newModel ) as entry) ({ oldSnapshots, currentSnapshot, messageCount } as history) =
     if messageCount == snapshotSize then
         { history
             | oldSnapshots = Array.push currentSnapshot oldSnapshots
             , currentSnapshot = emptySnapshot history.model |> insertSnapshotEntry entry
-            , model = model
+            , model = newModel
             , messageCount = 1
         }
 
@@ -50,7 +50,7 @@ insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot, messageCount } 
         { history
             | oldSnapshots = oldSnapshots
             , currentSnapshot = currentSnapshot |> insertSnapshotEntry entry
-            , model = model
+            , model = newModel
             , messageCount = messageCount + 1
         }
 
