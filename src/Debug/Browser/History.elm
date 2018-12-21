@@ -12,13 +12,13 @@ type alias History model msg =
     { oldSnapshots : Array (Snapshot model msg)
     , currentSnapshot : Snapshot model msg
     , model : model
+    , messageCount : Int
     }
 
 
 type alias Snapshot model msg =
     { initialModel : model
     , messages : Array msg
-    , messageCount : Int
     }
 
 
@@ -27,6 +27,7 @@ init model =
     { oldSnapshots = Array.empty
     , currentSnapshot = emptySnapshot model
     , model = model
+    , messageCount = 0
     }
 
 
@@ -36,12 +37,13 @@ now { model } =
 
 
 insert : ( msg, model ) -> History model msg -> History model msg
-insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot } as history) =
-    if currentSnapshot.messageCount == snapshotSize then
+insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot, messageCount } as history) =
+    if messageCount == snapshotSize then
         { history
             | oldSnapshots = Array.push currentSnapshot oldSnapshots
-            , currentSnapshot = emptySnapshot model |> insertSnapshotEntry entry
+            , currentSnapshot = emptySnapshot history.model |> insertSnapshotEntry entry
             , model = model
+            , messageCount = 1
         }
 
     else
@@ -49,17 +51,15 @@ insert (( _, model ) as entry) ({ oldSnapshots, currentSnapshot } as history) =
             | oldSnapshots = oldSnapshots
             , currentSnapshot = currentSnapshot |> insertSnapshotEntry entry
             , model = model
+            , messageCount = messageCount + 1
         }
 
 
 emptySnapshot : model -> Snapshot model msg
 emptySnapshot model =
-    Snapshot model Array.empty 0
+    Snapshot model Array.empty
 
 
 insertSnapshotEntry : ( msg, model ) -> Snapshot model msg -> Snapshot model msg
 insertSnapshotEntry ( msg, _ ) snapshot =
-    { snapshot
-        | messages = Array.push msg snapshot.messages
-        , messageCount = snapshot.messageCount + 1
-    }
+    Snapshot snapshot.initialModel (Array.push msg snapshot.messages)
