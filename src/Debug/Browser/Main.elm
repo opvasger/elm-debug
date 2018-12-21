@@ -10,28 +10,26 @@ module Debug.Browser.Main exposing
     )
 
 import Browser
-import Browser.Dom as Dom
 import Debug.Browser.History as History exposing (History)
-import Debug.Browser.View as View
 import Drag
 import Html exposing (Html)
-import Json.Decode
-import Json.Encode
-import Position exposing (Position)
+import Html.Elements as He
+import Json.Decode as Jd
+import Json.Encode as Je
 import Size exposing (Size)
 import Task
 
 
 type alias Configuration appModel appMsg =
     { printModel : appModel -> String
-    , encodeMsg : appMsg -> Json.Encode.Value
-    , msgDecoder : Json.Decode.Decoder appMsg
-    , toPort : Json.Encode.Value -> Cmd (Msg appMsg)
+    , encodeMsg : appMsg -> Je.Value
+    , msgDecoder : Jd.Decoder appMsg
+    , toPort : Je.Value -> Cmd (Msg appMsg)
     }
 
 
 type alias Program appModel appMsg =
-    Platform.Program Json.Decode.Value (Model appModel appMsg) (Msg appMsg)
+    Platform.Program Jd.Value (Model appModel appMsg) (Msg appMsg)
 
 
 type alias Model appModel appMsg =
@@ -61,8 +59,8 @@ wrapMsg toMsg =
 wrapInit :
     { model : appModel
     , cmds : Cmd appMsg
-    , flags : Json.Decode.Value
-    , msgDecoder : Json.Decode.Decoder appMsg
+    , flags : Jd.Value
+    , msgDecoder : Jd.Decoder appMsg
     , update : appMsg -> appModel -> ( appModel, Cmd appMsg )
     }
     -> ( Model appModel appMsg, Cmd (Msg appMsg) )
@@ -80,7 +78,7 @@ wrapInit config =
 
 
 wrapSubscriptions :
-    { msgDecoder : Json.Decode.Decoder appMsg
+    { msgDecoder : Jd.Decoder appMsg
     , subscriptions : appModel -> Sub appMsg
     }
     -> Model appModel appMsg
@@ -93,10 +91,10 @@ wrapSubscriptions config model =
 
 
 wrapUpdate :
-    { msgDecoder : Json.Decode.Decoder appMsg
-    , encodeMsg : appMsg -> Json.Encode.Value
+    { msgDecoder : Jd.Decoder appMsg
+    , encodeMsg : appMsg -> Je.Value
     , update : appMsg -> appModel -> ( appModel, Cmd appMsg )
-    , toPort : Json.Encode.Value -> Cmd (Msg appMsg)
+    , toPort : Je.Value -> Cmd (Msg appMsg)
     }
     -> Msg appMsg
     -> Model appModel appMsg
@@ -130,7 +128,7 @@ wrapUpdate config msg model =
 
 
 wrapDocument :
-    { encodeMsg : appMsg -> Json.Encode.Value
+    { encodeMsg : appMsg -> Je.Value
     , printModel : appModel -> String
     , view : appModel -> Browser.Document appMsg
     }
@@ -149,7 +147,7 @@ wrapDocument config appModel =
 
 
 wrapHtml :
-    { encodeMsg : appMsg -> Json.Encode.Value
+    { encodeMsg : appMsg -> Je.Value
     , printModel : appModel -> String
     , view : appModel -> Html appMsg
     }
@@ -161,18 +159,32 @@ wrapHtml config appModel =
 
 view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 view printModel model viewApp =
-    View.selectable True
-        []
-        (View.viewNothing
-            :: View.viewDebugger
-                { position = model.debuggerDrag.position
-                , onMouseDown = Drag.enable DragDebugger
-                }
-            :: View.viewOverlay
-                printModel
-                { height = model.viewportSize.height
-                , model = History.now model.history
-                , isEnabled = model.isModelOverlayed
-                }
+    viewContainer model.debuggerDrag.isEnabled
+        (viewDebugger model.debuggerDrag
+            :: viewOverlay printModel model.isModelOverlayed (History.now model.history)
             :: viewApp
         )
+
+
+viewContainer : Bool -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
+viewContainer isDragging =
+    He.container []
+
+
+viewDebugger : Drag.Model -> Html (Msg appMsg)
+viewDebugger dragModel =
+    He.container
+        (Drag.with DragDebugger
+            dragModel
+            []
+        )
+        [ Html.text "Debugger" ]
+
+
+viewOverlay : (appModel -> String) -> Bool -> appModel -> Html (Msg appMsg)
+viewOverlay printModel isModelOverlayed model =
+    He.overlay
+        { zIndex = 2147483646
+        , text = printModel model
+        , isVisible = isModelOverlayed
+        }

@@ -1,6 +1,6 @@
 module Size exposing (Size, getViewportSize)
 
-import Browser.Dom as Dom
+import Browser.Dom as Bd
 import Task exposing (Task)
 
 
@@ -12,10 +12,10 @@ type alias Size =
 
 getViewportSize : Task Never Size
 getViewportSize =
-    Task.map fromViewport Dom.getViewport
+    Task.map fromViewport Bd.getViewport
 
 
-fromViewport : Dom.Viewport -> Size
+fromViewport : Bd.Viewport -> Size
 fromViewport { viewport } =
     { width = round viewport.width
     , height = round viewport.height

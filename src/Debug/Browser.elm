@@ -2,7 +2,7 @@ module Debug.Browser exposing (Program, application, document, element, sandbox)
 
 import Browser
 import Browser.Navigation
-import Debug.Browser.Main as Main
+import Debug.Browser.Main as Bdm
 import Html exposing (Html)
 import Json.Decode
 import Json.Encode
@@ -10,21 +10,21 @@ import Url exposing (Url)
 
 
 type alias Program model msg =
-    Main.Program model msg
+    Bdm.Program model msg
 
 
 sandbox :
     { init : model
     , view : model -> Html msg
     , update : msg -> model -> model
-    , debug : Main.Configuration model msg
+    , debug : Bdm.Configuration model msg
     }
-    -> Main.Program model msg
+    -> Bdm.Program model msg
 sandbox { init, view, update, debug } =
     Browser.document
         { init =
             \flags ->
-                Main.wrapInit
+                Bdm.wrapInit
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
@@ -32,20 +32,20 @@ sandbox { init, view, update, debug } =
                     , cmds = Cmd.none
                     }
         , view =
-            Main.wrapDocument
+            Bdm.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
                 , view = \model -> { title = "", body = view model :: [] }
                 }
         , update =
-            Main.wrapUpdate
+            Bdm.wrapUpdate
                 { msgDecoder = debug.msgDecoder
                 , encodeMsg = debug.encodeMsg
                 , toPort = debug.toPort
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , subscriptions =
-            Main.wrapSubscriptions
+            Bdm.wrapSubscriptions
                 { subscriptions = always Sub.none
                 , msgDecoder = debug.msgDecoder
                 }
@@ -57,9 +57,9 @@ element :
     , view : model -> Html msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , debug : Main.Configuration model msg
+    , debug : Bdm.Configuration model msg
     }
-    -> Main.Program model msg
+    -> Bdm.Program model msg
 element { init, view, update, subscriptions, debug } =
     Browser.element
         { init =
@@ -68,7 +68,7 @@ element { init, view, update, subscriptions, debug } =
                     ( model, cmds ) =
                         init flags
                 in
-                Main.wrapInit
+                Bdm.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
@@ -76,20 +76,20 @@ element { init, view, update, subscriptions, debug } =
                     , cmds = cmds
                     }
         , view =
-            Main.wrapHtml
+            Bdm.wrapHtml
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
                 , view = view
                 }
         , update =
-            Main.wrapUpdate
+            Bdm.wrapUpdate
                 { msgDecoder = debug.msgDecoder
                 , encodeMsg = debug.encodeMsg
                 , toPort = debug.toPort
                 , update = update
                 }
         , subscriptions =
-            Main.wrapSubscriptions
+            Bdm.wrapSubscriptions
                 { msgDecoder = debug.msgDecoder
                 , subscriptions = subscriptions
                 }
@@ -101,9 +101,9 @@ document :
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , debug : Main.Configuration model msg
+    , debug : Bdm.Configuration model msg
     }
-    -> Main.Program model msg
+    -> Bdm.Program model msg
 document { init, view, update, subscriptions, debug } =
     Browser.document
         { init =
@@ -112,7 +112,7 @@ document { init, view, update, subscriptions, debug } =
                     ( model, cmds ) =
                         init flags
                 in
-                Main.wrapInit
+                Bdm.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
@@ -120,20 +120,20 @@ document { init, view, update, subscriptions, debug } =
                     , cmds = cmds
                     }
         , view =
-            Main.wrapDocument
+            Bdm.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
                 , view = view
                 }
         , update =
-            Main.wrapUpdate
+            Bdm.wrapUpdate
                 { msgDecoder = debug.msgDecoder
                 , encodeMsg = debug.encodeMsg
                 , update = update
                 , toPort = debug.toPort
                 }
         , subscriptions =
-            Main.wrapSubscriptions
+            Bdm.wrapSubscriptions
                 { subscriptions = subscriptions
                 , msgDecoder = debug.msgDecoder
                 }
@@ -147,9 +147,9 @@ application :
     , subscriptions : model -> Sub msg
     , onUrlRequest : Browser.UrlRequest -> msg
     , onUrlChange : Url -> msg
-    , debug : Main.Configuration model msg
+    , debug : Bdm.Configuration model msg
     }
-    -> Main.Program model msg
+    -> Bdm.Program model msg
 application { init, view, update, subscriptions, onUrlRequest, onUrlChange, debug } =
     Browser.application
         { init =
@@ -158,7 +158,7 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, debu
                     ( model, cmds ) =
                         init flags url key
                 in
-                Main.wrapInit
+                Bdm.wrapInit
                     { update = update
                     , msgDecoder = debug.msgDecoder
                     , flags = flags
@@ -166,23 +166,23 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, debu
                     , cmds = cmds
                     }
         , view =
-            Main.wrapDocument
+            Bdm.wrapDocument
                 { printModel = debug.printModel
                 , encodeMsg = debug.encodeMsg
                 , view = view
                 }
         , update =
-            Main.wrapUpdate
+            Bdm.wrapUpdate
                 { msgDecoder = debug.msgDecoder
                 , encodeMsg = debug.encodeMsg
                 , update = update
                 , toPort = debug.toPort
                 }
         , subscriptions =
-            Main.wrapSubscriptions
+            Bdm.wrapSubscriptions
                 { subscriptions = subscriptions
                 , msgDecoder = debug.msgDecoder
                 }
-        , onUrlChange = Main.wrapMsg onUrlChange
-        , onUrlRequest = Main.wrapMsg onUrlRequest
+        , onUrlChange = Bdm.wrapMsg onUrlChange
+        , onUrlRequest = Bdm.wrapMsg onUrlRequest
         }
