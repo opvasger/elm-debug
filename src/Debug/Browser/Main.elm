@@ -12,8 +12,9 @@ module Debug.Browser.Main exposing
 import Browser
 import Debug.Browser.History as History exposing (History)
 import Drag
-import Html exposing (Html)
-import Html.Elements as He
+import Html as H exposing (Html)
+import Html.Attributes as Ha
+import Html.Events as He
 import Json.Decode as Jd
 import Json.Encode as Je
 import Size exposing (Size)
@@ -44,11 +45,8 @@ type Msg appMsg
     = UpdateApp appMsg
     | ResizeViewport Size
     | DragDebugger Drag.Msg
-
-
-mapAppUpdate : Cmd appMsg -> Cmd (Msg appMsg)
-mapAppUpdate =
-    Cmd.map UpdateApp
+    | ToggleModelOverlay
+    | DoNothing
 
 
 wrapMsg : (a -> appMsg) -> a -> Msg appMsg
@@ -71,7 +69,7 @@ wrapInit config =
       , isModelOverlayed = False
       }
     , Cmd.batch
-        [ mapAppUpdate config.cmds
+        [ Cmd.map UpdateApp config.cmds
         , Task.perform ResizeViewport Size.getViewportSize
         ]
     )
@@ -109,7 +107,7 @@ wrapUpdate config msg model =
             ( { model
                 | history = History.insert ( appMsg, appModel ) model.history
               }
-            , mapAppUpdate appCmd
+            , Cmd.map UpdateApp appCmd
             )
 
         ResizeViewport viewportSize ->
@@ -126,6 +124,16 @@ wrapUpdate config msg model =
             , Cmd.none
             )
 
+        ToggleModelOverlay ->
+            ( { model
+                | isModelOverlayed = not model.isModelOverlayed
+              }
+            , Cmd.none
+            )
+
+        DoNothing ->
+            ( model, Cmd.none )
+
 
 wrapDocument :
     { encodeMsg : appMsg -> Je.Value
@@ -141,7 +149,7 @@ wrapDocument config appModel =
     in
     { title = title
     , body =
-        [ view config.printModel appModel (List.map (Html.map UpdateApp) body)
+        [ view config.printModel appModel (List.map (H.map UpdateApp) body)
         ]
     }
 
@@ -154,7 +162,7 @@ wrapHtml :
     -> Model appModel appMsg
     -> Html (Msg appMsg)
 wrapHtml config appModel =
-    view config.printModel appModel [ Html.map UpdateApp (config.view (History.now appModel.history)) ]
+    view config.printModel appModel [ H.map UpdateApp (config.view (History.now appModel.history)) ]
 
 
 view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
@@ -168,23 +176,62 @@ view printModel model viewApp =
 
 viewContainer : Bool -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 viewContainer isDragging =
-    He.container []
-
-
-viewDebugger : Drag.Model -> Html (Msg appMsg)
-viewDebugger dragModel =
-    He.container
-        (Drag.with DragDebugger
-            dragModel
-            []
-        )
-        [ Html.text "Debugger" ]
+    H.div []
 
 
 viewOverlay : (appModel -> String) -> Bool -> appModel -> Html (Msg appMsg)
 viewOverlay printModel isModelOverlayed model =
-    He.overlay
-        { zIndex = 2147483646
-        , text = printModel model
-        , isVisible = isModelOverlayed
-        }
+    if isModelOverlayed then
+        H.div
+            [ Ha.style "top" "0"
+            , Ha.style "left" "0"
+            , Ha.style "color" "black"
+            , Ha.style "padding" "5vw"
+            , Ha.style "height" "100vh"
+            , Ha.style "position" "fixed"
+            , Ha.style "z-index" "2147483646"
+            , Ha.style "background-color" "rgba(255,255,255,.95)"
+            ]
+            [ H.div [] [ H.text (printModel model) ]
+            ]
+
+    else
+        H.text ""
+
+
+viewDebugger : Drag.Model -> Html (Msg appMsg)
+viewDebugger dragModel =
+    H.div
+        ([ Ha.style "z-index" "2147483647"
+         , Ha.style "font-family" "system-ui"
+         , Ha.style "background-color" "white"
+         , Ha.style "border" borderStyle
+         , onRightClick DoNothing
+         ]
+            ++ Drag.toFixedPosition dragModel
+        )
+        [ H.div
+            [ Ha.style "border-bottom" borderStyle
+            ]
+            [ H.button [ He.onClick ToggleModelOverlay ] [ H.text "inspect" ]
+            ]
+        , H.div [] [ H.text "Page" ]
+        , H.div
+            [ Ha.style "border-top" borderStyle
+            ]
+            [ H.button
+                [ Drag.onMouseDown DragDebugger
+                ]
+                [ H.text "drag" ]
+            ]
+        ]
+
+
+onRightClick : msg -> H.Attribute msg
+onRightClick msg =
+    He.preventDefaultOn "contextmenu" (Jd.succeed ( msg, True ))
+
+
+borderStyle : String
+borderStyle =
+    "1px solid #d3d3d3"

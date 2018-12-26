@@ -1,4 +1,4 @@
-module Drag exposing (Model, Msg, init, start, subscriptions, update, with)
+module Drag exposing (Model, Msg, init, onMouseDown, subscriptions, toFixedPosition, update)
 
 import Browser.Events as Be
 import Html exposing (Html)
@@ -20,9 +20,9 @@ type Msg
     | MoveTo Position
 
 
-start : (Msg -> msg) -> msg
-start toMsg =
-    toMsg Start
+onMouseDown : (Msg -> msg) -> Html.Attribute msg
+onMouseDown toMsg =
+    He.onMouseDown (toMsg Start)
 
 
 init : Model
@@ -57,10 +57,9 @@ subscriptions { isEnabled } =
         Sub.none
 
 
-with : (Msg -> msg) -> Model -> List (Html.Attribute msg) -> List (Html.Attribute msg)
-with toMsg { isEnabled, position } attributes =
-    Ha.style "top" (String.fromInt position.top ++ "px")
-        :: Ha.style "left" (String.fromInt position.left ++ "px")
-        :: Ha.style "position" "fixed"
-        :: He.onMouseDown (toMsg Start)
-        :: attributes
+toFixedPosition : Model -> List (Html.Attribute msg)
+toFixedPosition { isEnabled, position } =
+    [ Ha.style "top" (String.fromInt position.top ++ "px")
+    , Ha.style "left" (String.fromInt position.left ++ "px")
+    , Ha.style "position" "fixed"
+    ]
