@@ -42,7 +42,11 @@ update msg model =
             { model | isEnabled = False }
 
         MoveTo position ->
-            { model | position = position }
+            if model.isEnabled then
+                { model | position = position }
+
+            else
+                model
 
 
 subscriptions : Model -> Sub Msg
