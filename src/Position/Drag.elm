@@ -1,4 +1,4 @@
-module Drag exposing (Model, Msg, init, onMouseDown, subscriptions, toFixedPosition, update)
+module Position.Drag exposing (Model, Msg, init, onMouseDown, subscriptions, toFixedPosition, update)
 
 import Browser.Events as Be
 import Html exposing (Html)

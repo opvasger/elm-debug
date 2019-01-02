@@ -11,12 +11,12 @@ module Debug.Browser.Main exposing
 
 import Browser
 import Debug.Browser.History as History exposing (History)
-import Drag
 import Html as H exposing (Html)
 import Html.Attributes as Ha
 import Html.Events as He
 import Json.Decode as Jd
 import Json.Encode as Je
+import Position.Drag as Dp
 import Size exposing (Size)
 import Task
 
@@ -35,7 +35,7 @@ type alias Program appModel appMsg =
 
 type alias Model appModel appMsg =
     { history : History appModel appMsg
-    , debuggerDrag : Drag.Model
+    , debuggerPosition : Dp.Model
     , viewportSize : Size
     , isModelOverlayed : Bool
     }
@@ -44,7 +44,7 @@ type alias Model appModel appMsg =
 type Msg appMsg
     = UpdateApp appMsg
     | ResizeViewport Size
-    | DragDebugger Drag.Msg
+    | PositionDebugger Dp.Msg
     | ToggleModelOverlay
     | DoNothing
 
@@ -64,7 +64,7 @@ wrapInit :
     -> ( Model appModel appMsg, Cmd (Msg appMsg) )
 wrapInit config =
     ( { history = History.init config.model
-      , debuggerDrag = Drag.init
+      , debuggerPosition = Dp.init
       , viewportSize = Size 0 0
       , isModelOverlayed = False
       }
@@ -84,7 +84,7 @@ wrapSubscriptions :
 wrapSubscriptions config model =
     Sub.batch
         [ Sub.map UpdateApp (config.subscriptions (History.now model.history))
-        , Sub.map DragDebugger (Drag.subscriptions model.debuggerDrag)
+        , Sub.map PositionDebugger (Dp.subscriptions model.debuggerPosition)
         ]
 
 
@@ -117,9 +117,9 @@ wrapUpdate config msg model =
             , Cmd.none
             )
 
-        DragDebugger debuggerDrag ->
+        PositionDebugger debuggerPosition ->
             ( { model
-                | debuggerDrag = Drag.update debuggerDrag model.debuggerDrag
+                | debuggerPosition = Dp.update debuggerPosition model.debuggerPosition
               }
             , Cmd.none
             )
@@ -167,8 +167,8 @@ wrapHtml config appModel =
 
 view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 view printModel model viewApp =
-    viewContainer model.debuggerDrag.isEnabled
-        (viewDebugger model.debuggerDrag
+    viewContainer model.debuggerPosition.isEnabled
+        (viewDebugger model.debuggerPosition
             :: viewOverlay printModel model.isModelOverlayed (History.now model.history)
             :: viewApp
         )
@@ -199,7 +199,7 @@ viewOverlay printModel isModelOverlayed model =
         H.text ""
 
 
-viewDebugger : Drag.Model -> Html (Msg appMsg)
+viewDebugger : Dp.Model -> Html (Msg appMsg)
 viewDebugger dragModel =
     H.div
         ([ Ha.style "z-index" "2147483647"
@@ -208,7 +208,7 @@ viewDebugger dragModel =
          , Ha.style "border" borderStyle
          , onRightClick DoNothing
          ]
-            ++ Drag.toFixedPosition dragModel
+            ++ Dp.toFixedPosition dragModel
         )
         [ H.div
             [ Ha.style "border-bottom" borderStyle
@@ -220,7 +220,7 @@ viewDebugger dragModel =
             [ Ha.style "border-top" borderStyle
             ]
             [ H.button
-                [ Drag.onMouseDown DragDebugger
+                [ Dp.onMouseDown PositionDebugger
                 ]
                 [ H.text "drag" ]
             ]
