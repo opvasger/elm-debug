@@ -4,62 +4,77 @@ import Browser as B
 import Html as H exposing (Html)
 import Html.Attributes as Ha
 import Html.Events as He
+import Json.Decode as Jd
 
 
 type alias Model =
-    { selectedIndex : Int
+    { focusedIndex : Int
+    , selectedIndex : Int
     , visibleLength : Int
+    , itemHeight : Int
     }
 
 
 type Msg
-    = SelectIndex Int
+    = FocusIndex Int
+    | SelectIndex Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        FocusIndex focusedIndex ->
+            ( { model | focusedIndex = focusedIndex }, Cmd.none )
+
         SelectIndex selectedIndex ->
             ( { model | selectedIndex = selectedIndex }, Cmd.none )
 
 
 view : Model -> (Bool -> a -> Html Msg) -> List a -> Html Msg
-view { selectedIndex, visibleLength } viewItem items =
+view { focusedIndex, selectedIndex, visibleLength, itemHeight } viewItem items =
     let
         indexOffset =
-            clamp 0 (List.length items - visibleLength) (selectedIndex - visibleLength // 2)
+            clamp 0 (List.length items - visibleLength) (focusedIndex - visibleLength // 2)
 
         visibleItems =
-            List.take visibleLength (List.drop indexOffset items)
+            List.take (visibleLength + 1) (List.drop indexOffset items)
 
         viewVisibleItem =
-            wrapViewItem viewItem selectedIndex indexOffset
+            wrapViewItem viewItem itemHeight selectedIndex indexOffset
     in
     H.div
         [ Ha.style "overflow" "hidden scroll"
         , Ha.style "border" "1px solid #e7e7e7"
         , Ha.style "border-right" "none"
-        , Ha.style "height" (String.fromInt (visibleLength * 20) ++ "px")
+        , Ha.style "height" (String.fromInt (visibleLength * itemHeight) ++ "px")
+        , He.on "scroll" (scrollFocusDecoder itemHeight visibleLength)
         ]
-        [ viewWithHeight (20 * indexOffset)
-        , H.div [] (List.indexedMap viewVisibleItem visibleItems)
-        , viewWithHeight (20 * (List.length items - indexOffset - visibleLength))
+        [ H.div
+            [ Ha.style "height" (String.fromInt (List.length items * itemHeight) ++ "px")
+            ]
+            [ H.div
+                [ Ha.style "padding-top" (String.fromInt (indexOffset * itemHeight) ++ "px") ]
+                (List.indexedMap viewVisibleItem visibleItems)
+            ]
         ]
 
 
-viewWithHeight : Int -> Html Msg
-viewWithHeight height =
-    H.div [ Ha.style "height" (String.fromInt height ++ "px") ] []
+scrollFocusDecoder : Int -> Int -> Jd.Decoder Msg
+scrollFocusDecoder itemHeight visibleLength =
+    Jd.map
+        (\scrollTop -> FocusIndex (round scrollTop // itemHeight + visibleLength // 2))
+        (Jd.at [ "target", "scrollTop" ] Jd.float)
 
 
-wrapViewItem : (Bool -> a -> Html Msg) -> Int -> Int -> Int -> a -> Html Msg
-wrapViewItem viewItem selectedIndex indexOffset relativeIndex item =
+wrapViewItem : (Bool -> a -> Html Msg) -> Int -> Int -> Int -> Int -> a -> Html Msg
+wrapViewItem viewItem itemHeight selectedIndex indexOffset relativeIndex item =
     let
         index =
             relativeIndex + indexOffset
     in
     H.div
-        [ He.onClick (SelectIndex index)
+        [ Ha.style "height" (String.fromInt itemHeight ++ "px")
+        , He.onClick (SelectIndex index)
         ]
         [ viewItem (selectedIndex == index) item
         ]
@@ -68,7 +83,7 @@ wrapViewItem viewItem selectedIndex indexOffset relativeIndex item =
 main : Program () Model Msg
 main =
     B.document
-        { init = always ( { selectedIndex = 0, visibleLength = 5 }, Cmd.none )
+        { init = always ( { selectedIndex = 0, focusedIndex = 0, visibleLength = 5, itemHeight = 20 }, Cmd.none )
         , update = update
         , view =
             \model ->
@@ -87,27 +102,7 @@ main =
                                 [ H.text (String.fromInt n)
                                 ]
                         )
-                        [ 0
-                        , 1
-                        , 2
-                        , 3
-                        , 4
-                        , 5
-                        , 6
-                        , 7
-                        , 8
-                        , 9
-                        , 10
-                        , 11
-                        , 12
-                        , 13
-                        , 14
-                        , 15
-                        , 16
-                        , 17
-                        , 18
-                        , 19
-                        ]
+                        (List.range 0 1000)
                     ]
                 }
         , subscriptions = \model -> Sub.none
