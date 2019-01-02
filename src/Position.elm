@@ -1,5 +1,6 @@
-module Position exposing (Position, mouseMoveDecoder)
+module Position exposing (Position, onMouseMove)
 
+import Browser.Events as Be
 import Json.Decode as Jd
 
 
@@ -9,9 +10,13 @@ type alias Position =
     }
 
 
-mouseMoveDecoder : Jd.Decoder Position
-mouseMoveDecoder =
-    Jd.map2
-        Position
-        (Jd.field "clientX" Jd.int)
-        (Jd.field "clientY" Jd.int)
+onMouseMove : (Position -> msg) -> Sub msg
+onMouseMove msg =
+    Sub.map msg
+        (Be.onMouseMove
+            (Jd.map2
+                Position
+                (Jd.field "clientX" Jd.int)
+                (Jd.field "clientY" Jd.int)
+            )
+        )

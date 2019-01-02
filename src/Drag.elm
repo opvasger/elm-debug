@@ -49,7 +49,7 @@ subscriptions : Model -> Sub Msg
 subscriptions { isEnabled } =
     if isEnabled then
         Sub.batch
-            [ Be.onMouseMove (Jd.map MoveTo Position.mouseMoveDecoder)
+            [ Position.onMouseMove MoveTo
             , Be.onMouseUp (Jd.succeed Stop)
             ]
 
