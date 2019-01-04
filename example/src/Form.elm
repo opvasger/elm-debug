@@ -77,7 +77,7 @@ type alias Model =
 
 init : flags -> ( Model, Cmd Msg )
 init _ =
-    ( { page = initCount "Asger" }
+    ( { page = initAuth }
     , Cmd.none
     )
 
