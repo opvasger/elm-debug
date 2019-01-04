@@ -16,7 +16,7 @@ import Html.Attributes as Ha
 import Html.Events as He
 import Json.Decode as Jd
 import Json.Encode as Je
-import Position.Drag as Dp
+import Position.Drag as Pd
 import Size exposing (Size)
 import Task
 
@@ -35,17 +35,19 @@ type alias Program appModel appMsg =
 
 type alias Model appModel appMsg =
     { history : History appModel appMsg
-    , debuggerPosition : Dp.Model
+    , debuggerPosition : Pd.Model
     , viewportSize : Size
     , isModelOverlayed : Bool
+    , isSubscribed : Bool
     }
 
 
 type Msg appMsg
     = UpdateApp appMsg
     | ResizeViewport Size
-    | PositionDebugger Dp.Msg
+    | PositionDebugger Pd.Msg
     | ToggleModelOverlay
+    | ToggleSubscriptions
     | DoNothing
 
 
@@ -64,9 +66,10 @@ wrapInit :
     -> ( Model appModel appMsg, Cmd (Msg appMsg) )
 wrapInit config =
     ( { history = History.init config.model
-      , debuggerPosition = Dp.init
+      , debuggerPosition = Pd.init
       , viewportSize = Size 0 0
       , isModelOverlayed = False
+      , isSubscribed = True
       }
     , Cmd.batch
         [ Cmd.map UpdateApp config.cmds
@@ -83,8 +86,12 @@ wrapSubscriptions :
     -> Sub (Msg appMsg)
 wrapSubscriptions config model =
     Sub.batch
-        [ Sub.map UpdateApp (config.subscriptions (History.now model.history))
-        , Sub.map PositionDebugger (Dp.subscriptions model.debuggerPosition)
+        [ Sub.map PositionDebugger (Pd.subscriptions model.debuggerPosition)
+        , if model.isSubscribed then
+            Sub.map UpdateApp (config.subscriptions (History.now model.history))
+
+          else
+            Sub.none
         ]
 
 
@@ -119,7 +126,7 @@ wrapUpdate config msg model =
 
         PositionDebugger debuggerPosition ->
             ( { model
-                | debuggerPosition = Dp.update debuggerPosition model.debuggerPosition
+                | debuggerPosition = Pd.update debuggerPosition model.debuggerPosition
               }
             , Cmd.none
             )
@@ -127,6 +134,13 @@ wrapUpdate config msg model =
         ToggleModelOverlay ->
             ( { model
                 | isModelOverlayed = not model.isModelOverlayed
+              }
+            , Cmd.none
+            )
+
+        ToggleSubscriptions ->
+            ( { model
+                | isSubscribed = not model.isSubscribed
               }
             , Cmd.none
             )
@@ -168,7 +182,7 @@ wrapHtml config appModel =
 view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 view printModel model viewApp =
     viewContainer model.debuggerPosition.isEnabled
-        (viewDebugger model.debuggerPosition
+        (viewDebugger model.debuggerPosition model.isModelOverlayed model.isSubscribed
             :: viewOverlay printModel model.isModelOverlayed (History.now model.history)
             :: viewApp
         )
@@ -199,8 +213,8 @@ viewOverlay printModel isModelOverlayed model =
         H.text ""
 
 
-viewDebugger : Dp.Model -> Html (Msg appMsg)
-viewDebugger dragModel =
+viewDebugger : Pd.Model -> Bool -> Bool -> Html (Msg appMsg)
+viewDebugger dragModel isModelOverlayed isSubscribed =
     H.div
         ([ Ha.style "z-index" "2147483647"
          , Ha.style "font-family" "system-ui"
@@ -208,19 +222,36 @@ viewDebugger dragModel =
          , Ha.style "border" borderStyle
          , onRightClick DoNothing
          ]
-            ++ Dp.toFixedPosition dragModel
+            ++ Pd.toFixedPosition dragModel
         )
         [ H.div
             [ Ha.style "border-bottom" borderStyle
             ]
-            [ H.button [ He.onClick ToggleModelOverlay ] [ H.text "inspect" ]
+            [ H.button [ He.onClick ToggleModelOverlay ]
+                [ H.text
+                    (if isModelOverlayed then
+                        "hide model"
+
+                     else
+                        "show model"
+                    )
+                ]
+            , H.button [ He.onClick ToggleSubscriptions ]
+                [ H.text
+                    (if isSubscribed then
+                        "unsubscribe"
+
+                     else
+                        "subscribe"
+                    )
+                ]
             ]
         , H.div [] [ H.text "Page" ]
         , H.div
             [ Ha.style "border-top" borderStyle
             ]
             [ H.button
-                [ Dp.onMouseDown PositionDebugger
+                [ Pd.onMouseDown PositionDebugger
                 ]
                 [ H.text "drag" ]
             ]
