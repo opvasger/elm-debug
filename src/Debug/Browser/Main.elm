@@ -38,7 +38,8 @@ type alias Model appModel appMsg =
     , debuggerPosition : Pd.Model
     , viewportSize : Size
     , isModelOverlayed : Bool
-    , isSubscribed : Bool
+    , isAppSubscribed : Bool
+    , description : String
     }
 
 
@@ -46,6 +47,7 @@ type Msg appMsg
     = UpdateApp appMsg
     | ResizeViewport Size
     | PositionDebugger Pd.Msg
+    | InputDescription String
     | ToggleModelOverlay
     | ToggleSubscriptions
     | DoNothing
@@ -69,7 +71,8 @@ wrapInit config =
       , debuggerPosition = Pd.init
       , viewportSize = Size 0 0
       , isModelOverlayed = False
-      , isSubscribed = True
+      , isAppSubscribed = True
+      , description = ""
       }
     , Cmd.batch
         [ Cmd.map UpdateApp config.cmds
@@ -87,7 +90,7 @@ wrapSubscriptions :
 wrapSubscriptions config model =
     Sub.batch
         [ Sub.map PositionDebugger (Pd.subscriptions model.debuggerPosition)
-        , if model.isSubscribed then
+        , if model.isAppSubscribed then
             Sub.map UpdateApp (config.subscriptions (History.now model.history))
 
           else
@@ -131,6 +134,13 @@ wrapUpdate config msg model =
             , Cmd.none
             )
 
+        InputDescription description ->
+            ( { model
+                | description = description
+              }
+            , Cmd.none
+            )
+
         ToggleModelOverlay ->
             ( { model
                 | isModelOverlayed = not model.isModelOverlayed
@@ -140,7 +150,7 @@ wrapUpdate config msg model =
 
         ToggleSubscriptions ->
             ( { model
-                | isSubscribed = not model.isSubscribed
+                | isAppSubscribed = not model.isAppSubscribed
               }
             , Cmd.none
             )
@@ -182,7 +192,7 @@ wrapHtml config appModel =
 view : (appModel -> String) -> Model appModel appMsg -> List (Html (Msg appMsg)) -> Html (Msg appMsg)
 view printModel model viewApp =
     viewContainer model.debuggerPosition.isEnabled
-        (viewDebugger model.debuggerPosition model.isModelOverlayed model.isSubscribed
+        (viewDebugger model
             :: viewOverlay printModel model.isModelOverlayed (History.now model.history)
             :: viewApp
         )
@@ -213,8 +223,8 @@ viewOverlay printModel isModelOverlayed model =
         H.text ""
 
 
-viewDebugger : Pd.Model -> Bool -> Bool -> Html (Msg appMsg)
-viewDebugger dragModel isModelOverlayed isSubscribed =
+viewDebugger : Model appModel appMsg -> Html (Msg appMsg)
+viewDebugger { debuggerPosition, isModelOverlayed, isAppSubscribed, description } =
     H.div
         ([ Ha.style "z-index" "2147483647"
          , Ha.style "font-family" "system-ui"
@@ -222,7 +232,7 @@ viewDebugger dragModel isModelOverlayed isSubscribed =
          , Ha.style "border" borderStyle
          , onRightClick DoNothing
          ]
-            ++ Pd.toFixedPosition dragModel
+            ++ Pd.toFixedPosition debuggerPosition
         )
         [ H.div
             [ Ha.style "border-bottom" borderStyle
@@ -238,7 +248,7 @@ viewDebugger dragModel isModelOverlayed isSubscribed =
                 ]
             , H.button [ He.onClick ToggleSubscriptions ]
                 [ H.text
-                    (if isSubscribed then
+                    (if isAppSubscribed then
                         "unsubscribe"
 
                      else
@@ -246,7 +256,14 @@ viewDebugger dragModel isModelOverlayed isSubscribed =
                     )
                 ]
             ]
-        , H.div [] [ H.text "Page" ]
+        , H.div []
+            [ H.textarea
+                [ Ha.placeholder "description"
+                , Ha.value description
+                , He.onInput InputDescription
+                ]
+                []
+            ]
         , H.div
             [ Ha.style "border-top" borderStyle
             ]
