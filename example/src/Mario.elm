@@ -150,14 +150,14 @@ viewMario { face, position, velocity, size } =
         [ Ha.style "position" "absolute"
         , Ha.style "left" (toPx position.left)
         , Ha.style "top" (toPx (toFloat size.height - 35 - position.top))
-        , Ha.src (toImageSrc size position velocity face)
+        , Ha.src (toImageSrc position velocity face)
         , Ha.alt "Mario"
         ]
         []
 
 
-toImageSrc : Size -> Position -> Velocity -> HorizontalDirection -> String
-toImageSrc size { top } { horizontal } face =
+toImageSrc : Position -> Velocity -> HorizontalDirection -> String
+toImageSrc { top } { horizontal } face =
     "data:image/png;base64, "
         ++ (case ( face, top > 0, horizontal /= 0 ) of
                 ( Left, True, _ ) ->
@@ -181,7 +181,7 @@ toImageSrc size { top } { horizontal } face =
 
 
 gravity : Float -> Model -> Model
-gravity adjustedLatency ({ velocity, size } as model) =
+gravity adjustedLatency ({ velocity } as model) =
     { model
         | velocity =
             { velocity

@@ -9,44 +9,13 @@ import Json.Encode as Je
 import Url exposing (Url)
 
 
-type alias SandboxConfig model msg =
+sandbox :
     { init : model
     , view : model -> Html msg
     , update : msg -> model -> model
     , devTools : DevTools.Config model msg
     }
-
-
-type alias ElementConfig model msg =
-    { init : Jd.Value -> ( model, Cmd msg )
-    , view : model -> Html msg
-    , update : msg -> model -> ( model, Cmd msg )
-    , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
-    }
-
-
-type alias DocumentConfig model msg =
-    { init : Jd.Value -> ( model, Cmd msg )
-    , view : model -> Browser.Document msg
-    , update : msg -> model -> ( model, Cmd msg )
-    , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
-    }
-
-
-type alias ApplicationConfig model msg =
-    { init : Jd.Value -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
-    , view : model -> Browser.Document msg
-    , update : msg -> model -> ( model, Cmd msg )
-    , subscriptions : model -> Sub msg
-    , onUrlRequest : Browser.UrlRequest -> msg
-    , onUrlChange : Url -> msg
-    , devTools : DevTools.Config model msg
-    }
-
-
-sandbox : SandboxConfig model msg -> DevTools.Program Jd.Value model msg
+    -> DevTools.Program Jd.Value model msg
 sandbox { init, view, update, devTools } =
     Browser.document
         { init =
@@ -78,7 +47,14 @@ sandbox { init, view, update, devTools } =
         }
 
 
-element : ElementConfig model msg -> DevTools.Program Jd.Value model msg
+element :
+    { init : Jd.Value -> ( model, Cmd msg )
+    , view : model -> Html msg
+    , update : msg -> model -> ( model, Cmd msg )
+    , subscriptions : model -> Sub msg
+    , devTools : DevTools.Config model msg
+    }
+    -> DevTools.Program Jd.Value model msg
 element { init, view, update, subscriptions, devTools } =
     Browser.element
         { init =
@@ -110,7 +86,14 @@ element { init, view, update, subscriptions, devTools } =
         }
 
 
-document : DocumentConfig model msg -> DevTools.Program Jd.Value model msg
+document :
+    { init : Jd.Value -> ( model, Cmd msg )
+    , view : model -> Browser.Document msg
+    , update : msg -> model -> ( model, Cmd msg )
+    , subscriptions : model -> Sub msg
+    , devTools : DevTools.Config model msg
+    }
+    -> DevTools.Program Jd.Value model msg
 document { init, view, update, subscriptions, devTools } =
     Browser.document
         { init =
@@ -142,7 +125,16 @@ document { init, view, update, subscriptions, devTools } =
         }
 
 
-application : ApplicationConfig model msg -> DevTools.Program Jd.Value model msg
+application :
+    { init : Jd.Value -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
+    , view : model -> Browser.Document msg
+    , update : msg -> model -> ( model, Cmd msg )
+    , subscriptions : model -> Sub msg
+    , onUrlRequest : Browser.UrlRequest -> msg
+    , onUrlChange : Url -> msg
+    , devTools : DevTools.Config model msg
+    }
+    -> DevTools.Program Jd.Value model msg
 application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devTools } =
     Browser.application
         { init =
