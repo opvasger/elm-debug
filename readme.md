@@ -5,14 +5,15 @@
 ## Try out my example
 The module is still being developed and will probably go through major changes.
 
-If you want to try it, you can clone the repo and run this `bash`-script from the `/examples` folder:
+If you want to try it, you can clone the repo and run these commands from the `/examples` folder:
 ```bash
+# install dependencies
 npm install
 
-#1 on Unix-based system
+# start example with linux
 npm start
 
-#2 on Windows
+# start example with windows
 npm run start:win
 ```
 
