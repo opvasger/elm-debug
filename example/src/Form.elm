@@ -29,12 +29,23 @@ type Msg
     | Decrement
 
 
+type Error
+    = NoError
+    | NoName
+    | NoPass
+
+
 type alias AuthState =
-    { name : String, pass : String }
+    { name : String
+    , pass : String
+    , err : Error
+    }
 
 
 type alias CountState =
-    { name : String, count : Int }
+    { name : String
+    , count : Int
+    }
 
 
 type Page
@@ -61,7 +72,12 @@ update msg model =
                     ( { model | page = Auth { state | pass = pass } }, Cmd.none )
 
                 LogIn ->
-                    ( { model | page = Count { name = state.name, count = 0 } }, Cmd.none )
+                    case authenticate state of
+                        Just err ->
+                            ( { model | page = Auth { state | err = err } }, Cmd.none )
+
+                        Nothing ->
+                            ( { model | page = initCount state.name }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -95,9 +111,34 @@ view model =
     }
 
 
+authenticate : AuthState -> Maybe Error
+authenticate { name, pass } =
+    if String.length (String.trim name) < 1 then
+        Just NoName
+
+    else if String.length (String.trim pass) < 1 then
+        Just NoPass
+
+    else
+        Nothing
+
+
+errorToString : Error -> String
+errorToString err =
+    case err of
+        NoError ->
+            ""
+
+        NoName ->
+            "please specify a name"
+
+        NoPass ->
+            "please specify a password"
+
+
 initAuth : Page
 initAuth =
-    Auth { name = "", pass = "" }
+    Auth { name = "", pass = "", err = NoError }
 
 
 initCount : String -> Page
@@ -160,7 +201,7 @@ viewPage page =
 
 
 viewAuth : AuthState -> Html Msg
-viewAuth { name, pass } =
+viewAuth { name, pass, err } =
     H.div
         centerAttributes
         [ H.input
@@ -182,6 +223,7 @@ viewAuth { name, pass } =
             ]
             [ H.text "Log In"
             ]
+        , H.text (errorToString err)
         ]
 
 
