@@ -85,47 +85,6 @@ type Msg msg
     | DoNothing
 
 
-type alias InitConfig model msg =
-    { modelCmdPair : ( model, Cmd msg )
-    , flags : Jd.Value
-    , msgDecoder : Jd.Decoder msg
-    , update : msg -> model -> ( model, Cmd msg )
-    }
-
-
-type alias ViewConfig model msg view =
-    { encodeMsg : msg -> Je.Value
-    , printModel : model -> String
-    , view : model -> view
-    }
-
-
-type alias ViewPageConfig =
-    { currentIndex : Int
-    , currentHover : Hoverable
-    , isSubscribed : Bool
-    , layoutSize : Size
-    , page : Page
-    , updates : List ( Int, String )
-    , notes : String
-    , sessionTitle : String
-    }
-
-
-type alias UpdateConfig model msg =
-    { msgDecoder : Jd.Decoder msg
-    , encodeMsg : msg -> Je.Value
-    , update : msg -> model -> ( model, Cmd msg )
-    , output : Je.Value -> Cmd (Msg msg)
-    }
-
-
-type alias SubsConfig model msg =
-    { msgDecoder : Jd.Decoder msg
-    , subscriptions : model -> Sub msg
-    }
-
-
 type Layout
     = Collapsed
     | Expanded
@@ -148,7 +107,13 @@ doNothing =
     DoNothing
 
 
-toDocument : ViewConfig model msg (Browser.Document msg) -> Model model msg -> Browser.Document (Msg msg)
+toDocument :
+    { encodeMsg : msg -> Je.Value
+    , printModel : model -> String
+    , view : model -> Browser.Document msg
+    }
+    -> Model model msg
+    -> Browser.Document (Msg msg)
 toDocument { printModel, encodeMsg, view } model =
     let
         { title, body } =
@@ -168,7 +133,13 @@ toDocument { printModel, encodeMsg, view } model =
     }
 
 
-toHtml : ViewConfig model msg (Html msg) -> Model model msg -> Html (Msg msg)
+toHtml :
+    { encodeMsg : msg -> Je.Value
+    , printModel : model -> String
+    , view : model -> Html msg
+    }
+    -> Model model msg
+    -> Html (Msg msg)
 toHtml { printModel, encodeMsg, view } model =
     Hl.lazy3
         selectable
@@ -181,7 +152,13 @@ toHtml { printModel, encodeMsg, view } model =
         ]
 
 
-toInit : InitConfig model msg -> ( Model model msg, Cmd (Msg msg) )
+toInit :
+    { modelCmdPair : ( model, Cmd msg )
+    , flags : Jd.Value
+    , msgDecoder : Jd.Decoder msg
+    , update : msg -> model -> ( model, Cmd msg )
+    }
+    -> ( Model model msg, Cmd (Msg msg) )
 toInit { update, msgDecoder, flags, modelCmdPair } =
     case Jd.decodeValue (sessionDecoder msgDecoder (Tuple.first modelCmdPair) Size.init) flags of
         Ok ( session, msgZl ) ->
@@ -236,7 +213,12 @@ toMsg =
     UpdateWith
 
 
-toSubscriptions : SubsConfig model msg -> Model model msg -> Sub (Msg msg)
+toSubscriptions :
+    { msgDecoder : Jd.Decoder msg
+    , subscriptions : model -> Sub msg
+    }
+    -> Model model msg
+    -> Sub (Msg msg)
 toSubscriptions { msgDecoder, subscriptions } { updates, position, isDragging, isSubscribed } =
     Sub.batch
         [ Be.onResize (Size.mapFromInts ResizeViewport)
@@ -250,7 +232,15 @@ toSubscriptions { msgDecoder, subscriptions } { updates, position, isDragging, i
         ]
 
 
-toUpdate : UpdateConfig model msg -> Msg msg -> Model model msg -> ( Model model msg, Cmd (Msg msg) )
+toUpdate :
+    { msgDecoder : Jd.Decoder msg
+    , encodeMsg : msg -> Je.Value
+    , update : msg -> model -> ( model, Cmd msg )
+    , output : Je.Value -> Cmd (Msg msg)
+    }
+    -> Msg msg
+    -> Model model msg
+    -> ( Model model msg, Cmd (Msg msg) )
 toUpdate { msgDecoder, encodeMsg, update, output } msg model =
     let
         save =
@@ -1187,7 +1177,17 @@ Take a moment to describe what you're doing!
         ]
 
 
-viewPage : ViewPageConfig -> Html (Msg msg)
+viewPage :
+    { currentIndex : Int
+    , currentHover : Hoverable
+    , isSubscribed : Bool
+    , layoutSize : Size
+    , page : Page
+    , updates : List ( Int, String )
+    , notes : String
+    , sessionTitle : String
+    }
+    -> Html (Msg msg)
 viewPage { currentIndex, currentHover, isSubscribed, layoutSize, page, updates, notes, sessionTitle } =
     let
         body =
