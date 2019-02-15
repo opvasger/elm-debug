@@ -1046,6 +1046,7 @@ viewOverlay viewportSize text =
         , Ha.style "left" "0"
         , Ha.style "color" "black"
         , Ha.style "padding" "5vw"
+        , Ha.style "width" "90vw"
         , Ha.style "position" "fixed"
         , Ha.style "z-index" "2147483646"
         , Ha.style "background-color" "rgba(255,255,255,.95)"
