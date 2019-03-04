@@ -34,11 +34,6 @@ type alias Program flags model msg =
     Platform.Program flags (Model model msg) (Msg msg)
 
 
-doNothing : Msg msg
-doNothing =
-    DoNothing
-
-
 toMsg : msg -> Msg msg
 toMsg =
     AppMsg
