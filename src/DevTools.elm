@@ -1,4 +1,4 @@
-module DevTools exposing (Config, Program, doNothing, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
+module DevTools exposing (Config, Program, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
 
 import Browser
 import History exposing (History)
@@ -19,7 +19,6 @@ type Msg msg
     = AppMsg msg
     | InitialAppMsg msg
     | SliderInput Int
-    | DoNothing
 
 
 type alias Config model msg =
@@ -132,9 +131,6 @@ toUpdate config msg model =
               }
             , Cmd.none
             )
-
-        DoNothing ->
-            ( model, Cmd.none )
 
 
 view : Model model msg -> Html (Msg msg)
