@@ -1,8 +1,6 @@
-module Size exposing (Size, fromViewport, init, jsonDecoder, jsonEncode, mapFromInts)
+module Size exposing (Size, fromViewport, init, mapFromInts)
 
 import Browser.Dom exposing (Viewport)
-import Json.Decode as Jd
-import Json.Encode as Je
 
 
 type alias Size =
@@ -29,19 +27,3 @@ mapFromInts toMsg width height =
         { width = width
         , height = height
         }
-
-
-jsonEncode : Size -> Je.Value
-jsonEncode { width, height } =
-    Je.object
-        [ ( "width", Je.int width )
-        , ( "height", Je.int height )
-        ]
-
-
-jsonDecoder : Jd.Decoder Size
-jsonDecoder =
-    Jd.map2
-        Size
-        (Jd.field "width" Jd.int)
-        (Jd.field "height" Jd.int)

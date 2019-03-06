@@ -1,4 +1,4 @@
-module DevTools exposing (Config, Program, doNothing, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
+module DevTools exposing (Config, Program, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
 
 import Browser
 import Browser.Dom as Bd
@@ -19,7 +19,6 @@ import Svg as S exposing (Svg)
 import Svg.Attributes as Sa
 import Svg.Events as Se
 import Task exposing (Task)
-import Time
 import Tuple
 import ZipList as Zl exposing (ZipList)
 
@@ -54,12 +53,12 @@ type alias Model model msg =
     , importError : Maybe Jd.Error
     , notes : String
     , sessionTitle : String
-    , isModelOverlayed : Bool
     , hoveredElement : Hoverable
     , viewportSize : Size
     , position : Position
     , isDragging : Bool
     , isSubscribed : Bool
+    , isModelOverlayed : Bool
     , layout : Layout
     , page : Page
     }
@@ -100,11 +99,6 @@ type alias Config model msg =
 
 type alias Program flags model msg =
     Platform.Program flags (Model model msg) (Msg msg)
-
-
-doNothing : Msg msg
-doNothing =
-    DoNothing
 
 
 toDocument :
@@ -214,12 +208,10 @@ toMsg =
 
 
 toSubscriptions :
-    { msgDecoder : Jd.Decoder msg
-    , subscriptions : model -> Sub msg
-    }
+    (model -> Sub msg)
     -> Model model msg
     -> Sub (Msg msg)
-toSubscriptions { msgDecoder, subscriptions } { updates, position, isDragging, isSubscribed } =
+toSubscriptions subscriptions { updates, position, isDragging, isSubscribed } =
     Sub.batch
         [ Be.onResize (Size.mapFromInts ResizeViewport)
         , subscribeIf isSubscribed <|
@@ -574,7 +566,7 @@ jsonEncodeMaybe encodeValue maybeValue =
 
 
 encodeSession : (msg -> Je.Value) -> Model model msg -> Je.Value
-encodeSession encodeMsg { updates, isModelOverlayed, position, layout, page, viewportSize, isSubscribed, notes, sessionTitle } =
+encodeSession encodeMsg { updates, isModelOverlayed, position, layout, page, isSubscribed, notes, sessionTitle } =
     let
         encodeSessionHelper =
             Je.object
@@ -681,16 +673,6 @@ subscribeIf isSubscribing subscribe =
         Sub.none
 
 
-listJoin : (a -> a -> a) -> a -> List a -> a
-listJoin add unit list =
-    case list of
-        head :: tails ->
-            List.foldl add head tails
-
-        [] ->
-            unit
-
-
 selectable : Bool -> List (H.Attribute msg) -> List (Html msg) -> Html msg
 selectable isSelectable attributes =
     H.div
@@ -745,16 +727,6 @@ toRelativeDragButtonPosition { top, left } layout =
             Collapsed ->
                 top - 10
     }
-
-
-pageToOverflow : Page -> String
-pageToOverflow page =
-    case page of
-        Notes ->
-            "hidden scroll"
-
-        Updates ->
-            "hidden"
 
 
 toCursorStyle : Bool -> Hoverable -> H.Attribute msg
@@ -1189,7 +1161,7 @@ viewPage :
     , sessionTitle : String
     }
     -> Html (Msg msg)
-viewPage { currentIndex, currentHover, isSubscribed, layoutSize, page, updates, notes, sessionTitle } =
+viewPage { currentIndex, currentHover, page, updates, notes, sessionTitle } =
     let
         body =
             case page of

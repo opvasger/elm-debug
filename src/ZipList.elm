@@ -1,7 +1,5 @@
 module ZipList exposing
     ( ZipList
-    , atHead
-    , atTail
     , backward
     , currentIndex
     , dropHeads
@@ -139,16 +137,6 @@ singleton value =
 toList : ZipList value -> List value
 toList zl =
     List.reverse zl.tails ++ [ zl.current ] ++ zl.heads
-
-
-atHead : ZipList value -> Bool
-atHead zl =
-    zl.heads == []
-
-
-atTail : ZipList value -> Bool
-atTail zl =
-    zl.tails == []
 
 
 toIndex : Int -> ZipList value -> ZipList value
