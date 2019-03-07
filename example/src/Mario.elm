@@ -74,7 +74,7 @@ type alias Model =
     }
 
 
-init : flags -> ( Model, Cmd Msg )
+init : { devTools : Maybe String } -> ( Model, Cmd Msg )
 init _ =
     ( { face = Right
       , position = Position 0 0

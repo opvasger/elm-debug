@@ -21,10 +21,11 @@ type Msg msg
     | SliderInput Int
 
 
-type alias Config model msg =
+type alias Config flags model msg =
     { printModel : model -> String
     , encodeMsg : msg -> Je.Value
     , msgDecoder : Jd.Decoder msg
+    , toSession : flags -> Maybe String
     , output : Je.Value -> Cmd (Msg msg)
     }
 
@@ -71,9 +72,9 @@ toHtml config model =
 
 toInit :
     { modelCmdPair : ( model, Cmd msg )
-    , flags : Jd.Value
     , msgDecoder : Jd.Decoder msg
     , update : msg -> model -> ( model, Cmd msg )
+    , session : Maybe String
     }
     -> ( Model model msg, Cmd (Msg msg) )
 toInit config =

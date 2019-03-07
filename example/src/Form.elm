@@ -53,7 +53,7 @@ type Page
     | Count CountState
 
 
-init : flags -> ( Model, Cmd Msg )
+init : { devTools : Maybe String } -> ( Model, Cmd Msg )
 init _ =
     ( { page = initAuth }
     , Cmd.none

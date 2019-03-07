@@ -171,8 +171,8 @@ reverseChunk chunk =
 
 
 replayChunk : (msg -> model -> ( model, Cmd msg )) -> Int -> Chunk model msg -> model
-replayChunk updateModel index chunk =
-    List.foldl (replayMsg updateModel) chunk.model (List.take index chunk.msgs)
+replayChunk updateModel msgLength chunk =
+    List.foldl (replayMsg updateModel) chunk.model (List.take msgLength chunk.msgs)
 
 
 replayEntireChunk : (msg -> model -> ( model, Cmd msg )) -> Chunk model msg -> model

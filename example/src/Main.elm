@@ -20,6 +20,7 @@ main =
             { printModel = Debug.toString
             , encodeMsg = encodeMsg
             , msgDecoder = msgDecoder
+            , toSession = .devTools
             , output = output
             }
         }

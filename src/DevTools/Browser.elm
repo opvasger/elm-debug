@@ -4,7 +4,6 @@ import Browser
 import Browser.Navigation
 import DevTools
 import Html exposing (Html)
-import Json.Decode as Jd
 import Url exposing (Url)
 
 
@@ -12,9 +11,9 @@ sandbox :
     { init : model
     , view : model -> Html msg
     , update : msg -> model -> model
-    , devTools : DevTools.Config model msg
+    , devTools : DevTools.Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> DevTools.Program flags model msg
 sandbox { init, view, update, devTools } =
     Browser.document
         { init =
@@ -22,8 +21,8 @@ sandbox { init, view, update, devTools } =
                 DevTools.toInit
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
                     , modelCmdPair = ( init, Cmd.none )
+                    , session = devTools.toSession flags
                     }
         , view =
             DevTools.toDocument
@@ -47,13 +46,13 @@ sandbox { init, view, update, devTools } =
 
 
 element :
-    { init : Jd.Value -> ( model, Cmd msg )
+    { init : flags -> ( model, Cmd msg )
     , view : model -> Html msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
+    , devTools : DevTools.Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> DevTools.Program flags model msg
 element { init, view, update, subscriptions, devTools } =
     Browser.element
         { init =
@@ -61,8 +60,8 @@ element { init, view, update, subscriptions, devTools } =
                 DevTools.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
                     , modelCmdPair = init flags
+                    , session = devTools.toSession flags
                     }
         , view =
             DevTools.toHtml
@@ -86,13 +85,13 @@ element { init, view, update, subscriptions, devTools } =
 
 
 document :
-    { init : Jd.Value -> ( model, Cmd msg )
+    { init : flags -> ( model, Cmd msg )
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
+    , devTools : DevTools.Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> DevTools.Program flags model msg
 document { init, view, update, subscriptions, devTools } =
     Browser.document
         { init =
@@ -100,8 +99,8 @@ document { init, view, update, subscriptions, devTools } =
                 DevTools.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
                     , modelCmdPair = init flags
+                    , session = devTools.toSession flags
                     }
         , view =
             DevTools.toDocument
@@ -125,15 +124,15 @@ document { init, view, update, subscriptions, devTools } =
 
 
 application :
-    { init : Jd.Value -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
+    { init : flags -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
     , onUrlRequest : Browser.UrlRequest -> msg
     , onUrlChange : Url -> msg
-    , devTools : DevTools.Config model msg
+    , devTools : DevTools.Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> DevTools.Program flags model msg
 application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devTools } =
     Browser.application
         { init =
@@ -141,8 +140,8 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devT
                 DevTools.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
                     , modelCmdPair = init flags url key
+                    , session = devTools.toSession flags
                     }
         , view =
             DevTools.toDocument
