@@ -49,7 +49,7 @@ toDocument :
 toDocument config model =
     let
         { title, body } =
-            config.view (History.toModel model.history)
+            config.view (History.currentModel model.history)
     in
     { title = title
     , body = view model :: List.map (Html.map AppMsg) body
@@ -66,7 +66,7 @@ toHtml :
 toHtml config model =
     Html.div []
         [ view model
-        , Html.map AppMsg (config.view (History.toModel model.history))
+        , Html.map AppMsg (config.view (History.currentModel model.history))
         ]
 
 
@@ -96,7 +96,7 @@ toSubscriptions config model =
         Sub.none
 
     else
-        Sub.map AppMsg (config.subscriptions (History.toModel model.history))
+        Sub.map AppMsg (config.subscriptions (History.currentModel model.history))
 
 
 toUpdate :
@@ -120,8 +120,7 @@ toUpdate config msg model =
         InitialAppMsg appMsg ->
             let
                 ( history, cmd ) =
-                    -- TODO persist initial messages instead of just updating
-                    History.update config.update appMsg model.history
+                    History.updateAndPersist config.update appMsg model.history
             in
             ( { model | history = history }, Cmd.map AppMsg cmd )
 

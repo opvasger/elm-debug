@@ -1,4 +1,4 @@
-module History exposing (History, init, isReplaying, length, replay, toModel, update)
+module History exposing (History, currentModel, init, isReplaying, length, replay, toggleState, update, updateAndPersist)
 
 import Array exposing (Array)
 
@@ -17,169 +17,294 @@ chunkLength =
 
 
 type History model msg
-    = History (State model msg)
-
-
-toModel : History model msg -> model
-toModel (History state) =
-    state.model
+    = Replay (ReplayState model msg)
+    | Update (UpdateState model msg)
 
 
 init : model -> History model msg
 init model =
-    History (initState model)
+    Update (initState model)
 
 
 length : History model msg -> Int
-length (History state) =
-    state.currentLength + state.previousLength * chunkLength
+length history =
+    case history of
+        Replay state ->
+            lengthHelper state
+
+        Update state ->
+            lengthHelper state
 
 
 isReplaying : History model msg -> Bool
-isReplaying (History state) =
-    state.isReplaying
+isReplaying history =
+    case history of
+        Replay _ ->
+            True
+
+        Update _ ->
+            False
 
 
-update : (msg -> model -> ( model, Cmd msg )) -> msg -> History model msg -> ( History model msg, Cmd msg )
-update updateModel msg (History state) =
-    if not state.isReplaying then
-        let
-            ( model, cmd ) =
-                updateModel msg state.model
-        in
-        ( History (updateState msg model state), cmd )
+currentModel : History model msg -> model
+currentModel history =
+    case history of
+        Update state ->
+            state.current
 
-    else
-        update updateModel msg (History (toggleReplay updateModel state))
+        Replay state ->
+            state.current
 
 
-replay : (msg -> model -> ( model, Cmd msg )) -> Int -> History model msg -> History model msg
-replay updateModel index (History state) =
-    if state.isReplaying then
-        History (replayState updateModel index state)
+update : ModelUpdater model msg -> msg -> History model msg -> ( History model msg, Cmd msg )
+update updateModel msg history =
+    case history of
+        Update state ->
+            Tuple.mapFirst Update (updateState updateModel msg state)
 
-    else
-        replay updateModel index (History (toggleReplay updateModel state))
-
-
-
--- State
+        Replay _ ->
+            update updateModel msg (toggleState updateModel history)
 
 
-type alias State model msg =
-    { model : model
-    , current : Chunk model msg
-    , currentLength : Int
-    , previous : Array (Chunk model msg)
+updateAndPersist : ModelUpdater model msg -> msg -> History model msg -> ( History model msg, Cmd msg )
+updateAndPersist updateModel msg history =
+    case history of
+        Update state ->
+            Tuple.mapFirst Update (updateAndPersistState updateModel msg state)
+
+        Replay _ ->
+            update updateModel msg (toggleState updateModel history)
+
+
+replay : ModelUpdater model msg -> Int -> History model msg -> History model msg
+replay updateModel modelIndex history =
+    case history of
+        Replay state ->
+            Replay (replayState updateModel modelIndex state)
+
+        Update state ->
+            replay updateModel modelIndex (toggleState updateModel history)
+
+
+toggleState : ModelUpdater model msg -> History model msg -> History model msg
+toggleState updateModel history =
+    case history of
+        Replay state ->
+            Update (toUpdateState updateModel state)
+
+        Update state ->
+            Replay (toReplayState state)
+
+
+
+-- UpdateState
+
+
+type alias UpdateState model msg =
+    { latest : UpdateChunk model msg
+    , latestLength : Int
+    , current : model
+    , currentIndex : Int
+    , previous : Array (ReplayChunk model msg)
     , previousLength : Int
-    , isReplaying : Bool
+    , persisted : List (Indexed msg)
     }
 
 
-initState : model -> State model msg
+initState : model -> UpdateState model msg
 initState model =
-    { model = model
-    , current = Chunk model []
-    , currentLength = 0
+    { latest = ( [], model )
+    , latestLength = 0
+    , current = model
+    , currentIndex = 0
     , previous = Array.empty
     , previousLength = 0
-    , isReplaying = False
+    , persisted = []
     }
 
 
-updateState : msg -> model -> State model msg -> State model msg
-updateState msg model state =
-    if state.currentLength == chunkLength then
-        updatePrevious msg model state
+updateState : ModelUpdater model msg -> msg -> UpdateState model msg -> ( UpdateState model msg, Cmd msg )
+updateState updateModel msg state =
+    let
+        ( model, cmd ) =
+            updateModel msg state.current
+    in
+    ( state
+        |> updateCurrent model
+        >> updateLatest msg
+        >> updatePrevious
+    , cmd
+    )
+
+
+updateAndPersistState : ModelUpdater model msg -> msg -> UpdateState model msg -> ( UpdateState model msg, Cmd msg )
+updateAndPersistState updateModel msg state =
+    let
+        ( model, cmd ) =
+            updateModel msg state.current
+    in
+    ( state
+        |> updateCurrent model
+        >> updateLatest msg
+        >> updatePrevious
+        >> updatePersisted msg
+    , cmd
+    )
+
+
+updateCurrent : model -> UpdateState model msg -> UpdateState model msg
+updateCurrent model state =
+    { state
+        | current = model
+        , currentIndex = state.currentIndex + 1
+    }
+
+
+updateLatest : msg -> UpdateState model msg -> UpdateState model msg
+updateLatest msg state =
+    { state
+        | latest = updateChunk msg state.latest
+        , latestLength = state.latestLength + 1
+    }
+
+
+updatePrevious : UpdateState model msg -> UpdateState model msg
+updatePrevious state =
+    if state.latestLength < chunkLength then
+        state
 
     else
-        updateCurrent msg model state
+        { state
+            | latest = ( [], state.current )
+            , latestLength = 0
+            , previous = Array.push (toReplayChunk state.latest) state.previous
+            , previousLength = state.previousLength + 1
+        }
 
 
-updateCurrent : msg -> model -> State model msg -> State model msg
-updateCurrent msg model state =
-    { state
-        | model = model
-        , current = updateChunk msg state.current
-        , currentLength = state.currentLength + 1
+updatePersisted : msg -> UpdateState model msg -> UpdateState model msg
+updatePersisted msg state =
+    { state | persisted = ( state.currentIndex, msg ) :: state.persisted }
+
+
+toReplayState : UpdateState model msg -> ReplayState model msg
+toReplayState state =
+    { latest = toReplayState state.latest
+    , latestLength = state.latestLength
+    , current = state.current
+    , currentIndex = state.currentIndex
+    , previous = state.previous
+    , previousLength = state.previousLength
+    , persisted = state.persisted
     }
 
 
-updatePrevious : msg -> model -> State model msg -> State model msg
-updatePrevious msg model state =
-    { state
-        | model = model
-        , current = Chunk state.model [ msg ]
-        , currentLength = 1
-        , previous = Array.push (reverseChunk state.current) state.previous
-        , previousLength = state.previousLength + 1
+
+-- ReplayState
+
+
+type alias ReplayState model msg =
+    { latest : ReplayChunk model msg
+    , latestLength : Int
+    , current : model
+    , currentIndex : Int
+    , previous : Array (ReplayChunk model msg)
+    , previousLength : Int
+    , persisted : List (Indexed msg)
     }
 
 
-toggleReplay : (msg -> model -> ( model, Cmd msg )) -> State model msg -> State model msg
-toggleReplay updateModel state =
-    { state
-        | current = reverseChunk state.current
-        , isReplaying = not state.isReplaying
-        , model =
-            if state.isReplaying then
-                replayEntireChunk updateModel state.current
-
-            else
-                state.model
-    }
-
-
-replayState : (msg -> model -> ( model, Cmd msg )) -> Int -> State model msg -> State model msg
-replayState updateModel index state =
-    case Array.get (toChunkIndex index) (Array.push state.current state.previous) of
+replayState : ModelUpdater model msg -> Int -> ReplayState model msg -> ReplayState model msg
+replayState updateModel modelIndex state =
+    case Array.get (toPreviousIndex state.currentIndex) (Array.push state.latest state.previous) of
         Just chunk ->
-            { state | model = replayChunk updateModel (toMsgIndex index) chunk }
+            { state
+                | current = replayChunk updateModel (toMsgLength modelIndex) chunk
+                , currentIndex = clamp 0 (lengthHelper state) modelIndex
+            }
 
         Nothing ->
             state
 
 
-toChunkIndex : Int -> Int
-toChunkIndex index =
-    index // chunkLength
+toUpdateState : ModelUpdater model msg -> ReplayState model msg -> UpdateState model msg
+toUpdateState updateModel state =
+    case Array.get (toPreviousIndex state.currentIndex) (Array.push state.latest state.previous) of
+        Just chunk ->
+            Debug.todo "..."
+
+        Nothing ->
+            Debug.todo "..."
 
 
-toMsgIndex : Int -> Int
-toMsgIndex index =
-    modBy chunkLength index
+
+-- UpdateChunk
+
+
+type alias UpdateChunk model msg =
+    ( List msg, model )
+
+
+updateChunk : msg -> UpdateChunk model msg -> UpdateChunk model msg
+updateChunk msg ( msgs, model ) =
+    ( msg :: msgs, model )
+
+
+rewindChunk : Int -> UpdateChunk model msg -> UpdateChunk model msg
+rewindChunk msgLength ( msgs, model ) =
+    ( List.drop (chunkLength - clamp 0 chunkLength msgLength) msgs, model )
+
+
+toReplayChunk : UpdateChunk model msg -> ReplayChunk model msg
+toReplayChunk ( msgs, model ) =
+    ( model, List.reverse msgs )
 
 
 
--- Chunk
+-- ReplayChunk
 
 
-type alias Chunk model msg =
-    { model : model
-    , msgs : List msg
-    }
+type alias ReplayChunk model msg =
+    ( model, List msg )
 
 
-updateChunk : msg -> Chunk model msg -> Chunk model msg
-updateChunk msg chunk =
-    { chunk | msgs = msg :: chunk.msgs }
+replayChunk : ModelUpdater model msg -> Int -> ReplayChunk model msg -> model
+replayChunk updateModel msgLength ( model, msgs ) =
+    List.foldl (replayHelper updateModel) model (List.take msgLength msgs)
 
 
-reverseChunk : Chunk model msg -> Chunk model msg
-reverseChunk chunk =
-    { chunk | msgs = List.reverse chunk.msgs }
+toUpdateChunk : ReplayChunk model msg -> UpdateChunk model msg
+toUpdateChunk ( model, msgs ) =
+    ( List.reverse msgs, model )
 
 
-replayChunk : (msg -> model -> ( model, Cmd msg )) -> Int -> Chunk model msg -> model
-replayChunk updateModel msgLength chunk =
-    List.foldl (replayMsg updateModel) chunk.model (List.take msgLength chunk.msgs)
+
+-- Helpers
 
 
-replayEntireChunk : (msg -> model -> ( model, Cmd msg )) -> Chunk model msg -> model
-replayEntireChunk updateModel chunk =
-    List.foldl (replayMsg updateModel) chunk.model chunk.msgs
+type alias ModelUpdater model msg =
+    msg -> model -> ( model, Cmd msg )
 
 
-replayMsg : (msg -> model -> ( model, Cmd msg )) -> msg -> model -> model
-replayMsg updateModel msg model =
+type alias Indexed msg =
+    ( Int, msg )
+
+
+toPreviousIndex : Int -> Int
+toPreviousIndex modelIndex =
+    modelIndex // chunkLength
+
+
+toMsgLength : Int -> Int
+toMsgLength modelIndex =
+    modBy chunkLength modelIndex
+
+
+replayHelper : ModelUpdater model msg -> msg -> model -> model
+replayHelper updateModel msg model =
     Tuple.first (updateModel msg model)
+
+
+lengthHelper : { state | latestLength : Int, previousLength : Int } -> Int
+lengthHelper { latestLength, previousLength } =
+    latestLength + previousLength * chunkLength
