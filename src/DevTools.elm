@@ -11,7 +11,6 @@ import Json.Encode as Je
 
 type alias Model model msg =
     { history : History model msg
-    , sliderIndex : Int
     }
 
 
@@ -19,6 +18,7 @@ type Msg msg
     = AppMsg msg
     | InitialAppMsg msg
     | SliderInput Int
+    | ToggleReplay
 
 
 type alias Config flags model msg =
@@ -79,7 +79,6 @@ toInit :
     -> ( Model model msg, Cmd (Msg msg) )
 toInit config =
     ( { history = History.init (Tuple.first config.modelCmdPair)
-      , sliderIndex = 0
       }
     , Cmd.map InitialAppMsg (Tuple.second config.modelCmdPair)
     )
@@ -126,30 +125,26 @@ toUpdate config msg model =
 
         SliderInput index ->
             ( { model
-                | sliderIndex = index
-                , history = History.replay config.update index model.history
+                | history = History.replay config.update index model.history
               }
             , Cmd.none
             )
+
+        ToggleReplay ->
+            ( { model | history = History.toggleState config.update model.history }, Cmd.none )
 
 
 view : Model model msg -> Html (Msg msg)
 view model =
     Html.div []
-        [ Html.input
+        [ Html.button [ Events.onClick ToggleReplay ] [ Html.text "Toggle" ]
+        , Html.input
             [ Attr.type_ "range"
             , Attr.min "0"
             , Attr.max (String.fromInt (History.length model.history))
             , Attr.value
-                (String.fromInt
-                    (if History.isReplaying model.history then
-                        model.sliderIndex
-
-                     else
-                        History.length model.history
-                    )
-                )
-            , Events.onInput (SliderInput << Maybe.withDefault model.sliderIndex << String.toInt)
+                (String.fromInt (History.currentIndex model.history))
+            , Events.onInput (SliderInput << Maybe.withDefault (History.currentIndex model.history) << String.toInt)
             ]
             []
         ]

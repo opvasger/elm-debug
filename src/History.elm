@@ -1,4 +1,15 @@
-module History exposing (History, currentModel, init, isReplaying, length, replay, toggleState, update, updateAndPersist)
+module History exposing
+    ( History
+    , currentIndex
+    , currentModel
+    , init
+    , isReplaying
+    , length
+    , replay
+    , toggleState
+    , update
+    , updateAndPersist
+    )
 
 import Array exposing (Array)
 
@@ -56,6 +67,16 @@ currentModel history =
             state.current
 
 
+currentIndex : History model msg -> Int
+currentIndex history =
+    case history of
+        Update state ->
+            state.currentIndex
+
+        Replay state ->
+            state.currentIndex
+
+
 update : ModelUpdater model msg -> msg -> History model msg -> ( History model msg, Cmd msg )
 update updateModel msg history =
     case history of
@@ -70,7 +91,7 @@ updateAndPersist : ModelUpdater model msg -> msg -> History model msg -> ( Histo
 updateAndPersist updateModel msg history =
     case history of
         Update state ->
-            Tuple.mapFirst Update (updateAndPersistState updateModel msg state)
+            Tuple.mapFirst Update (updateStateAndPersist updateModel msg state)
 
         Replay _ ->
             update updateModel msg (toggleState updateModel history)
@@ -123,6 +144,11 @@ initState model =
     }
 
 
+updateStateAndPersist : ModelUpdater model msg -> msg -> UpdateState model msg -> ( UpdateState model msg, Cmd msg )
+updateStateAndPersist updateModel msg state =
+    Tuple.mapFirst (updatePersisted msg) (updateState updateModel msg state)
+
+
 updateState : ModelUpdater model msg -> msg -> UpdateState model msg -> ( UpdateState model msg, Cmd msg )
 updateState updateModel msg state =
     let
@@ -133,21 +159,6 @@ updateState updateModel msg state =
         |> updateCurrent model
         >> updateLatest msg
         >> updatePrevious
-    , cmd
-    )
-
-
-updateAndPersistState : ModelUpdater model msg -> msg -> UpdateState model msg -> ( UpdateState model msg, Cmd msg )
-updateAndPersistState updateModel msg state =
-    let
-        ( model, cmd ) =
-            updateModel msg state.current
-    in
-    ( state
-        |> updateCurrent model
-        >> updateLatest msg
-        >> updatePrevious
-        >> updatePersisted msg
     , cmd
     )
 
@@ -189,7 +200,7 @@ updatePersisted msg state =
 
 toReplayState : UpdateState model msg -> ReplayState model msg
 toReplayState state =
-    { latest = toReplayState state.latest
+    { latest = toReplayChunk state.latest
     , latestLength = state.latestLength
     , current = state.current
     , currentIndex = state.currentIndex
@@ -229,12 +240,56 @@ replayState updateModel modelIndex state =
 
 toUpdateState : ModelUpdater model msg -> ReplayState model msg -> UpdateState model msg
 toUpdateState updateModel state =
-    case Array.get (toPreviousIndex state.currentIndex) (Array.push state.latest state.previous) of
+    let
+        previousIndex =
+            toPreviousIndex state.currentIndex
+    in
+    case Array.get previousIndex (Array.push state.latest state.previous) of
         Just chunk ->
-            Debug.todo "..."
+            let
+                msgLength =
+                    toMsgLength state.currentIndex
+
+                ( msgs, persisted ) =
+                    partitionPersisted state.currentIndex state.persisted
+            in
+            List.foldl
+                (\msg model -> Tuple.first (updateStateAndPersist updateModel msg model))
+                { latest = toUpdateChunk (rewindChunk msgLength chunk)
+                , latestLength = msgLength
+                , current = state.current
+                , currentIndex = state.currentIndex
+                , previous = Array.slice 0 previousIndex state.previous
+                , previousLength = previousIndex
+                , persisted = persisted
+                }
+                msgs
 
         Nothing ->
             Debug.todo "..."
+
+
+partitionPersisted : Int -> List (Indexed msg) -> ( List msg, List (Indexed msg) )
+partitionPersisted modelIndex persisted =
+    partitionPersistedHelper modelIndex persisted []
+
+
+partitionPersistedHelper :
+    Int
+    -> List (Indexed msg)
+    -> List msg
+    -> ( List msg, List (Indexed msg) )
+partitionPersistedHelper modelIndex persisted stale =
+    case persisted of
+        ( index, msg ) :: tail ->
+            if index > modelIndex then
+                partitionPersistedHelper modelIndex tail (msg :: stale)
+
+            else
+                ( stale, persisted )
+
+        [] ->
+            ( stale, persisted )
 
 
 
@@ -248,11 +303,6 @@ type alias UpdateChunk model msg =
 updateChunk : msg -> UpdateChunk model msg -> UpdateChunk model msg
 updateChunk msg ( msgs, model ) =
     ( msg :: msgs, model )
-
-
-rewindChunk : Int -> UpdateChunk model msg -> UpdateChunk model msg
-rewindChunk msgLength ( msgs, model ) =
-    ( List.drop (chunkLength - clamp 0 chunkLength msgLength) msgs, model )
 
 
 toReplayChunk : UpdateChunk model msg -> ReplayChunk model msg
@@ -270,7 +320,12 @@ type alias ReplayChunk model msg =
 
 replayChunk : ModelUpdater model msg -> Int -> ReplayChunk model msg -> model
 replayChunk updateModel msgLength ( model, msgs ) =
-    List.foldl (replayHelper updateModel) model (List.take msgLength msgs)
+    List.foldl (replayMsg updateModel) model (List.take msgLength msgs)
+
+
+rewindChunk : Int -> ReplayChunk model msg -> ReplayChunk model msg
+rewindChunk msgLength ( model, msgs ) =
+    ( model, List.take msgLength msgs )
 
 
 toUpdateChunk : ReplayChunk model msg -> UpdateChunk model msg
@@ -300,8 +355,8 @@ toMsgLength modelIndex =
     modBy chunkLength modelIndex
 
 
-replayHelper : ModelUpdater model msg -> msg -> model -> model
-replayHelper updateModel msg model =
+replayMsg : ModelUpdater model msg -> msg -> model -> model
+replayMsg updateModel msg model =
     Tuple.first (updateModel msg model)
 
 
