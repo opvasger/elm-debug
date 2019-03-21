@@ -252,9 +252,11 @@ toUpdateState updateModel state =
 
                 ( msgs, persisted ) =
                     partitionPersisted state.currentIndex state.persisted
+
+                updateAndPersistWithoutCmd msg model =
+                    Tuple.first (updateStateAndPersist updateModel msg model)
             in
-            List.foldl
-                (\msg model -> Tuple.first (updateStateAndPersist updateModel msg model))
+            List.foldl updateAndPersistWithoutCmd
                 { latest = toUpdateChunk (rewindChunk msgLength chunk)
                 , latestLength = msgLength
                 , current = state.current
@@ -266,7 +268,14 @@ toUpdateState updateModel state =
                 msgs
 
         Nothing ->
-            Debug.todo "..."
+            { latest = toUpdateChunk state.latest
+            , latestLength = state.latestLength
+            , current = replayChunk updateModel state.latestLength state.latest
+            , currentIndex = lengthHelper state
+            , previous = state.previous
+            , previousLength = state.previousLength
+            , persisted = state.persisted
+            }
 
 
 partitionPersisted : Int -> List (Indexed msg) -> ( List msg, List (Indexed msg) )
