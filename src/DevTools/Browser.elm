@@ -37,11 +37,7 @@ sandbox { init, view, update, devTools } =
                 , output = devTools.output
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
-        , subscriptions =
-            DevTools.toSubscriptions
-                { subscriptions = always Sub.none
-                , msgDecoder = devTools.msgDecoder
-                }
+        , subscriptions = DevTools.toSubscriptions (always Sub.none)
         }
 
 
@@ -76,11 +72,7 @@ element { init, view, update, subscriptions, devTools } =
                 , output = devTools.output
                 , update = update
                 }
-        , subscriptions =
-            DevTools.toSubscriptions
-                { msgDecoder = devTools.msgDecoder
-                , subscriptions = subscriptions
-                }
+        , subscriptions = DevTools.toSubscriptions subscriptions
         }
 
 
@@ -115,11 +107,7 @@ document { init, view, update, subscriptions, devTools } =
                 , update = update
                 , output = devTools.output
                 }
-        , subscriptions =
-            DevTools.toSubscriptions
-                { subscriptions = subscriptions
-                , msgDecoder = devTools.msgDecoder
-                }
+        , subscriptions = DevTools.toSubscriptions subscriptions
         }
 
 
@@ -156,11 +144,7 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devT
                 , update = update
                 , output = devTools.output
                 }
-        , subscriptions =
-            DevTools.toSubscriptions
-                { subscriptions = subscriptions
-                , msgDecoder = devTools.msgDecoder
-                }
+        , subscriptions = DevTools.toSubscriptions subscriptions
         , onUrlChange = DevTools.toMsg << onUrlChange
         , onUrlRequest = DevTools.toMsg << onUrlRequest
         }
