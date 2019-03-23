@@ -1,37 +1,56 @@
 module DevTools exposing (Config, Program, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
 
 import Browser
+import Browser.Dom
+import Browser.Events
+import DevTools.Elements as Elements
+import Element
 import History exposing (History)
 import Html exposing (Html)
-import Html.Attributes as Attr
-import Html.Events as Events
-import Json.Decode as Jd
-import Json.Encode as Je
-
-
-type alias Model model msg =
-    { history : History model msg
-    }
-
-
-type Msg msg
-    = AppMsg msg
-    | InitialAppMsg msg
-    | SliderInput Int
-    | ToggleReplay
-
-
-type alias Config flags model msg =
-    { printModel : model -> String
-    , encodeMsg : msg -> Je.Value
-    , msgDecoder : Jd.Decoder msg
-    , toSession : flags -> Maybe String
-    , output : Je.Value -> Cmd (Msg msg)
-    }
+import Json.Decode
+import Json.Encode
+import Task
 
 
 type alias Program flags model msg =
     Platform.Program flags (Model model msg) (Msg msg)
+
+
+type alias Config flags model msg =
+    { printModel : model -> String
+    , encodeMsg : msg -> Json.Encode.Value
+    , msgDecoder : Json.Decode.Decoder msg
+    , toSession : flags -> Maybe String
+    , output : Json.Encode.Value -> Cmd (Msg msg)
+    }
+
+
+type alias Model model msg =
+    { history : History model msg
+    , debuggerWidth : Int
+    , debuggerBodyHeight : Int
+    , debuggerLeftPosition : Int
+    , debuggerTopPosition : Int
+    , viewportHeight : Int
+    , viewportWidth : Int
+    , hoverTarget : Elements.HoverTarget
+    , isModelOverlayed : Bool
+    }
+
+
+
+-- Msg
+
+
+type Msg msg
+    = AppMsg msg
+    | InitAppMsg msg
+    | ViewportResize Int Int
+    | ReplayIndex Int
+    | ToggleReplay
+    | ToggleOverlay
+    | Hover Elements.HoverTarget
+    | DoNothing
 
 
 toMsg : msg -> Msg msg
@@ -39,70 +58,70 @@ toMsg =
     AppMsg
 
 
-toDocument :
-    { encodeMsg : msg -> Je.Value
-    , printModel : model -> String
-    , view : model -> Browser.Document msg
-    }
-    -> Model model msg
-    -> Browser.Document (Msg msg)
-toDocument config model =
-    let
-        { title, body } =
-            config.view (History.currentModel model.history)
-    in
-    { title = title
-    , body = view model :: List.map (Html.map AppMsg) body
-    }
+viewportToMsg : Browser.Dom.Viewport -> Msg msg
+viewportToMsg { viewport } =
+    ViewportResize (round viewport.width) (round viewport.height)
 
 
-toHtml :
-    { encodeMsg : msg -> Je.Value
-    , printModel : model -> String
-    , view : model -> Html msg
-    }
-    -> Model model msg
-    -> Html (Msg msg)
-toHtml config model =
-    Html.div []
-        [ view model
-        , Html.map AppMsg (config.view (History.currentModel model.history))
-        ]
+
+-- Init
 
 
 toInit :
     { modelCmdPair : ( model, Cmd msg )
-    , msgDecoder : Jd.Decoder msg
+    , msgDecoder : Json.Decode.Decoder msg
     , update : msg -> model -> ( model, Cmd msg )
     , session : Maybe String
     }
     -> ( Model model msg, Cmd (Msg msg) )
 toInit config =
     ( { history = History.init (Tuple.first config.modelCmdPair)
+      , debuggerWidth = 200
+      , debuggerBodyHeight = 300
+      , debuggerLeftPosition = 300
+      , debuggerTopPosition = 300
+      , viewportHeight = 500
+      , viewportWidth = 500
+      , hoverTarget = Elements.noTarget
+      , isModelOverlayed = False
       }
-    , Cmd.map InitialAppMsg (Tuple.second config.modelCmdPair)
+    , Cmd.batch
+        [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
+        , Task.perform viewportToMsg Browser.Dom.getViewport
+        ]
     )
 
 
+
+-- Subs
+
+
 toSubscriptions :
-    { msgDecoder : Jd.Decoder msg
+    { msgDecoder : Json.Decode.Decoder msg
     , subscriptions : model -> Sub msg
     }
     -> Model model msg
     -> Sub (Msg msg)
 toSubscriptions config model =
-    if History.isReplaying model.history then
-        Sub.none
+    Sub.batch
+        [ Browser.Events.onResize ViewportResize
+        , if History.isReplaying model.history then
+            Sub.none
 
-    else
-        Sub.map AppMsg (config.subscriptions (History.currentModel model.history))
+          else
+            Sub.map AppMsg (config.subscriptions (History.currentModel model.history))
+        ]
+
+
+
+-- Update
 
 
 toUpdate :
-    { msgDecoder : Jd.Decoder msg
-    , encodeMsg : msg -> Je.Value
+    { msgDecoder : Json.Decode.Decoder msg
+    , encodeMsg : msg -> Json.Encode.Value
     , update : msg -> model -> ( model, Cmd msg )
-    , output : Je.Value -> Cmd (Msg msg)
+    , output : Json.Encode.Value -> Cmd (Msg msg)
     }
     -> Msg msg
     -> Model model msg
@@ -116,35 +135,110 @@ toUpdate config msg model =
             in
             ( { model | history = history }, Cmd.map AppMsg cmd )
 
-        InitialAppMsg appMsg ->
+        InitAppMsg appMsg ->
             let
                 ( history, cmd ) =
                     History.updateAndPersist config.update appMsg model.history
             in
             ( { model | history = history }, Cmd.map AppMsg cmd )
 
-        SliderInput index ->
+        ViewportResize width height ->
             ( { model
-                | history = History.replay config.update index model.history
+                | viewportWidth = width
+                , viewportHeight = height
               }
             , Cmd.none
             )
 
+        ReplayIndex index ->
+            ( { model | history = History.replay config.update index model.history }
+            , Cmd.none
+            )
+
         ToggleReplay ->
-            ( { model | history = History.toggleState config.update model.history }, Cmd.none )
+            ( { model | history = History.toggleState config.update model.history }
+            , Cmd.none
+            )
+
+        ToggleOverlay ->
+            ( { model | isModelOverlayed = not model.isModelOverlayed }, Cmd.none )
+
+        Hover target ->
+            ( { model | hoverTarget = target }, Cmd.none )
+
+        DoNothing ->
+            ( model, Cmd.none )
 
 
-view : Model model msg -> Html (Msg msg)
-view model =
-    Html.div []
-        [ Html.button [ Events.onClick ToggleReplay ] [ Html.text "Toggle" ]
-        , Html.input
-            [ Attr.type_ "range"
-            , Attr.min "0"
-            , Attr.max (String.fromInt (History.length model.history))
-            , Attr.value
-                (String.fromInt (History.currentIndex model.history))
-            , Events.onInput (SliderInput << Maybe.withDefault (History.currentIndex model.history) << String.toInt)
-            ]
-            []
+
+-- View
+
+
+toDocument :
+    { encodeMsg : msg -> Json.Encode.Value
+    , printModel : model -> String
+    , view : model -> Browser.Document msg
+    }
+    -> Model model msg
+    -> Browser.Document (Msg msg)
+toDocument config model =
+    let
+        { title, body } =
+            config.view (History.currentModel model.history)
+    in
+    { title = title
+    , body =
+        [ view config model (Html.div [] body)
         ]
+    }
+
+
+toHtml :
+    { encodeMsg : msg -> Json.Encode.Value
+    , printModel : model -> String
+    , view : model -> Html msg
+    }
+    -> Model model msg
+    -> Html (Msg msg)
+toHtml config model =
+    view config model (config.view (History.currentModel model.history))
+
+
+view :
+    { config
+        | encodeMsg : msg -> Json.Encode.Value
+        , printModel : model -> String
+    }
+    -> Model model msg
+    -> Html msg
+    -> Html (Msg msg)
+view config model html =
+    Element.layout
+        [ Element.inFront
+            (Elements.viewDebugger
+                { width = model.debuggerWidth
+                , bodyHeight = model.debuggerBodyHeight
+                , leftPosition = model.debuggerLeftPosition
+                , topPosition = model.debuggerTopPosition
+                , hoverTarget = model.hoverTarget
+                , hoverTargetMsg = Hover
+                , isModelOverlayed = model.isModelOverlayed
+                , toggleOverlayMsg = ToggleOverlay
+                , isReplaying = History.isReplaying model.history
+                , toggleReplayMsg = ToggleReplay
+                , currentModelIndex = History.currentIndex model.history
+                , modelIndexLength = History.length model.history
+                , changeModelIndexMsg = ReplayIndex
+                }
+            )
+        ]
+        (Element.html (Html.map (toHtmlMsg model.history) html))
+
+
+toHtmlMsg : History model msg -> (msg -> Msg msg)
+toHtmlMsg history =
+    if History.isReplaying history then
+        always DoNothing
+
+    else
+        AppMsg
