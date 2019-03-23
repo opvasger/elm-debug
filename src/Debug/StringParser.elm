@@ -1,4 +1,4 @@
-module Debug.Parser exposing (Value, parser)
+module Debug.StringParser exposing (Value, parser)
 
 import Parser exposing (Parser)
 
