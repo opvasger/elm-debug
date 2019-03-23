@@ -1,6 +1,6 @@
 {
     "type": "package",
-    "name": "opvasger/dev-tools",
+    "name": "opvasger/devtools",
     "summary": "Tools for developing Elm programs!",
     "license": "BSD-3-Clause",
     "version": "0.1.0",
