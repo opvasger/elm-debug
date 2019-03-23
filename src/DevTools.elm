@@ -78,8 +78,8 @@ toInit config =
     ( { history = History.init (Tuple.first config.modelCmdPair)
       , debuggerWidth = 200
       , debuggerBodyHeight = 300
-      , debuggerLeftPosition = 300
-      , debuggerTopPosition = 300
+      , debuggerLeftPosition = 500
+      , debuggerTopPosition = 500
       , viewportHeight = 500
       , viewportWidth = 500
       , hoverTarget = Elements.noTarget
@@ -215,21 +215,31 @@ view :
 view config model html =
     Element.layout
         [ Element.inFront
-            (Elements.viewDebugger
-                { width = model.debuggerWidth
-                , bodyHeight = model.debuggerBodyHeight
-                , leftPosition = model.debuggerLeftPosition
-                , topPosition = model.debuggerTopPosition
-                , hoverTarget = model.hoverTarget
-                , hoverTargetMsg = Hover
-                , isModelOverlayed = model.isModelOverlayed
-                , toggleOverlayMsg = ToggleOverlay
-                , isReplaying = History.isReplaying model.history
-                , toggleReplayMsg = ToggleReplay
-                , currentModelIndex = History.currentIndex model.history
-                , modelIndexLength = History.length model.history
-                , changeModelIndexMsg = ReplayIndex
-                }
+            (Element.el
+                [ Element.behindContent
+                    (Elements.viewModelOverlay
+                        { isEnabled = model.isModelOverlayed
+                        , printModel = config.printModel
+                        , model = History.currentModel model.history
+                        }
+                    )
+                ]
+                (Elements.viewDebugger
+                    { width = model.debuggerWidth
+                    , bodyHeight = model.debuggerBodyHeight
+                    , leftPosition = model.debuggerLeftPosition
+                    , topPosition = model.debuggerTopPosition
+                    , hoverTarget = model.hoverTarget
+                    , hoverTargetMsg = Hover
+                    , isModelOverlayed = model.isModelOverlayed
+                    , toggleOverlayMsg = ToggleOverlay
+                    , isReplaying = History.isReplaying model.history
+                    , toggleReplayMsg = ToggleReplay
+                    , currentModelIndex = History.currentIndex model.history
+                    , modelIndexLength = History.length model.history
+                    , changeModelIndexMsg = ReplayIndex
+                    }
+                )
             )
         ]
         (Element.html (Html.map (toHtmlMsg model.history) html))

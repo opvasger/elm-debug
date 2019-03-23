@@ -5,6 +5,7 @@ module DevTools.Elements exposing
     , viewControls
     , viewDebugger
     , viewDivider
+    , viewModelOverlay
     , viewSlider
     , viewToggleButton
     )
@@ -15,6 +16,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Input as Input
+import Html exposing (Html)
 
 
 type HoverTarget
@@ -143,6 +145,20 @@ viewToggleButton config =
         , label = Input.labelHidden ""
         , icon = config.icon << toIconStyle
         }
+
+
+viewModelOverlay :
+    { printModel : model -> String
+    , model : model
+    , isEnabled : Bool
+    }
+    -> Element msg
+viewModelOverlay config =
+    if not config.isEnabled then
+        none
+
+    else
+        text (config.printModel config.model)
 
 
 viewDebugger :
