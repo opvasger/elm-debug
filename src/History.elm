@@ -2,6 +2,7 @@ module History exposing
     ( History
     , currentIndex
     , currentModel
+    , encode
     , init
     , isReplaying
     , length
@@ -12,6 +13,8 @@ module History exposing
     )
 
 import Array exposing (Array)
+import Json.Decode as Jd
+import Json.Encode as Je
 
 
 
@@ -117,6 +120,16 @@ toggleState updateModel history =
             Replay (toReplayState state)
 
 
+encode : (msg -> Je.Value) -> History model msg -> Je.Value
+encode encodeMsg history =
+    case history of
+        Replay state ->
+            encodeReplayState encodeMsg state
+
+        Update state ->
+            encodeUpdateState encodeMsg state
+
+
 
 -- UpdateState
 
@@ -210,6 +223,18 @@ toReplayState state =
     }
 
 
+encodeUpdateState : (msg -> Je.Value) -> UpdateState model msg -> Je.Value
+encodeUpdateState encodeMsg state =
+    Je.object
+        [ ( "latest", encodeUpdateChunk encodeMsg state.latest )
+        , ( "latestLength", Je.int state.latestLength )
+        , ( "currentIndex", Je.int state.currentIndex )
+        , ( "previous", Je.array (encodeReplayChunk encodeMsg) state.previous )
+        , ( "previousLength", Je.int state.previousLength )
+        , ( "persisted", Je.list (encodePair Je.int encodeMsg) state.persisted )
+        ]
+
+
 
 -- ReplayState
 
@@ -301,6 +326,18 @@ partitionPersistedHelper modelIndex persisted stale =
             ( stale, persisted )
 
 
+encodeReplayState : (msg -> Je.Value) -> ReplayState model msg -> Je.Value
+encodeReplayState encodeMsg state =
+    Je.object
+        [ ( "latest", encodeReplayChunk encodeMsg state.latest )
+        , ( "latestLength", Je.int state.latestLength )
+        , ( "currentIndex", Je.int state.currentIndex )
+        , ( "previous", Je.array (encodeReplayChunk encodeMsg) state.previous )
+        , ( "previousLength", Je.int state.previousLength )
+        , ( "persisted", Je.list (encodePair Je.int encodeMsg) state.persisted )
+        ]
+
+
 
 -- UpdateChunk
 
@@ -317,6 +354,11 @@ updateChunk msg ( msgs, model ) =
 toReplayChunk : UpdateChunk model msg -> ReplayChunk model msg
 toReplayChunk ( msgs, model ) =
     ( model, List.reverse msgs )
+
+
+encodeUpdateChunk : (msg -> Je.Value) -> UpdateChunk model msg -> Je.Value
+encodeUpdateChunk encodeMsg ( msgs, _ ) =
+    encodePair Je.string (Je.list encodeMsg) ( "update", msgs )
 
 
 
@@ -340,6 +382,11 @@ rewindChunk msgLength ( model, msgs ) =
 toUpdateChunk : ReplayChunk model msg -> UpdateChunk model msg
 toUpdateChunk ( model, msgs ) =
     ( List.reverse msgs, model )
+
+
+encodeReplayChunk : (msg -> Je.Value) -> ReplayChunk model msg -> Je.Value
+encodeReplayChunk encodeMsg ( _, msgs ) =
+    encodePair Je.string (Je.list encodeMsg) ( "replay", msgs )
 
 
 
@@ -372,3 +419,18 @@ replayMsg updateModel msg model =
 lengthHelper : { state | latestLength : Int, previousLength : Int } -> Int
 lengthHelper { latestLength, previousLength } =
     latestLength + previousLength * chunkLength
+
+
+encodePair : (first -> Je.Value) -> (second -> Je.Value) -> ( first, second ) -> Je.Value
+encodePair encodefirst encodesecond ( first, second ) =
+    Je.object
+        [ ( "first", encodefirst first )
+        , ( "second", encodesecond second )
+        ]
+
+
+decodePair : Jd.Decoder first -> Jd.Decoder second -> Jd.Decoder ( first, second )
+decodePair firstDecoder secondDecoder =
+    Jd.map2 Tuple.pair
+        (Jd.field "first" firstDecoder)
+        (Jd.field "second" secondDecoder)

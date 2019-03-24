@@ -5,10 +5,11 @@ import Browser.Dom
 import Browser.Events
 import DevTools.Elements as Elements
 import Element
+import File.Download
 import History exposing (History)
 import Html exposing (Html)
 import Json.Decode
-import Json.Encode
+import Json.Encode as Je
 import Task
 
 
@@ -18,11 +19,15 @@ type alias Program flags model msg =
 
 type alias Config flags model msg =
     { printModel : model -> String
-    , encodeMsg : msg -> Json.Encode.Value
+    , encodeMsg : msg -> Je.Value
     , msgDecoder : Json.Decode.Decoder msg
     , toSession : flags -> Maybe String
-    , output : Json.Encode.Value -> Cmd (Msg msg)
+    , output : Je.Value -> Cmd (Msg msg)
     }
+
+
+
+-- Model
 
 
 type alias Model model msg =
@@ -35,7 +40,22 @@ type alias Model model msg =
     , viewportWidth : Int
     , hoverTarget : Elements.HoverTarget
     , isModelOverlayed : Bool
+    , importSessionError : Maybe Json.Decode.Error
     }
+
+
+encodeModel : (msg -> Je.Value) -> Model model msg -> Je.Value
+encodeModel encodeMsg model =
+    Je.object
+        [ ( "history", History.encode encodeMsg model.history )
+        , ( "debuggerWidth", Je.int model.debuggerWidth )
+        , ( "debuggerBodyHeight", Je.int model.debuggerBodyHeight )
+        , ( "debuggerLeftPosition", Je.int model.debuggerLeftPosition )
+        , ( "debuggerTopPosition", Je.int model.debuggerTopPosition )
+        , ( "viewportHeight", Je.int model.viewportHeight )
+        , ( "viewportWidth", Je.int model.viewportWidth )
+        , ( "isModelOverlayed", Je.bool model.isModelOverlayed )
+        ]
 
 
 
@@ -50,6 +70,7 @@ type Msg msg
     | ToggleReplay
     | ToggleOverlay
     | Hover Elements.HoverTarget
+    | ExportSession
     | DoNothing
 
 
@@ -78,12 +99,13 @@ toInit config =
     ( { history = History.init (Tuple.first config.modelCmdPair)
       , debuggerWidth = 200
       , debuggerBodyHeight = 300
-      , debuggerLeftPosition = 500
-      , debuggerTopPosition = 500
+      , debuggerLeftPosition = 300
+      , debuggerTopPosition = 30
       , viewportHeight = 500
       , viewportWidth = 500
       , hoverTarget = Elements.noTarget
       , isModelOverlayed = False
+      , importSessionError = Nothing
       }
     , Cmd.batch
         [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
@@ -119,9 +141,9 @@ toSubscriptions config model =
 
 toUpdate :
     { msgDecoder : Json.Decode.Decoder msg
-    , encodeMsg : msg -> Json.Encode.Value
+    , encodeMsg : msg -> Je.Value
     , update : msg -> model -> ( model, Cmd msg )
-    , output : Json.Encode.Value -> Cmd (Msg msg)
+    , output : Je.Value -> Cmd (Msg msg)
     }
     -> Msg msg
     -> Model model msg
@@ -166,6 +188,14 @@ toUpdate config msg model =
         Hover target ->
             ( { model | hoverTarget = target }, Cmd.none )
 
+        ExportSession ->
+            ( model
+            , File.Download.string
+                "devtools-session.json"
+                "application/json"
+                (Je.encode 0 (encodeModel config.encodeMsg model))
+            )
+
         DoNothing ->
             ( model, Cmd.none )
 
@@ -175,7 +205,7 @@ toUpdate config msg model =
 
 
 toDocument :
-    { encodeMsg : msg -> Json.Encode.Value
+    { encodeMsg : msg -> Je.Value
     , printModel : model -> String
     , view : model -> Browser.Document msg
     }
@@ -194,7 +224,7 @@ toDocument config model =
 
 
 toHtml :
-    { encodeMsg : msg -> Json.Encode.Value
+    { encodeMsg : msg -> Je.Value
     , printModel : model -> String
     , view : model -> Html msg
     }
@@ -206,7 +236,7 @@ toHtml config model =
 
 view :
     { config
-        | encodeMsg : msg -> Json.Encode.Value
+        | encodeMsg : msg -> Je.Value
         , printModel : model -> String
     }
     -> Model model msg
@@ -238,6 +268,9 @@ view config model html =
                     , currentModelIndex = History.currentIndex model.history
                     , modelIndexLength = History.length model.history
                     , changeModelIndexMsg = ReplayIndex
+                    , importSessionMsg = DoNothing
+                    , importSessionError = model.importSessionError
+                    , exportSessionMsg = ExportSession
                     }
                 )
             )

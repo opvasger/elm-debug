@@ -5,9 +5,9 @@ module DevTools.Elements exposing
     , viewControls
     , viewDebugger
     , viewDivider
+    , viewIconButton
     , viewModelOverlay
     , viewSlider
-    , viewToggleButton
     )
 
 import DevTools.Icons as Icons
@@ -17,11 +17,14 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Input as Input
 import Html exposing (Html)
+import Json.Decode
 
 
 type HoverTarget
     = ToggleReplayButton
     | ToggleOverlayButton
+    | ImportSessionButton
+    | ExportSessionButton
     | NoTarget
 
 
@@ -114,26 +117,33 @@ viewSlider config =
         }
 
 
-viewToggleButton :
+viewIconButton :
     { isActive : Bool
     , target : HoverTarget
     , hoverTarget : HoverTarget
     , onChange : msg
     , onHover : HoverTarget -> msg
     , icon : Icons.Style -> Element msg
+    , error : Maybe String
     }
     -> Element msg
-viewToggleButton config =
+viewIconButton config =
     let
         toIconStyle isActive =
             if isActive then
                 Icons.Active
 
-            else if config.target == config.hoverTarget then
-                Icons.Hover
-
             else
-                Icons.Normal
+                case config.error of
+                    Just error ->
+                        Icons.Error error
+
+                    Nothing ->
+                        if config.target == config.hoverTarget then
+                            Icons.Hover
+
+                        else
+                            Icons.Normal
     in
     Input.checkbox
         [ width shrink
@@ -175,6 +185,9 @@ viewDebugger :
     , currentModelIndex : Int
     , modelIndexLength : Int
     , changeModelIndexMsg : Int -> msg
+    , importSessionMsg : msg
+    , importSessionError : Maybe Json.Decode.Error
+    , exportSessionMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -184,21 +197,41 @@ viewDebugger config =
         , moveDown (toFloat config.topPosition)
         ]
         [ viewControls
-            [ viewToggleButton
+            [ viewIconButton
                 { isActive = config.isModelOverlayed
                 , target = ToggleOverlayButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
                 , onChange = config.toggleOverlayMsg
                 , icon = Icons.viewModelIcon
+                , error = Nothing
                 }
-            , viewToggleButton
+            , viewIconButton
                 { isActive = config.isReplaying
                 , target = ToggleReplayButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
                 , onChange = config.toggleReplayMsg
                 , icon = Icons.viewPauseIcon
+                , error = Nothing
+                }
+            , viewIconButton
+                { isActive = False
+                , target = ImportSessionButton
+                , hoverTarget = config.hoverTarget
+                , onHover = config.hoverTargetMsg
+                , onChange = config.importSessionMsg
+                , icon = Icons.viewImportIcon
+                , error = Maybe.map Json.Decode.errorToString config.importSessionError
+                }
+            , viewIconButton
+                { isActive = False
+                , target = ExportSessionButton
+                , hoverTarget = config.hoverTarget
+                , onHover = config.hoverTargetMsg
+                , onChange = config.exportSessionMsg
+                , icon = Icons.viewExportIcon
+                , error = Nothing
                 }
             , viewDivider
             ]
