@@ -69,7 +69,7 @@ type Msg msg
     | ReplayIndex Int
     | ToggleReplay
     | ToggleOverlay
-    | Hover Elements.HoverTarget
+    | HoverElement Elements.HoverTarget
     | ExportSession
     | DoNothing
 
@@ -185,7 +185,7 @@ toUpdate config msg model =
         ToggleOverlay ->
             ( { model | isModelOverlayed = not model.isModelOverlayed }, Cmd.none )
 
-        Hover target ->
+        HoverElement target ->
             ( { model | hoverTarget = target }, Cmd.none )
 
         ExportSession ->
@@ -260,7 +260,7 @@ view config model html =
                     , leftPosition = model.debuggerLeftPosition
                     , topPosition = model.debuggerTopPosition
                     , hoverTarget = model.hoverTarget
-                    , hoverTargetMsg = Hover
+                    , hoverTargetMsg = HoverElement
                     , isModelOverlayed = model.isModelOverlayed
                     , toggleOverlayMsg = ToggleOverlay
                     , isReplaying = History.isReplaying model.history
