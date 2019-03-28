@@ -65,6 +65,8 @@ viewControls =
         , Border.width 1
         , Border.color borderGray
         , Background.color backgroundGray
+        , paddingXY 5 0
+        , spacing 1
         , width fill
         ]
 
