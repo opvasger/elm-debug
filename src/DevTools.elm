@@ -5,24 +5,26 @@ import Browser.Dom
 import Browser.Events
 import DevTools.Elements as Elements
 import Element
+import File exposing (File)
 import File.Download
+import File.Select
 import History exposing (History)
 import Html exposing (Html)
-import Json.Decode
+import Json.Decode as Jd
 import Json.Encode as Je
-import Task
+import Task exposing (Task)
 
 
 type alias Program flags model msg =
-    Platform.Program flags (Model model msg) (Msg msg)
+    Platform.Program flags (Model model msg) (Msg model msg)
 
 
 type alias Config flags model msg =
     { printModel : model -> String
     , encodeMsg : msg -> Je.Value
-    , msgDecoder : Json.Decode.Decoder msg
+    , msgDecoder : Jd.Decoder msg
     , toSession : flags -> Maybe String
-    , output : Je.Value -> Cmd (Msg msg)
+    , output : Je.Value -> Cmd (Msg model msg)
     }
 
 
@@ -40,7 +42,7 @@ type alias Model model msg =
     , viewportWidth : Int
     , hoverTarget : Elements.HoverTarget
     , isModelOverlayed : Bool
-    , importSessionError : Maybe Json.Decode.Error
+    , loadModelError : Maybe Jd.Error
     }
 
 
@@ -58,11 +60,37 @@ encodeModel encodeMsg model =
         ]
 
 
+modelDecoder : History.ModelUpdater model msg -> Jd.Decoder msg -> model -> Jd.Decoder (Model model msg)
+modelDecoder updateModel msgDecoder model =
+    Jd.map8
+        (\his dbw dbh dlp dtp vh vw imo ->
+            { history = his
+            , debuggerWidth = dbw
+            , debuggerBodyHeight = dbh
+            , debuggerLeftPosition = dlp
+            , debuggerTopPosition = dtp
+            , viewportHeight = vh
+            , viewportWidth = vw
+            , hoverTarget = Elements.noTarget
+            , isModelOverlayed = imo
+            , loadModelError = Nothing
+            }
+        )
+        (Jd.field "history" (History.decoder updateModel msgDecoder model))
+        (Jd.field "debuggerWidth" Jd.int)
+        (Jd.field "debuggerBodyHeight" Jd.int)
+        (Jd.field "debuggerLeftPosition" Jd.int)
+        (Jd.field "debuggerTopPosition" Jd.int)
+        (Jd.field "viewportHeight" Jd.int)
+        (Jd.field "viewportWidth" Jd.int)
+        (Jd.field "isModelOverlayed" Jd.bool)
+
+
 
 -- Msg
 
 
-type Msg msg
+type Msg model msg
     = AppMsg msg
     | InitAppMsg msg
     | ViewportResize Int Int
@@ -70,16 +98,19 @@ type Msg msg
     | ToggleReplay
     | ToggleOverlay
     | HoverElement Elements.HoverTarget
-    | ExportSession
+    | SaveModel
+    | SelectModel
+    | LoadModel File
+    | ModelLoaded (Result Jd.Error (Model model msg))
     | DoNothing
 
 
-toMsg : msg -> Msg msg
+toMsg : msg -> Msg model msg
 toMsg =
     AppMsg
 
 
-viewportToMsg : Browser.Dom.Viewport -> Msg msg
+viewportToMsg : Browser.Dom.Viewport -> Msg model msg
 viewportToMsg { viewport } =
     ViewportResize (round viewport.width) (round viewport.height)
 
@@ -90,11 +121,11 @@ viewportToMsg { viewport } =
 
 toInit :
     { modelCmdPair : ( model, Cmd msg )
-    , msgDecoder : Json.Decode.Decoder msg
+    , msgDecoder : Jd.Decoder msg
     , update : msg -> model -> ( model, Cmd msg )
     , session : Maybe String
     }
-    -> ( Model model msg, Cmd (Msg msg) )
+    -> ( Model model msg, Cmd (Msg model msg) )
 toInit config =
     ( { history = History.init (Tuple.first config.modelCmdPair)
       , debuggerWidth = 200
@@ -105,7 +136,7 @@ toInit config =
       , viewportWidth = 500
       , hoverTarget = Elements.noTarget
       , isModelOverlayed = False
-      , importSessionError = Nothing
+      , loadModelError = Nothing
       }
     , Cmd.batch
         [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
@@ -119,11 +150,11 @@ toInit config =
 
 
 toSubscriptions :
-    { msgDecoder : Json.Decode.Decoder msg
+    { msgDecoder : Jd.Decoder msg
     , subscriptions : model -> Sub msg
     }
     -> Model model msg
-    -> Sub (Msg msg)
+    -> Sub (Msg model msg)
 toSubscriptions config model =
     Sub.batch
         [ Browser.Events.onResize ViewportResize
@@ -140,16 +171,19 @@ toSubscriptions config model =
 
 
 toUpdate :
-    { msgDecoder : Json.Decode.Decoder msg
+    { msgDecoder : Jd.Decoder msg
     , encodeMsg : msg -> Je.Value
     , update : msg -> model -> ( model, Cmd msg )
-    , output : Je.Value -> Cmd (Msg msg)
+    , output : Je.Value -> Cmd (Msg model msg)
     }
-    -> Msg msg
+    -> Msg model msg
     -> Model model msg
-    -> ( Model model msg, Cmd (Msg msg) )
+    -> ( Model model msg, Cmd (Msg model msg) )
 toUpdate config msg model =
     case msg of
+        DoNothing ->
+            ( model, Cmd.none )
+
         AppMsg appMsg ->
             let
                 ( history, cmd ) =
@@ -188,7 +222,7 @@ toUpdate config msg model =
         HoverElement target ->
             ( { model | hoverTarget = target }, Cmd.none )
 
-        ExportSession ->
+        SaveModel ->
             ( model
             , File.Download.string
                 "devtools-session.json"
@@ -196,8 +230,40 @@ toUpdate config msg model =
                 (Je.encode 0 (encodeModel config.encodeMsg model))
             )
 
-        DoNothing ->
-            ( model, Cmd.none )
+        SelectModel ->
+            ( model
+            , File.Select.file [ "application/json" ] LoadModel
+            )
+
+        LoadModel file ->
+            ( model
+            , File.toString file
+                |> Task.andThen (loadModelHelper config.update config.msgDecoder (History.initialModel model.history))
+                |> Task.attempt ModelLoaded
+            )
+
+        ModelLoaded result ->
+            case result of
+                Ok loadedModel ->
+                    ( loadedModel, Cmd.none )
+
+                Err loadError ->
+                    ( { model | loadModelError = Just loadError }, Cmd.none )
+
+
+loadModelHelper :
+    History.ModelUpdater model msg
+    -> Jd.Decoder msg
+    -> model
+    -> String
+    -> Task Jd.Error (Model model msg)
+loadModelHelper modelUpdater msgDecoder initialModel string =
+    case Jd.decodeString (modelDecoder modelUpdater msgDecoder initialModel) string of
+        Ok model ->
+            Task.succeed model
+
+        Err error ->
+            Task.fail error
 
 
 
@@ -210,7 +276,7 @@ toDocument :
     , view : model -> Browser.Document msg
     }
     -> Model model msg
-    -> Browser.Document (Msg msg)
+    -> Browser.Document (Msg model msg)
 toDocument config model =
     let
         { title, body } =
@@ -229,7 +295,7 @@ toHtml :
     , view : model -> Html msg
     }
     -> Model model msg
-    -> Html (Msg msg)
+    -> Html (Msg model msg)
 toHtml config model =
     view config model (config.view (History.currentModel model.history))
 
@@ -241,7 +307,7 @@ view :
     }
     -> Model model msg
     -> Html msg
-    -> Html (Msg msg)
+    -> Html (Msg model msg)
 view config model html =
     Element.layout
         [ Element.inFront
@@ -268,9 +334,9 @@ view config model html =
                     , currentModelIndex = History.currentIndex model.history
                     , modelIndexLength = History.length model.history
                     , changeModelIndexMsg = ReplayIndex
-                    , importSessionMsg = DoNothing
-                    , importSessionError = model.importSessionError
-                    , exportSessionMsg = ExportSession
+                    , selectModelMsg = SelectModel
+                    , loadModelError = model.loadModelError
+                    , saveModelMsg = SaveModel
                     }
                 )
             )
@@ -278,7 +344,7 @@ view config model html =
         (Element.html (Html.map (toHtmlMsg model.history) html))
 
 
-toHtmlMsg : History model msg -> (msg -> Msg msg)
+toHtmlMsg : History model msg -> (msg -> Msg model msg)
 toHtmlMsg history =
     if History.isReplaying history then
         always DoNothing

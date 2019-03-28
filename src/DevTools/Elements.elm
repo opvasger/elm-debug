@@ -185,9 +185,9 @@ viewDebugger :
     , currentModelIndex : Int
     , modelIndexLength : Int
     , changeModelIndexMsg : Int -> msg
-    , importSessionMsg : msg
-    , importSessionError : Maybe Json.Decode.Error
-    , exportSessionMsg : msg
+    , selectModelMsg : msg
+    , loadModelError : Maybe Json.Decode.Error
+    , saveModelMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -220,16 +220,16 @@ viewDebugger config =
                 , target = ImportSessionButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
-                , onChange = config.importSessionMsg
+                , onChange = config.selectModelMsg
                 , icon = Icons.viewImportIcon
-                , error = Maybe.map Json.Decode.errorToString config.importSessionError
+                , error = Maybe.map Json.Decode.errorToString config.loadModelError
                 }
             , viewIconButton
                 { isActive = False
                 , target = ExportSessionButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
-                , onChange = config.exportSessionMsg
+                , onChange = config.saveModelMsg
                 , icon = Icons.viewExportIcon
                 , error = Nothing
                 }
