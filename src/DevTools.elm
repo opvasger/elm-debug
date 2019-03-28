@@ -162,12 +162,17 @@ toSubscriptions :
 toSubscriptions config model =
     Sub.batch
         [ Browser.Events.onResize ViewportResize
-        , if History.isReplaying model.history then
-            Sub.none
-
-          else
-            Sub.map AppMsg (config.subscriptions (History.currentModel model.history))
+        , unsubscribeOnReplay model.history config.subscriptions
         ]
+
+
+unsubscribeOnReplay : History model msg -> (model -> Sub msg) -> Sub (Msg model msg)
+unsubscribeOnReplay history subscriptions =
+    if History.isReplaying history then
+        Sub.none
+
+    else
+        Sub.map AppMsg (subscriptions (History.currentModel history))
 
 
 
@@ -349,11 +354,11 @@ view config model html =
                 )
             )
         ]
-        (Element.html (Html.map (toHtmlMsg model.history) html))
+        (Element.html (Html.map (doNothingOnReplay model.history) html))
 
 
-toHtmlMsg : History model msg -> (msg -> Msg model msg)
-toHtmlMsg history =
+doNothingOnReplay : History model msg -> (msg -> Msg model msg)
+doNothingOnReplay history =
     if History.isReplaying history then
         always DoNothing
 
