@@ -60,7 +60,11 @@ encodeModel encodeMsg model =
         ]
 
 
-modelDecoder : History.ModelUpdater model msg -> Jd.Decoder msg -> model -> Jd.Decoder (Model model msg)
+modelDecoder :
+    (msg -> model -> ( model, Cmd msg ))
+    -> Jd.Decoder msg
+    -> model
+    -> Jd.Decoder (Model model msg)
 modelDecoder updateModel msgDecoder model =
     Jd.map8
         (\his dbw dbh dlp dtp vh vw imo ->
@@ -238,7 +242,11 @@ toUpdate config msg model =
         LoadModel file ->
             ( model
             , File.toString file
-                |> Task.andThen (loadModelHelper config.update config.msgDecoder (History.initialModel model.history))
+                |> Task.andThen
+                    (loadModelHelper config.update
+                        config.msgDecoder
+                        (History.initialModel model.history)
+                    )
                 |> Task.attempt ModelLoaded
             )
 
@@ -252,7 +260,7 @@ toUpdate config msg model =
 
 
 loadModelHelper :
-    History.ModelUpdater model msg
+    (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
     -> model
     -> String
