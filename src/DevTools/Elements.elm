@@ -1,13 +1,8 @@
 module DevTools.Elements exposing
     ( HoverTarget
     , noTarget
-    , viewBody
-    , viewControls
     , viewDebugger
-    , viewDivider
-    , viewIconButton
     , viewModelOverlay
-    , viewSlider
     )
 
 import DevTools.Icons as Icons
@@ -87,17 +82,6 @@ viewBody config =
         config.body
 
 
-viewSliderTrack : Element msg
-viewSliderTrack =
-    el
-        [ width fill
-        , height (px 2)
-        , centerY
-        , Background.color borderGray
-        ]
-        none
-
-
 viewSlider :
     { value : Int
     , maxValue : Int
@@ -107,7 +91,8 @@ viewSlider :
 viewSlider config =
     Input.slider
         [ width fill
-        , behindContent viewSliderTrack
+        , height (px 18)
+        , behindContent (viewSliderTrack config.maxValue config.value)
         ]
         { onChange = config.onChange << round
         , label = Input.labelHidden ""
@@ -117,6 +102,45 @@ viewSlider config =
         , thumb = Input.defaultThumb
         , step = Just 1
         }
+
+
+viewSliderTrack : Int -> Int -> Element msg
+viewSliderTrack maxValue value =
+    let
+        ( leftPortion, rightPortion ) =
+            if maxValue == 0 then
+                ( 0, 1 )
+
+            else
+                ( value, maxValue - value )
+    in
+    row
+        [ width fill
+        , height (px 6)
+        , centerY
+        , Border.rounded 100
+        , Border.color (rgb255 141 141 141)
+        , Border.width 1
+        ]
+        [ el
+            [ width (fillPortion leftPortion)
+            , height fill
+            , Background.color (rgb255 28 171 241)
+            ]
+            none
+        , el
+            [ width (fillPortion rightPortion)
+            , height fill
+            , Background.gradient
+                { angle = 0
+                , steps =
+                    [ rgb255 194 194 194
+                    , rgb255 163 163 163
+                    ]
+                }
+            ]
+            none
+        ]
 
 
 viewIconButton :
