@@ -12,7 +12,8 @@ import Element.Border as Border
 import Element.Events as Events
 import Element.Input as Input
 import Html exposing (Html)
-import Json.Decode
+import Html.Events
+import Json.Decode as Jd
 
 
 type HoverTarget
@@ -46,15 +47,19 @@ white =
 viewDivider : Element msg
 viewDivider =
     el
-        [ width (px 1)
-        , height (px 16)
-        , Background.color borderGray
+        [ paddingXY 3 0
         ]
-        none
+        (el
+            [ width (px 1)
+            , height (px 16)
+            , Background.color borderGray
+            ]
+            none
+        )
 
 
-viewControls : List (Element msg) -> Element msg
-viewControls =
+viewControls : (Int -> Int -> msg) -> List (Element msg) -> Element msg
+viewControls onMouseDown =
     row
         [ height (px 27)
         , Border.width 1
@@ -63,7 +68,20 @@ viewControls =
         , paddingXY 5 0
         , spacing 1
         , width fill
+        , onEvent "mousedown" (mousePositionDecoder onMouseDown)
         ]
+
+
+mousePositionDecoder : (Int -> Int -> msg) -> Jd.Decoder msg
+mousePositionDecoder toMsg =
+    Jd.map2 toMsg
+        (Jd.field "clientX" Jd.int)
+        (Jd.field "clientY" Jd.int)
+
+
+onEvent : String -> Jd.Decoder msg -> Element.Attribute msg
+onEvent eventName =
+    htmlAttribute << Html.Events.on eventName
 
 
 viewBody :
@@ -212,8 +230,10 @@ viewDebugger :
     , modelIndexLength : Int
     , changeModelIndexMsg : Int -> msg
     , selectModelMsg : msg
-    , loadModelError : Maybe Json.Decode.Error
+    , loadModelError : Maybe Jd.Error
     , saveModelMsg : msg
+    , dragStartMsg : Int -> Int -> msg
+    , doNothingMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -222,7 +242,7 @@ viewDebugger config =
         , moveRight (toFloat config.leftPosition)
         , moveDown (toFloat config.topPosition)
         ]
-        [ viewControls
+        [ viewControls config.dragStartMsg
             [ viewIconButton
                 { isActive = config.isModelOverlayed
                 , target = ToggleOverlayButton
@@ -233,22 +253,13 @@ viewDebugger config =
                 , error = Nothing
                 }
             , viewIconButton
-                { isActive = config.isReplaying
-                , target = ToggleReplayButton
-                , hoverTarget = config.hoverTarget
-                , onHover = config.hoverTargetMsg
-                , onChange = config.toggleReplayMsg
-                , icon = Icons.viewPauseIcon
-                , error = Nothing
-                }
-            , viewIconButton
                 { isActive = False
                 , target = ImportSessionButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
                 , onChange = config.selectModelMsg
                 , icon = Icons.viewImportIcon
-                , error = Maybe.map Json.Decode.errorToString config.loadModelError
+                , error = Maybe.map Jd.errorToString config.loadModelError
                 }
             , viewIconButton
                 { isActive = False
@@ -265,12 +276,21 @@ viewDebugger config =
             { height = config.bodyHeight
             , body = none
             }
-        , viewControls
+        , viewControls (\_ _ -> config.doNothingMsg)
             [ viewSlider
                 { value = config.currentModelIndex
                 , maxValue = config.modelIndexLength
                 , onChange = config.changeModelIndexMsg
                 }
             , viewDivider
+            , viewIconButton
+                { isActive = config.isReplaying
+                , target = ToggleReplayButton
+                , hoverTarget = config.hoverTarget
+                , onHover = config.hoverTargetMsg
+                , onChange = config.toggleReplayMsg
+                , icon = Icons.viewPauseIcon
+                , error = Nothing
+                }
             ]
         ]

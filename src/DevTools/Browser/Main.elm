@@ -52,7 +52,13 @@ type alias Model model msg =
     , hoverTarget : Elements.HoverTarget
     , isModelOverlayed : Bool
     , loadModelError : Maybe Jd.Error
+    , mouseEvent : MouseEvent
     }
+
+
+type MouseEvent
+    = NoEvent
+    | Drag Int Int Int Int
 
 
 encodeModel : (msg -> Je.Value) -> Model model msg -> Je.Value
@@ -87,6 +93,7 @@ modelDecoder updateModel msgDecoder model =
             , hoverTarget = Elements.noTarget
             , isModelOverlayed = imo
             , loadModelError = Nothing
+            , mouseEvent = NoEvent
             }
         )
         (Jd.field "history" (History.decoder updateModel msgDecoder model))
@@ -104,7 +111,8 @@ modelDecoder updateModel msgDecoder model =
 
 
 type Msg model msg
-    = AppMsg msg
+    = DoNothing
+    | AppMsg msg
     | InitAppMsg msg
     | ViewportResize Int Int
     | ReplayIndex Int
@@ -115,7 +123,9 @@ type Msg model msg
     | SelectModel
     | LoadModel File
     | ModelLoaded (Result Jd.Error (Model model msg))
-    | DoNothing
+    | DragStart Int Int
+    | DragMove Int Int
+    | DragStop
 
 
 toMsg : msg -> Msg model msg
@@ -150,6 +160,7 @@ toInit config =
       , hoverTarget = Elements.noTarget
       , isModelOverlayed = False
       , loadModelError = Nothing
+      , mouseEvent = NoEvent
       }
     , Cmd.batch
         [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
@@ -172,6 +183,7 @@ toSubscriptions config model =
     Sub.batch
         [ Browser.Events.onResize ViewportResize
         , unsubscribeOnReplay model.history config.subscriptions
+        , subscribeIfDragging model.mouseEvent
         ]
 
 
@@ -182,6 +194,26 @@ unsubscribeOnReplay history subscriptions =
 
     else
         Sub.map AppMsg (subscriptions (History.currentModel history))
+
+
+subscribeIfDragging : MouseEvent -> Sub (Msg model msg)
+subscribeIfDragging event =
+    case event of
+        NoEvent ->
+            Sub.none
+
+        Drag _ _ _ _ ->
+            Sub.batch
+                [ Browser.Events.onMouseUp (Jd.succeed DragStop)
+                , Browser.Events.onMouseMove (mousePositionDecoder DragMove)
+                ]
+
+
+mousePositionDecoder : (Int -> Int -> msg) -> Jd.Decoder msg
+mousePositionDecoder msg =
+    Jd.map2 msg
+        (Jd.field "clientX" Jd.int)
+        (Jd.field "clientY" Jd.int)
 
 
 
@@ -271,6 +303,29 @@ toUpdate config msg model =
 
                 Err loadError ->
                     ( { model | loadModelError = Just loadError }, Cmd.none )
+
+        DragStart clickLeft clickTop ->
+            ( { model
+                | mouseEvent = Drag model.debuggerLeftPosition model.debuggerTopPosition clickLeft clickTop
+              }
+            , Cmd.none
+            )
+
+        DragMove moveLeft moveTop ->
+            case model.mouseEvent of
+                NoEvent ->
+                    ( model, Cmd.none )
+
+                Drag initLeft initTop clickLeft clickTop ->
+                    ( { model
+                        | debuggerLeftPosition = initLeft + moveLeft - clickLeft
+                        , debuggerTopPosition = initTop + moveTop - clickTop
+                      }
+                    , Cmd.none
+                    )
+
+        DragStop ->
+            ( { model | mouseEvent = NoEvent }, Cmd.none )
 
 
 loadModelHelper :
@@ -364,6 +419,8 @@ view config model html =
                     , selectModelMsg = SelectModel
                     , loadModelError = model.loadModelError
                     , saveModelMsg = SaveModel
+                    , dragStartMsg = DragStart
+                    , doNothingMsg = DoNothing
                     }
                 )
             )
