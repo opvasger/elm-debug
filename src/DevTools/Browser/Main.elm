@@ -1,9 +1,18 @@
-module DevTools exposing (Config, Program, toDocument, toHtml, toInit, toMsg, toSubscriptions, toUpdate)
+module DevTools.Browser.Main exposing
+    ( Configuration
+    , Program
+    , toDocument
+    , toHtml
+    , toInit
+    , toMsg
+    , toSubscriptions
+    , toUpdate
+    )
 
 import Browser
 import Browser.Dom
 import Browser.Events
-import DevTools.Elements as Elements
+import DevTools.Browser.Elements as Elements
 import Element
 import File exposing (File)
 import File.Download
@@ -19,7 +28,7 @@ type alias Program flags model msg =
     Platform.Program flags (Model model msg) (Msg model msg)
 
 
-type alias Config flags model msg =
+type alias Configuration flags model msg =
     { printModel : model -> String
     , encodeMsg : msg -> Je.Value
     , msgDecoder : Jd.Decoder msg
@@ -67,14 +76,14 @@ modelDecoder :
     -> Jd.Decoder (Model model msg)
 modelDecoder updateModel msgDecoder model =
     Jd.map8
-        (\his dbw dbh dlp dtp vh vw imo ->
+        (\his dbw dbh dlp dtp vph vpw imo ->
             { history = his
             , debuggerWidth = dbw
             , debuggerBodyHeight = dbh
             , debuggerLeftPosition = dlp
             , debuggerTopPosition = dtp
-            , viewportHeight = vh
-            , viewportWidth = vw
+            , viewportHeight = vph
+            , viewportWidth = vpw
             , hoverTarget = Elements.noTarget
             , isModelOverlayed = imo
             , loadModelError = Nothing
@@ -271,12 +280,17 @@ loadModelHelper :
     -> String
     -> Task Jd.Error (Model model msg)
 loadModelHelper modelUpdater msgDecoder initialModel string =
-    case Jd.decodeString (modelDecoder modelUpdater msgDecoder initialModel) string of
-        Ok model ->
-            Task.succeed model
+    resultToTask (Jd.decodeString (modelDecoder modelUpdater msgDecoder initialModel) string)
 
-        Err error ->
-            Task.fail error
+
+resultToTask : Result err ok -> Task err ok
+resultToTask result =
+    case result of
+        Ok value ->
+            Task.succeed value
+
+        Err value ->
+            Task.fail value
 
 
 

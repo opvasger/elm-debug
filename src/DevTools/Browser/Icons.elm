@@ -1,4 +1,4 @@
-module DevTools.Icons exposing (Style(..), viewExportIcon, viewImportIcon, viewModelIcon, viewPauseIcon)
+module DevTools.Browser.Icons exposing (Style(..), viewExportIcon, viewImportIcon, viewModelIcon, viewPauseIcon)
 
 import Element exposing (Element)
 import Svg exposing (..)

@@ -1,11 +1,11 @@
-module DevTools.Elements exposing
+module DevTools.Browser.Elements exposing
     ( HoverTarget
     , noTarget
     , viewDebugger
     , viewModelOverlay
     )
 
-import DevTools.Icons as Icons
+import DevTools.Browser.Icons as Icons
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
