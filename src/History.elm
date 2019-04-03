@@ -363,7 +363,7 @@ replayState :
     -> ReplayState model msg
     -> ReplayState model msg
 replayState updateModel modelIndex state =
-    case Array.get (toPreviousIndex state.currentIndex) (Array.push state.latest state.previous) of
+    case Array.get (toPreviousIndex modelIndex) (Array.push state.latest state.previous) of
         Just chunk ->
             { state
                 | current = replayChunk updateModel (toMsgLength modelIndex) chunk
