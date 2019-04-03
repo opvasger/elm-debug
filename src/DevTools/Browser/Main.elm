@@ -22,6 +22,7 @@ import Html exposing (Html)
 import Json.Decode as Jd
 import Json.Encode as Je
 import Task exposing (Task)
+import Time
 
 
 type alias Program flags model msg =
@@ -123,6 +124,7 @@ type Msg model msg
     | SelectModel
     | LoadModel File
     | ModelLoaded (Result Jd.Error (Model model msg))
+    | CacheModel
     | DragStart Int Int
     | DragMove Int Int
     | DragStop
@@ -150,23 +152,54 @@ toInit :
     }
     -> ( Model model msg, Cmd (Msg model msg) )
 toInit config =
-    ( { history = History.init (Tuple.first config.modelCmdPair)
-      , debuggerWidth = 200
-      , debuggerBodyHeight = 300
-      , debuggerLeftPosition = 300
-      , debuggerTopPosition = 30
-      , viewportHeight = 500
-      , viewportWidth = 500
-      , hoverTarget = Elements.noTarget
-      , isModelOverlayed = False
-      , loadModelError = Nothing
-      , mouseEvent = NoEvent
-      }
+    ( case config.session of
+        Just session ->
+            sessionToModel
+                config.update
+                config.msgDecoder
+                (Tuple.first config.modelCmdPair)
+                session
+
+        Nothing ->
+            initModel Nothing (Tuple.first config.modelCmdPair)
     , Cmd.batch
         [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
         , Task.perform viewportToMsg Browser.Dom.getViewport
         ]
     )
+
+
+sessionToModel :
+    (msg -> model -> ( model, Cmd msg ))
+    -> Jd.Decoder msg
+    -> model
+    -> String
+    -> Model model msg
+sessionToModel update msgDecoder defaultModel session =
+    case
+        Jd.decodeString (modelDecoder update msgDecoder defaultModel) session
+    of
+        Ok model ->
+            model
+
+        Err error ->
+            initModel (Just error) defaultModel
+
+
+initModel : Maybe Jd.Error -> model -> Model model msg
+initModel loadModelError model =
+    { history = History.init model
+    , debuggerWidth = 200
+    , debuggerBodyHeight = 300
+    , debuggerLeftPosition = 300
+    , debuggerTopPosition = 30
+    , viewportHeight = 500
+    , viewportWidth = 500
+    , hoverTarget = Elements.noTarget
+    , isModelOverlayed = False
+    , loadModelError = loadModelError
+    , mouseEvent = NoEvent
+    }
 
 
 
@@ -182,6 +215,7 @@ toSubscriptions :
 toSubscriptions config model =
     Sub.batch
         [ Browser.Events.onResize ViewportResize
+        , Time.every 2000 (always CacheModel)
         , unsubscribeOnReplay model.history config.subscriptions
         , subscribeIfDragging model.mouseEvent
         ]
@@ -304,6 +338,9 @@ toUpdate config msg model =
                 Err loadError ->
                     ( { model | loadModelError = Just loadError }, Cmd.none )
 
+        CacheModel ->
+            ( model, config.output (encodeDevTools config.encodeMsg model) )
+
         DragStart clickLeft clickTop ->
             ( { model
                 | mouseEvent = Drag model.debuggerLeftPosition model.debuggerTopPosition clickLeft clickTop
@@ -326,6 +363,11 @@ toUpdate config msg model =
 
         DragStop ->
             ( { model | mouseEvent = NoEvent }, Cmd.none )
+
+
+encodeDevTools : (msg -> Je.Value) -> Model model msg -> Je.Value
+encodeDevTools encodeMsg model =
+    Je.object [ ( "devTools", Je.string (Je.encode 0 (encodeModel encodeMsg model)) ) ]
 
 
 loadModelHelper :
