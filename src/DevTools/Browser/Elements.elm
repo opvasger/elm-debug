@@ -16,6 +16,19 @@ import Html.Events
 import Json.Decode as Jd
 
 
+
+-- Constants
+
+
+controlsHeight : Int
+controlsHeight =
+    27
+
+
+
+--
+
+
 type HoverTarget
     = ToggleReplayButton
     | ToggleOverlayButton
@@ -62,7 +75,7 @@ viewControls : Maybe (Int -> Int -> msg) -> List (Element msg) -> Element msg
 viewControls onMouseDown =
     let
         styles =
-            [ height (px 27)
+            [ height (px controlsHeight)
             , Border.width 1
             , Border.color borderGray
             , Background.color backgroundGray
@@ -240,13 +253,15 @@ viewDebugger :
     , loadModelError : Maybe Jd.Error
     , saveModelMsg : msg
     , dragStartMsg : Int -> Int -> msg
+    , viewportHeight : Int
+    , viewportWidth : Int
     }
     -> Element msg
 viewDebugger config =
     column
         [ width (px config.width)
-        , moveRight (toFloat config.leftPosition)
-        , moveDown (toFloat config.topPosition)
+        , moveRight (toFloat (clamp 0 (config.viewportWidth - config.width) config.leftPosition))
+        , moveDown (toFloat (clamp 0 (config.viewportHeight - (config.bodyHeight + 2 * controlsHeight)) config.topPosition))
         ]
         [ viewControls (Just config.dragStartMsg)
             [ viewIconButton

@@ -465,6 +465,8 @@ view config model html =
                     , loadModelError = model.loadModelError
                     , saveModelMsg = SaveModel
                     , dragStartMsg = DragStart
+                    , viewportHeight = model.viewportHeight
+                    , viewportWidth = model.viewportWidth
                     }
                 )
             )
