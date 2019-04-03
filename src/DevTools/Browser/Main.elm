@@ -152,38 +152,41 @@ toInit :
     }
     -> ( Model model msg, Cmd (Msg model msg) )
 toInit config =
-    ( case config.session of
+    case config.session of
         Just session ->
-            sessionToModel
+            sessionToInit
                 config.update
                 config.msgDecoder
-                (Tuple.first config.modelCmdPair)
+                config.modelCmdPair
                 session
 
         Nothing ->
-            initModel Nothing (Tuple.first config.modelCmdPair)
-    , Cmd.batch
-        [ Cmd.map InitAppMsg (Tuple.second config.modelCmdPair)
-        , Task.perform viewportToMsg Browser.Dom.getViewport
-        ]
-    )
+            ( initModel Nothing (Tuple.first config.modelCmdPair)
+            , initCmd (Tuple.second config.modelCmdPair)
+            )
 
 
-sessionToModel :
+sessionToInit :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
-    -> model
+    -> ( model, Cmd msg )
     -> String
-    -> Model model msg
-sessionToModel update msgDecoder defaultModel session =
-    case
-        Jd.decodeString (modelDecoder update msgDecoder defaultModel) session
-    of
+    -> ( Model model msg, Cmd (Msg model msg) )
+sessionToInit update msgDecoder ( appModel, appCmd ) session =
+    case Jd.decodeString (modelDecoder update msgDecoder appModel) session of
         Ok model ->
-            model
+            ( model, Cmd.none )
 
         Err error ->
-            initModel (Just error) defaultModel
+            ( initModel (Just error) appModel, initCmd appCmd )
+
+
+initCmd : Cmd msg -> Cmd (Msg model msg)
+initCmd appCmd =
+    Cmd.batch
+        [ Cmd.map InitAppMsg appCmd
+        , Task.perform viewportToMsg Browser.Dom.getViewport
+        ]
 
 
 initModel : Maybe Jd.Error -> model -> Model model msg
