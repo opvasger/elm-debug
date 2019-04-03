@@ -58,18 +58,25 @@ viewDivider =
         )
 
 
-viewControls : (Int -> Int -> msg) -> List (Element msg) -> Element msg
+viewControls : Maybe (Int -> Int -> msg) -> List (Element msg) -> Element msg
 viewControls onMouseDown =
-    row
-        [ height (px 27)
-        , Border.width 1
-        , Border.color borderGray
-        , Background.color backgroundGray
-        , paddingXY 5 0
-        , spacing 1
-        , width fill
-        , onEvent "mousedown" (mousePositionDecoder onMouseDown)
-        ]
+    let
+        styles =
+            [ height (px 27)
+            , Border.width 1
+            , Border.color borderGray
+            , Background.color backgroundGray
+            , paddingXY 5 0
+            , spacing 1
+            , width fill
+            ]
+    in
+    case onMouseDown of
+        Just msg ->
+            row (onEvent "mousedown" (mousePositionDecoder msg) :: styles)
+
+        Nothing ->
+            row styles
 
 
 mousePositionDecoder : (Int -> Int -> msg) -> Jd.Decoder msg
@@ -233,7 +240,6 @@ viewDebugger :
     , loadModelError : Maybe Jd.Error
     , saveModelMsg : msg
     , dragStartMsg : Int -> Int -> msg
-    , doNothingMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -242,7 +248,7 @@ viewDebugger config =
         , moveRight (toFloat config.leftPosition)
         , moveDown (toFloat config.topPosition)
         ]
-        [ viewControls config.dragStartMsg
+        [ viewControls (Just config.dragStartMsg)
             [ viewIconButton
                 { isActive = config.isModelOverlayed
                 , target = ToggleOverlayButton
@@ -276,7 +282,7 @@ viewDebugger config =
             { height = config.bodyHeight
             , body = none
             }
-        , viewControls (\_ _ -> config.doNothingMsg)
+        , viewControls Nothing
             [ viewSlider
                 { value = config.currentModelIndex
                 , maxValue = config.modelIndexLength

@@ -465,7 +465,6 @@ view config model html =
                     , loadModelError = model.loadModelError
                     , saveModelMsg = SaveModel
                     , dragStartMsg = DragStart
-                    , doNothingMsg = DoNothing
                     }
                 )
             )
