@@ -82,7 +82,7 @@ styleToHexColor style =
 viewModelIcon : Style -> Element msg
 viewModelIcon style =
     viewIcon
-        { viewBox = ViewBox 0 0 26 26
+        { viewBox = ViewBox 0 0 24 24
         , style = style
         , path = "M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z"
         , title =
@@ -98,50 +98,50 @@ viewModelIcon style =
 viewPlayIcon : Style -> Element msg
 viewPlayIcon style =
     viewIcon
-        { viewBox = ViewBox 3 3 19 19
+        { viewBox = ViewBox 0 0 24 24
         , style = style
         , path = "M8,5.14V19.14L19,12.14L8,5.14Z"
         , title =
             case style of
                 Active ->
-                    "Pause"
+                    "Pause app"
 
                 _ ->
-                    "Start"
+                    "Start app"
         }
 
 
 viewImportIcon : Style -> Element msg
 viewImportIcon style =
     viewIcon
-        { viewBox = ViewBox 0 0 25 25
+        { viewBox = ViewBox 0 0 24 24
         , style = style
-        , path = "M14,2L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H14M18,20V9H13V4H6V20H18M12,12L16,16H13.5V19H10.5V16H8L12,12Z"
+        , path = "M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"
         , title =
             case style of
                 Error error ->
                     error
 
                 _ ->
-                    "Import"
+                    "Load session"
         }
 
 
 viewExportIcon : Style -> Element msg
 viewExportIcon style =
     viewIcon
-        { viewBox = ViewBox 0 0 25 25
+        { viewBox = ViewBox 0 0 24 24
         , style = style
-        , path = "M14,2L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H14M18,20V9H13V4H6V20H18M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
-        , title = "Export"
+        , path = "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+        , title = "Save session"
         }
 
 
 viewResetIcon : Style -> Element msg
 viewResetIcon style =
     viewIcon
-        { viewBox = ViewBox 0 0 25 25
+        { viewBox = ViewBox 0 0 24 24
         , style = style
         , path = "M12,4C14.1,4 16.1,4.8 17.6,6.3C20.7,9.4 20.7,14.5 17.6,17.6C15.8,19.5 13.3,20.2 10.9,19.9L11.4,17.9C13.1,18.1 14.9,17.5 16.2,16.2C18.5,13.9 18.5,10.1 16.2,7.7C15.1,6.6 13.5,6 12,6V10.6L7,5.6L12,0.6V4M6.3,17.6C3.7,15 3.3,11 5.1,7.9L6.6,9.4C5.5,11.6 5.9,14.4 7.8,16.2C8.3,16.7 8.9,17.1 9.6,17.4L9,19.4C8,19 7.1,18.4 6.3,17.6Z"
-        , title = "Reset"
+        , title = "Reset app"
         }
