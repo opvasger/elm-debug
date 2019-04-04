@@ -39,6 +39,26 @@ type alias Configuration flags model msg =
 
 
 
+-- MouseEvent
+
+
+type MouseEvent
+    = NoEvent
+    | Drag Int Int Int Int
+    | Hover Elements.HoverTarget
+
+
+toHoverTarget : MouseEvent -> Elements.HoverTarget
+toHoverTarget event =
+    case event of
+        Hover target ->
+            target
+
+        _ ->
+            Elements.noTarget
+
+
+
 -- Model
 
 
@@ -50,16 +70,10 @@ type alias Model model msg =
     , debuggerTopPosition : Int
     , viewportHeight : Int
     , viewportWidth : Int
-    , hoverTarget : Elements.HoverTarget
     , isModelOverlayed : Bool
     , loadModelError : Maybe Jd.Error
     , mouseEvent : MouseEvent
     }
-
-
-type MouseEvent
-    = NoEvent
-    | Drag Int Int Int Int
 
 
 encodeModel : (msg -> Je.Value) -> Model model msg -> Je.Value
@@ -91,7 +105,6 @@ modelDecoder updateModel msgDecoder model =
             , debuggerTopPosition = dtp
             , viewportHeight = vph
             , viewportWidth = vpw
-            , hoverTarget = Elements.noTarget
             , isModelOverlayed = imo
             , loadModelError = Nothing
             , mouseEvent = NoEvent
@@ -198,7 +211,6 @@ initModel loadModelError model =
     , debuggerTopPosition = 30
     , viewportHeight = 500
     , viewportWidth = 500
-    , hoverTarget = Elements.noTarget
     , isModelOverlayed = False
     , loadModelError = loadModelError
     , mouseEvent = NoEvent
@@ -219,13 +231,13 @@ toSubscriptions config model =
     Sub.batch
         [ Browser.Events.onResize ViewportResize
         , Time.every 2000 (always CacheModel)
-        , unsubscribeOnReplay model.history config.subscriptions
-        , subscribeIfDragging model.mouseEvent
+        , replaySubscriptions model.history config.subscriptions
+        , dragSubscriptions model.mouseEvent
         ]
 
 
-unsubscribeOnReplay : History model msg -> (model -> Sub msg) -> Sub (Msg model msg)
-unsubscribeOnReplay history subscriptions =
+replaySubscriptions : History model msg -> (model -> Sub msg) -> Sub (Msg model msg)
+replaySubscriptions history subscriptions =
     if History.isReplaying history then
         Sub.none
 
@@ -233,17 +245,17 @@ unsubscribeOnReplay history subscriptions =
         Sub.map AppMsg (subscriptions (History.currentModel history))
 
 
-subscribeIfDragging : MouseEvent -> Sub (Msg model msg)
-subscribeIfDragging event =
+dragSubscriptions : MouseEvent -> Sub (Msg model msg)
+dragSubscriptions event =
     case event of
-        NoEvent ->
-            Sub.none
-
         Drag _ _ _ _ ->
             Sub.batch
                 [ Browser.Events.onMouseUp (Jd.succeed DragStop)
                 , Browser.Events.onMouseMove (mousePositionDecoder DragMove)
                 ]
+
+        _ ->
+            Sub.none
 
 
 mousePositionDecoder : (Int -> Int -> msg) -> Jd.Decoder msg
@@ -307,7 +319,12 @@ toUpdate config msg model =
             ( { model | isModelOverlayed = not model.isModelOverlayed }, Cmd.none )
 
         HoverElement target ->
-            ( { model | hoverTarget = target }, Cmd.none )
+            case model.mouseEvent of
+                Drag _ _ _ _ ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( { model | mouseEvent = Hover target }, Cmd.none )
 
         SaveModel ->
             ( model
@@ -353,9 +370,6 @@ toUpdate config msg model =
 
         DragMove moveLeft moveTop ->
             case model.mouseEvent of
-                NoEvent ->
-                    ( model, Cmd.none )
-
                 Drag initLeft initTop clickLeft clickTop ->
                     ( { model
                         | debuggerLeftPosition = initLeft + moveLeft - clickLeft
@@ -363,6 +377,12 @@ toUpdate config msg model =
                       }
                     , Cmd.none
                     )
+
+                Hover _ ->
+                    ( model, Cmd.none )
+
+                NoEvent ->
+                    ( model, Cmd.none )
 
         DragStop ->
             ( { model | mouseEvent = NoEvent }, Cmd.none )
@@ -452,7 +472,7 @@ view config model html =
                     , bodyHeight = model.debuggerBodyHeight
                     , leftPosition = model.debuggerLeftPosition
                     , topPosition = model.debuggerTopPosition
-                    , hoverTarget = model.hoverTarget
+                    , hoverTarget = toHoverTarget model.mouseEvent
                     , hoverTargetMsg = HoverElement
                     , isModelOverlayed = model.isModelOverlayed
                     , toggleOverlayMsg = ToggleOverlay
