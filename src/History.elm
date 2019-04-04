@@ -5,7 +5,7 @@ module History exposing
     , decoder
     , encode
     , init
-    , initialModel
+    , initialPair
     , isReplaying
     , length
     , replay
@@ -38,9 +38,11 @@ type History model msg
     | Update (UpdateState model msg)
 
 
-init : model -> History model msg
-init model =
-    Update (initState model)
+init : ( model, Cmd msg ) -> ( History model msg, Cmd msg )
+init modelCmdPair =
+    ( Update (initState modelCmdPair)
+    , Tuple.second modelCmdPair
+    )
 
 
 length : History model msg -> Int
@@ -68,14 +70,18 @@ isReplaying history =
             False
 
 
-initialModel : History model msg -> model
-initialModel history =
+initialPair : History model msg -> ( model, Cmd msg )
+initialPair history =
     case history of
         Update state ->
-            initialModelHelper state.previous (Tuple.second state.latest)
+            ( initialModelHelper state.previous (Tuple.second state.latest)
+            , state.initial
+            )
 
         Replay state ->
-            initialModelHelper state.previous (Tuple.first state.latest)
+            ( initialModelHelper state.previous (Tuple.first state.latest)
+            , state.initial
+            )
 
 
 initialModelHelper : Array (ReplayChunk model msg) -> model -> model
@@ -203,11 +209,11 @@ encodeHelper encodeMsg isReplay latest state =
 decoder :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
-    -> model
-    -> Jd.Decoder (History model msg)
-decoder updateModel msgDecoder model =
+    -> ( model, Cmd msg )
+    -> Jd.Decoder ( History model msg, Cmd msg )
+decoder updateModel msgDecoder modelCmdPair =
     Jd.map3
-        (decoderHelper updateModel model)
+        (decoderHelper updateModel modelCmdPair)
         (Jd.field "replayIndex" (Jd.maybe Jd.int))
         (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
         (Jd.field "msgs" (Jd.list msgDecoder))
@@ -215,12 +221,12 @@ decoder updateModel msgDecoder model =
 
 decoderHelper :
     (msg -> model -> ( model, Cmd msg ))
-    -> model
+    -> ( model, Cmd msg )
     -> Maybe Int
     -> Set Int
     -> List msg
-    -> History model msg
-decoderHelper updateModel model replayIndex persistedIndices msgs =
+    -> ( History model msg, Cmd msg )
+decoderHelper updateModel modelCmdPair replayIndex persistedIndices msgs =
     let
         toReplayIndex =
             case replayIndex of
@@ -238,7 +244,8 @@ decoderHelper updateModel model replayIndex persistedIndices msgs =
                 else
                     update updateModel msg history
     in
-    toReplayIndex (List.foldl foldMsgs (init model) msgs)
+    --
+    ( toReplayIndex (List.foldl foldMsgs (Tuple.first (init modelCmdPair)) msgs), Cmd.none )
 
 
 
@@ -252,18 +259,20 @@ type alias UpdateState model msg =
     , currentIndex : Int
     , previous : Array (ReplayChunk model msg)
     , previousLength : Int
+    , initial : Cmd msg
     , persisted : List ( Int, msg )
     }
 
 
-initState : model -> UpdateState model msg
-initState model =
+initState : ( model, Cmd msg ) -> UpdateState model msg
+initState ( model, cmd ) =
     { latest = ( [], model )
     , latestLength = 0
     , current = model
     , currentIndex = 0
     , previous = Array.empty
     , previousLength = 0
+    , initial = cmd
     , persisted = []
     }
 
@@ -338,6 +347,7 @@ toReplayState state =
     , currentIndex = state.currentIndex
     , previous = state.previous
     , previousLength = state.previousLength
+    , initial = state.initial
     , persisted = state.persisted
     }
 
@@ -353,6 +363,7 @@ type alias ReplayState model msg =
     , currentIndex : Int
     , previous : Array (ReplayChunk model msg)
     , previousLength : Int
+    , initial : Cmd msg
     , persisted : List ( Int, msg )
     }
 
@@ -402,6 +413,7 @@ toUpdateState updateModel state =
                 , currentIndex = state.currentIndex
                 , previous = Array.slice 0 previousIndex state.previous
                 , previousLength = previousIndex
+                , initial = state.initial
                 , persisted = persisted
                 }
                 msgs
@@ -413,6 +425,7 @@ toUpdateState updateModel state =
             , currentIndex = lengthHelper state
             , previous = state.previous
             , previousLength = state.previousLength
+            , initial = state.initial
             , persisted = state.persisted
             }
 

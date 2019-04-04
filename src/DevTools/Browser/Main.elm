@@ -93,24 +93,26 @@ encodeModel encodeMsg model =
 modelDecoder :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
-    -> model
-    -> Jd.Decoder (Model model msg)
-modelDecoder updateModel msgDecoder model =
+    -> ( model, Cmd msg )
+    -> Jd.Decoder ( Model model msg, Cmd msg )
+modelDecoder updateModel msgDecoder modelCmdPair =
     Jd.map8
-        (\his dbw dbh dlp dtp vph vpw imo ->
-            { history = his
-            , debuggerWidth = dbw
-            , debuggerBodyHeight = dbh
-            , debuggerLeftPosition = dlp
-            , debuggerTopPosition = dtp
-            , viewportHeight = vph
-            , viewportWidth = vpw
-            , isModelOverlayed = imo
-            , loadModelError = Nothing
-            , mouseEvent = NoEvent
-            }
+        (\( his, cmd ) dbw dbh dlp dtp vph vpw imo ->
+            ( { history = his
+              , debuggerWidth = dbw
+              , debuggerBodyHeight = dbh
+              , debuggerLeftPosition = dlp
+              , debuggerTopPosition = dtp
+              , viewportHeight = vph
+              , viewportWidth = vpw
+              , isModelOverlayed = imo
+              , loadModelError = Nothing
+              , mouseEvent = NoEvent
+              }
+            , cmd
+            )
         )
-        (Jd.field "history" (History.decoder updateModel msgDecoder model))
+        (Jd.field "history" (History.decoder updateModel msgDecoder modelCmdPair))
         (Jd.field "debuggerWidth" Jd.int)
         (Jd.field "debuggerBodyHeight" Jd.int)
         (Jd.field "debuggerLeftPosition" Jd.int)
@@ -136,7 +138,7 @@ type Msg model msg
     | SaveModel
     | SelectModel
     | LoadModel File
-    | ModelLoaded (Result Jd.Error (Model model msg))
+    | ModelLoaded (Result Jd.Error ( Model model msg, Cmd msg ))
     | CacheModel
     | DragStart Int Int
     | DragMove Int Int
@@ -174,9 +176,7 @@ toInit config =
                 session
 
         Nothing ->
-            ( initModel Nothing (Tuple.first config.modelCmdPair)
-            , initCmd (Tuple.second config.modelCmdPair)
-            )
+            init Nothing config.modelCmdPair
 
 
 sessionToInit :
@@ -185,36 +185,39 @@ sessionToInit :
     -> ( model, Cmd msg )
     -> String
     -> ( Model model msg, Cmd (Msg model msg) )
-sessionToInit update msgDecoder ( appModel, appCmd ) session =
-    case Jd.decodeString (modelDecoder update msgDecoder appModel) session of
-        Ok model ->
-            ( model, Cmd.none )
+sessionToInit update msgDecoder modelCmdPair session =
+    case Jd.decodeString (modelDecoder update msgDecoder modelCmdPair) session of
+        Ok ( model, cmd ) ->
+            ( model
+            , Cmd.map InitAppMsg cmd
+            )
 
         Err error ->
-            ( initModel (Just error) appModel, initCmd appCmd )
+            init (Just error) modelCmdPair
 
 
-initCmd : Cmd msg -> Cmd (Msg model msg)
-initCmd appCmd =
-    Cmd.batch
-        [ Cmd.map InitAppMsg appCmd
+init : Maybe Jd.Error -> ( model, Cmd msg ) -> ( Model model msg, Cmd (Msg model msg) )
+init loadModelError modelCmdPair =
+    let
+        ( history, cmd ) =
+            History.init modelCmdPair
+    in
+    ( { history = history
+      , debuggerWidth = 200
+      , debuggerBodyHeight = 300
+      , debuggerLeftPosition = 300
+      , debuggerTopPosition = 30
+      , viewportHeight = 500
+      , viewportWidth = 500
+      , isModelOverlayed = False
+      , loadModelError = loadModelError
+      , mouseEvent = NoEvent
+      }
+    , Cmd.batch
+        [ Cmd.map InitAppMsg cmd
         , Task.perform viewportToMsg Browser.Dom.getViewport
         ]
-
-
-initModel : Maybe Jd.Error -> model -> Model model msg
-initModel loadModelError model =
-    { history = History.init model
-    , debuggerWidth = 200
-    , debuggerBodyHeight = 300
-    , debuggerLeftPosition = 300
-    , debuggerTopPosition = 30
-    , viewportHeight = 500
-    , viewportWidth = 500
-    , isModelOverlayed = False
-    , loadModelError = loadModelError
-    , mouseEvent = NoEvent
-    }
+    )
 
 
 
@@ -345,15 +348,15 @@ toUpdate config msg model =
                 |> Task.andThen
                     (loadModelHelper config.update
                         config.msgDecoder
-                        (History.initialModel model.history)
+                        (History.initialPair model.history)
                     )
                 |> Task.attempt ModelLoaded
             )
 
         ModelLoaded result ->
             case result of
-                Ok loadedModel ->
-                    ( loadedModel, Cmd.none )
+                Ok ( loadedModel, cmd ) ->
+                    ( loadedModel, Cmd.map InitAppMsg cmd )
 
                 Err loadError ->
                     ( { model | loadModelError = Just loadError }, Cmd.none )
@@ -396,11 +399,11 @@ encodeDevTools encodeMsg model =
 loadModelHelper :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
-    -> model
+    -> ( model, Cmd msg )
     -> String
-    -> Task Jd.Error (Model model msg)
-loadModelHelper modelUpdater msgDecoder initialModel string =
-    resultToTask (Jd.decodeString (modelDecoder modelUpdater msgDecoder initialModel) string)
+    -> Task Jd.Error ( Model model msg, Cmd msg )
+loadModelHelper modelUpdater msgDecoder modelCmdPair string =
+    resultToTask (Jd.decodeString (modelDecoder modelUpdater msgDecoder modelCmdPair) string)
 
 
 resultToTask : Result err ok -> Task err ok
