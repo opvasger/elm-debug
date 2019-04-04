@@ -3,7 +3,7 @@ module DevTools.Browser.Icons exposing
     , viewExportIcon
     , viewImportIcon
     , viewModelIcon
-    , viewPauseIcon
+    , viewPlayIcon
     , viewResetIcon
     )
 
@@ -95,19 +95,19 @@ viewModelIcon style =
         }
 
 
-viewPauseIcon : Style -> Element msg
-viewPauseIcon style =
+viewPlayIcon : Style -> Element msg
+viewPlayIcon style =
     viewIcon
         { viewBox = ViewBox 3 3 19 19
         , style = style
-        , path = "M14,19H18V5H14M6,19H10V5H6V19Z"
+        , path = "M8,5.14V19.14L19,12.14L8,5.14Z"
         , title =
             case style of
                 Active ->
-                    "Start"
+                    "Pause"
 
                 _ ->
-                    "Pause"
+                    "Start"
         }
 
 

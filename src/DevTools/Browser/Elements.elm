@@ -300,28 +300,27 @@ viewDebugger config =
             , body = none
             }
         , viewControls Nothing
-            [ viewSlider
-                { value = config.currentModelIndex
-                , maxValue = config.modelIndexLength
-                , onChange = config.changeModelIndexMsg
-                }
-            , viewDivider
-            , viewIconButton
-                { isActive = config.isReplaying
-                , target = ToggleReplayButton
-                , hoverTarget = config.hoverTarget
-                , onHover = config.hoverTargetMsg
-                , onChange = config.toggleReplayMsg
-                , icon = Icons.viewPauseIcon
-                , error = Nothing
-                }
-            , viewIconButton
+            [ viewIconButton
                 { isActive = False
                 , target = ResetButton
                 , hoverTarget = config.hoverTarget
                 , onHover = config.hoverTargetMsg
                 , onChange = config.resetHistoryMsg
                 , icon = Icons.viewResetIcon
+                , error = Nothing
+                }
+            , viewSlider
+                { value = config.currentModelIndex
+                , maxValue = config.modelIndexLength
+                , onChange = config.changeModelIndexMsg
+                }
+            , viewIconButton
+                { isActive = not config.isReplaying
+                , target = ToggleReplayButton
+                , hoverTarget = config.hoverTarget
+                , onHover = config.hoverTargetMsg
+                , onChange = config.toggleReplayMsg
+                , icon = Icons.viewPlayIcon
                 , error = Nothing
                 }
             ]
