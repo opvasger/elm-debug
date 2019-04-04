@@ -9,6 +9,7 @@ module History exposing
     , isReplaying
     , length
     , replay
+    , reset
     , toggleState
     , update
     , updateAndPersist
@@ -109,6 +110,11 @@ currentIndex history =
 
         Replay state ->
             state.currentIndex
+
+
+reset : History model msg -> ( History model msg, Cmd msg )
+reset =
+    init << initialPair
 
 
 update :
@@ -244,8 +250,9 @@ decoderHelper updateModel modelCmdPair replayIndex persistedIndices msgs =
                 else
                     update updateModel msg history
     in
-    --
-    ( toReplayIndex (List.foldl foldMsgs (Tuple.first (init modelCmdPair)) msgs), Cmd.none )
+    ( toReplayIndex (List.foldl foldMsgs (Tuple.first (init modelCmdPair)) msgs)
+    , Cmd.none
+    )
 
 
 

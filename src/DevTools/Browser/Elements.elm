@@ -26,7 +26,7 @@ controlsHeight =
 
 
 
---
+-- Elements
 
 
 type HoverTarget
@@ -34,6 +34,7 @@ type HoverTarget
     | ToggleOverlayButton
     | ImportSessionButton
     | ExportSessionButton
+    | ResetButton
     | NoTarget
 
 
@@ -255,6 +256,7 @@ viewDebugger :
     , dragStartMsg : Int -> Int -> msg
     , viewportHeight : Int
     , viewportWidth : Int
+    , resetHistoryMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -311,6 +313,15 @@ viewDebugger config =
                 , onHover = config.hoverTargetMsg
                 , onChange = config.toggleReplayMsg
                 , icon = Icons.viewPauseIcon
+                , error = Nothing
+                }
+            , viewIconButton
+                { isActive = False
+                , target = ResetButton
+                , hoverTarget = config.hoverTarget
+                , onHover = config.hoverTargetMsg
+                , onChange = config.resetHistoryMsg
+                , icon = Icons.viewResetIcon
                 , error = Nothing
                 }
             ]

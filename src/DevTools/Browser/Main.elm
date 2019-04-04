@@ -143,6 +143,7 @@ type Msg model msg
     | DragStart Int Int
     | DragMove Int Int
     | DragStop
+    | ResetHistory
 
 
 toMsg : msg -> Msg model msg
@@ -390,6 +391,13 @@ toUpdate config msg model =
         DragStop ->
             ( { model | mouseEvent = NoEvent }, Cmd.none )
 
+        ResetHistory ->
+            let
+                ( history, cmd ) =
+                    History.reset model.history
+            in
+            ( { model | history = history }, Cmd.map InitAppMsg cmd )
+
 
 encodeDevTools : (msg -> Je.Value) -> Model model msg -> Je.Value
 encodeDevTools encodeMsg model =
@@ -490,6 +498,7 @@ view config model html =
                     , dragStartMsg = DragStart
                     , viewportHeight = model.viewportHeight
                     , viewportWidth = model.viewportWidth
+                    , resetHistoryMsg = ResetHistory
                     }
                 )
             )
