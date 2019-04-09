@@ -39,26 +39,6 @@ type alias Configuration flags model msg =
 
 
 
--- MouseEvent
-
-
-type MouseEvent
-    = NoEvent
-    | Drag Int Int Int Int
-    | Hover Elements.HoverTarget
-
-
-toHoverTarget : MouseEvent -> Elements.HoverTarget
-toHoverTarget event =
-    case event of
-        Hover target ->
-            target
-
-        _ ->
-            Elements.noTarget
-
-
-
 -- Model
 
 
@@ -167,58 +147,52 @@ toInit :
     , session : Maybe String
     }
     -> ( Model model msg, Cmd (Msg model msg) )
-toInit config =
-    case config.session of
-        Just session ->
-            sessionToInit
-                config.update
-                config.msgDecoder
-                config.modelCmdPair
-                session
+toInit { session, update, msgDecoder, modelCmdPair } =
+    case session of
+        Just encodedModel ->
+            case
+                Jd.decodeString (modelDecoder update msgDecoder modelCmdPair)
+                    encodedModel
+            of
+                Ok ( model, cmd ) ->
+                    ( model
+                    , toInitCmd cmd
+                    )
+
+                Err error ->
+                    Tuple.mapBoth
+                        (toInitModel (Just error))
+                        toInitCmd
+                        (History.init modelCmdPair)
 
         Nothing ->
-            init Nothing config.modelCmdPair
+            Tuple.mapBoth
+                (toInitModel Nothing)
+                toInitCmd
+                (History.init modelCmdPair)
 
 
-sessionToInit :
-    (msg -> model -> ( model, Cmd msg ))
-    -> Jd.Decoder msg
-    -> ( model, Cmd msg )
-    -> String
-    -> ( Model model msg, Cmd (Msg model msg) )
-sessionToInit update msgDecoder modelCmdPair session =
-    case Jd.decodeString (modelDecoder update msgDecoder modelCmdPair) session of
-        Ok ( model, cmd ) ->
-            ( model
-            , Cmd.map InitAppMsg cmd
-            )
-
-        Err error ->
-            init (Just error) modelCmdPair
+toInitModel : Maybe Jd.Error -> History model msg -> Model model msg
+toInitModel loadModelError history =
+    { history = history
+    , debuggerWidth = 200
+    , debuggerBodyHeight = 300
+    , debuggerLeftPosition = 300
+    , debuggerTopPosition = 30
+    , viewportHeight = 500
+    , viewportWidth = 500
+    , isModelOverlayed = False
+    , loadModelError = loadModelError
+    , mouseEvent = NoEvent
+    }
 
 
-init : Maybe Jd.Error -> ( model, Cmd msg ) -> ( Model model msg, Cmd (Msg model msg) )
-init loadModelError modelCmdPair =
-    let
-        ( history, cmd ) =
-            History.init modelCmdPair
-    in
-    ( { history = history
-      , debuggerWidth = 200
-      , debuggerBodyHeight = 300
-      , debuggerLeftPosition = 300
-      , debuggerTopPosition = 30
-      , viewportHeight = 500
-      , viewportWidth = 500
-      , isModelOverlayed = False
-      , loadModelError = loadModelError
-      , mouseEvent = NoEvent
-      }
-    , Cmd.batch
+toInitCmd : Cmd msg -> Cmd (Msg model msg)
+toInitCmd cmd =
+    Cmd.batch
         [ Cmd.map InitAppMsg cmd
         , Task.perform viewportToMsg Browser.Dom.getViewport
         ]
-    )
 
 
 
@@ -513,3 +487,23 @@ doNothingOnReplay history =
 
     else
         AppMsg
+
+
+
+-- MouseEvent
+
+
+type MouseEvent
+    = NoEvent
+    | Drag Int Int Int Int
+    | Hover Elements.HoverTarget
+
+
+toHoverTarget : MouseEvent -> Elements.HoverTarget
+toHoverTarget event =
+    case event of
+        Hover target ->
+            target
+
+        _ ->
+            Elements.noTarget
