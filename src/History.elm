@@ -1,21 +1,21 @@
 module History exposing
-    ( History
-    , currentIndex
-    , currentModel
+    ( DecodeStrategy(..)
+    , History
     , decoder
     , encode
     , init
-    , initialPair
     , isReplaying
     , length
     , replay
     , reset
-    , toggleState
+    , rewind
+    , toggleReplay
     , update
     , updateAndPersist
     )
 
 import Array exposing (Array)
+import Dict exposing (Dict)
 import Json.Decode as Jd
 import Json.Encode as Je
 import Set exposing (Set)
@@ -25,9 +25,17 @@ import Set exposing (Set)
 -- Constants
 
 
-chunkLength : Int
-chunkLength =
+maxChunkLength : Int
+maxChunkLength =
     64
+
+
+msgsKey =
+    "messages"
+
+
+persistedKey =
+    "persisted"
 
 
 
@@ -35,35 +43,25 @@ chunkLength =
 
 
 type History model msg
-    = Replay (ReplayState model msg)
-    | Update (UpdateState model msg)
+    = History
+        { current : Chunk model msg
+        , previous : Array (ReplayChunk model msg)
+        , persisted : Dict Int msg
+        }
 
 
-init : ( model, Cmd msg ) -> ( History model msg, Cmd msg )
-init modelCmdPair =
-    ( Update (initState modelCmdPair)
-    , Tuple.second modelCmdPair
-    )
-
-
-length : History model msg -> Int
-length history =
-    case history of
-        Replay state ->
-            lengthHelper state
-
-        Update state ->
-            lengthHelper state
-
-
-lengthHelper : { state | latestLength : Int, previousLength : Int } -> Int
-lengthHelper { latestLength, previousLength } =
-    latestLength + previousLength * chunkLength
+init : model -> History model msg
+init model =
+    History
+        { current = Update ( [], model )
+        , previous = Array.empty
+        , persisted = Dict.empty
+        }
 
 
 isReplaying : History model msg -> Bool
-isReplaying history =
-    case history of
+isReplaying (History { current }) =
+    case current of
         Replay _ ->
             True
 
@@ -71,421 +69,360 @@ isReplaying history =
             False
 
 
-initialPair : History model msg -> ( model, Cmd msg )
-initialPair history =
-    case history of
-        Update state ->
-            ( initialModelHelper state.previous (Tuple.second state.latest)
-            , state.initial
-            )
-
-        Replay state ->
-            ( initialModelHelper state.previous (Tuple.first state.latest)
-            , state.initial
-            )
+length : History model msg -> Int
+length (History { current, previous }) =
+    maxChunkLength
+        * Array.length previous
+        + chunkLength current
 
 
-initialModelHelper : Array (ReplayChunk model msg) -> model -> model
-initialModelHelper previous latestModel =
+toggleReplay : History model msg -> History model msg
+toggleReplay (History state) =
+    History { state | current = toggleChunkReplay state.current }
+
+
+reset : History model msg -> History model msg
+reset (History { current, previous }) =
     Array.get 0 previous
         |> Maybe.map Tuple.first
-        |> Maybe.withDefault latestModel
+        >> Maybe.withDefault (chunkModel current)
+        >> init
 
 
-currentModel : History model msg -> model
-currentModel history =
-    case history of
-        Update state ->
-            state.current
-
-        Replay state ->
-            state.current
+updateAndPersist : msg -> model -> History model msg -> History model msg
+updateAndPersist msg model =
+    update msg model >> persistHelper msg
 
 
-currentIndex : History model msg -> Int
-currentIndex history =
-    case history of
-        Update state ->
-            state.currentIndex
-
-        Replay state ->
-            state.currentIndex
+persistHelper : msg -> History model msg -> History model msg
+persistHelper msg ((History state) as history) =
+    History { state | persisted = Dict.insert (length history - 1) msg state.persisted }
 
 
-reset : History model msg -> ( History model msg, Cmd msg )
-reset =
-    init << initialPair
+update : msg -> model -> History model msg -> History model msg
+update msg model ((History state) as history) =
+    case state.current of
+        Replay replayChunk ->
+            update msg model (toggleReplay history)
+
+        Update updateChunk ->
+            let
+                current =
+                    insertChunkMsg msg state.current
+            in
+            if chunkLength current < maxChunkLength then
+                History { state | current = current }
+
+            else
+                History
+                    { state
+                        | current = Update ( [], model )
+                        , previous = Array.push (asReplayChunk current) state.previous
+                    }
 
 
-update :
-    (msg -> model -> ( model, Cmd msg ))
-    -> msg
-    -> History model msg
-    -> ( History model msg, Cmd msg )
-update updateModel msg history =
-    case history of
-        Update state ->
-            Tuple.mapFirst Update (updateState updateModel msg state)
-
-        Replay _ ->
-            update updateModel msg (toggleState updateModel history)
+replay : (msg -> model -> model) -> Int -> History model msg -> model
+replay updateModel msgLength ((History { current, previous }) as history) =
+    let
+        ( model, msgs ) =
+            chunkHelper msgLength history
+    in
+    List.foldl
+        updateModel
+        model
+        (List.take (chunkMsgLengthHelper msgLength) msgs)
 
 
-updateAndPersist :
-    (msg -> model -> ( model, Cmd msg ))
-    -> msg
-    -> History model msg
-    -> ( History model msg, Cmd msg )
-updateAndPersist updateModel msg history =
-    case history of
-        Update state ->
-            Tuple.mapFirst Update (updateStateAndPersist updateModel msg state)
+rewind : (msg -> model -> model) -> Int -> History model msg -> History model msg
+rewind updateModel msgLength ((History state) as history) =
+    let
+        ( stale, persisted ) =
+            state.persisted
+                |> Dict.partition (\index _ -> index > msgLength)
+                >> Tuple.mapFirst Dict.values
 
-        Replay _ ->
-            update updateModel msg (toggleState updateModel history)
+        ( model, msgs ) =
+            chunkHelper msgLength history
+
+        newHistory =
+            History
+                { state
+                    | current = Replay ( model, List.take (chunkMsgLengthHelper msgLength) msgs )
+                    , previous = Array.slice 0 (previousIndexHelper msgLength - 1) state.previous
+                    , persisted = persisted
+                }
+
+        msgModelPairHelper staleMsg msgModelPair =
+            case msgModelPair of
+                head :: tails ->
+                    ( staleMsg, updateModel staleMsg (Tuple.second head) )
+                        :: head
+                        :: tails
+
+                [] ->
+                    ( staleMsg, updateModel staleMsg model )
+                        :: []
+
+        msgModelPairs =
+            List.foldl
+                msgModelPairHelper
+                []
+                stale
+
+        updateAndPersistHistory ( msg, mdl ) hist =
+            updateAndPersist msg mdl hist
+    in
+    List.foldl updateAndPersistHistory newHistory msgModelPairs
 
 
-replay :
-    (msg -> model -> ( model, Cmd msg ))
-    -> Int
-    -> History model msg
-    -> History model msg
-replay updateModel modelIndex history =
-    case history of
-        Replay state ->
-            Replay (replayState updateModel modelIndex state)
+chunkHelper : Int -> History model msg -> ReplayChunk model msg
+chunkHelper msgLength (History state) =
+    case Array.get (previousIndexHelper msgLength) state.previous of
+        Just replayChunk ->
+            replayChunk
 
-        Update state ->
-            replay updateModel modelIndex (toggleState updateModel history)
+        Nothing ->
+            asReplayChunk state.current
 
 
-toggleState :
-    (msg -> model -> ( model, Cmd msg ))
-    -> History model msg
-    -> History model msg
-toggleState updateModel history =
-    case history of
-        Replay state ->
-            Update (toUpdateState updateModel state)
+previousIndexHelper : Int -> Int
+previousIndexHelper msgLength =
+    msgLength // maxChunkLength
 
-        Update state ->
-            Replay (toReplayState state)
+
+chunkMsgLengthHelper : Int -> Int
+chunkMsgLengthHelper msgLength =
+    modBy maxChunkLength msgLength
 
 
 encode : (msg -> Je.Value) -> History model msg -> Je.Value
-encode encodeMsg history =
-    case history of
-        Update state ->
-            encodeHelper encodeMsg False (toReplayChunk state.latest) state
-
-        Replay state ->
-            encodeHelper encodeMsg True state.latest state
-
-
-encodeHelper :
-    (msg -> Je.Value)
-    -> Bool
-    -> ReplayChunk model msg
-    ->
-        { state
-            | currentIndex : Int
-            , previous : Array (ReplayChunk model msg)
-            , persisted : List ( Int, msg )
-        }
-    -> Je.Value
-encodeHelper encodeMsg isReplay latest state =
+encode encodeMsg (History { current, previous, persisted }) =
     let
-        replayIndex =
-            if isReplay then
-                Je.int state.currentIndex
-
-            else
-                Je.null
-
-        foldMsgs ( _, chunkMsgs ) encodedMsgs =
-            List.map encodeMsg chunkMsgs ++ encodedMsgs
+        msgs =
+            Array.foldr
+                (Tuple.second >> (++))
+                []
+                (Array.push (asReplayChunk current) previous)
     in
     Je.object
-        [ ( "replayIndex", replayIndex )
-        , ( "persistedIndices", Je.list (Je.int << Tuple.first) state.persisted )
-        , ( "msgs", Je.list identity (Array.foldr foldMsgs [] (Array.push latest state.previous)) )
+        [ ( msgsKey, Je.list encodeMsg msgs )
+        , ( persistedKey, Je.list Je.int (Dict.keys persisted) )
         ]
 
 
+
+-- History Decoder
+
+
+type DecodeStrategy
+    = UntilError
+    | SkipErrors
+
+
 decoder :
-    (msg -> model -> ( model, Cmd msg ))
+    (msg -> model -> model)
     -> Jd.Decoder msg
-    -> ( model, Cmd msg )
-    -> Jd.Decoder ( History model msg, Cmd msg )
-decoder updateModel msgDecoder modelCmdPair =
-    Jd.map3
-        (decoderHelper updateModel modelCmdPair)
-        (Jd.field "replayIndex" (Jd.maybe Jd.int))
-        (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
-        (Jd.field "msgs" (Jd.list msgDecoder))
+    -> model
+    -> DecodeStrategy
+    -> Jd.Decoder (History model msg)
+decoder updateModel msgDecoder model strategy =
+    Jd.map2
+        (decodeHelper updateModel msgDecoder strategy (init model) model 0)
+        (Jd.field msgsKey (Jd.list Jd.value))
+        (Jd.field persistedKey (Jd.map Set.fromList (Jd.list Jd.int)))
+        |> Jd.andThen identity
 
 
-decoderHelper :
-    (msg -> model -> ( model, Cmd msg ))
-    -> ( model, Cmd msg )
-    -> Maybe Int
-    -> Set Int
-    -> List msg
-    -> ( History model msg, Cmd msg )
-decoderHelper updateModel modelCmdPair replayIndex persistedIndices msgs =
-    let
-        toReplayIndex =
-            case replayIndex of
-                Just index ->
-                    replay updateModel index
-
-                Nothing ->
-                    identity
-
-        foldMsgs msg history =
-            Tuple.first <|
-                if Set.member (currentIndex history + 1) persistedIndices then
-                    updateAndPersist updateModel msg history
-
-                else
-                    update updateModel msg history
-    in
-    ( toReplayIndex (List.foldl foldMsgs (Tuple.first (init modelCmdPair)) msgs)
-    , Cmd.none
-    )
-
-
-
--- UpdateState
-
-
-type alias UpdateState model msg =
-    { latest : UpdateChunk model msg
-    , latestLength : Int
-    , current : model
-    , currentIndex : Int
-    , previous : Array (ReplayChunk model msg)
-    , previousLength : Int
-    , initial : Cmd msg
-    , persisted : List ( Int, msg )
-    }
-
-
-initState : ( model, Cmd msg ) -> UpdateState model msg
-initState ( model, cmd ) =
-    { latest = ( [], model )
-    , latestLength = 0
-    , current = model
-    , currentIndex = 0
-    , previous = Array.empty
-    , previousLength = 0
-    , initial = cmd
-    , persisted = []
-    }
-
-
-updateStateAndPersist :
-    (msg -> model -> ( model, Cmd msg ))
-    -> msg
-    -> UpdateState model msg
-    -> ( UpdateState model msg, Cmd msg )
-updateStateAndPersist updateModel msg state =
-    Tuple.mapFirst (updatePersisted msg) (updateState updateModel msg state)
-
-
-updateState :
-    (msg -> model -> ( model, Cmd msg ))
-    -> msg
-    -> UpdateState model msg
-    -> ( UpdateState model msg, Cmd msg )
-updateState updateModel msg state =
-    let
-        ( model, cmd ) =
-            updateModel msg state.current
-    in
-    ( state
-        |> updateCurrent model
-        >> updateLatest msg
-        >> updatePrevious
-    , cmd
-    )
-
-
-updateCurrent : model -> UpdateState model msg -> UpdateState model msg
-updateCurrent model state =
-    { state
-        | current = model
-        , currentIndex = state.currentIndex + 1
-    }
-
-
-updateLatest : msg -> UpdateState model msg -> UpdateState model msg
-updateLatest msg state =
-    { state
-        | latest = updateChunk msg state.latest
-        , latestLength = state.latestLength + 1
-    }
-
-
-updatePrevious : UpdateState model msg -> UpdateState model msg
-updatePrevious state =
-    if state.latestLength < chunkLength then
-        state
-
-    else
-        { state
-            | latest = ( [], state.current )
-            , latestLength = 0
-            , previous = Array.push (toReplayChunk state.latest) state.previous
-            , previousLength = state.previousLength + 1
-        }
-
-
-updatePersisted : msg -> UpdateState model msg -> UpdateState model msg
-updatePersisted msg state =
-    { state | persisted = ( state.currentIndex, msg ) :: state.persisted }
-
-
-toReplayState : UpdateState model msg -> ReplayState model msg
-toReplayState state =
-    { latest = toReplayChunk state.latest
-    , latestLength = state.latestLength
-    , current = state.current
-    , currentIndex = state.currentIndex
-    , previous = state.previous
-    , previousLength = state.previousLength
-    , initial = state.initial
-    , persisted = state.persisted
-    }
-
-
-
--- ReplayState
-
-
-type alias ReplayState model msg =
-    { latest : ReplayChunk model msg
-    , latestLength : Int
-    , current : model
-    , currentIndex : Int
-    , previous : Array (ReplayChunk model msg)
-    , previousLength : Int
-    , initial : Cmd msg
-    , persisted : List ( Int, msg )
-    }
-
-
-replayState :
-    (msg -> model -> ( model, Cmd msg ))
+decodeHelper :
+    (msg -> model -> model)
+    -> Jd.Decoder msg
+    -> DecodeStrategy
+    -> History model msg
+    -> model
     -> Int
-    -> ReplayState model msg
-    -> ReplayState model msg
-replayState updateModel modelIndex state =
-    case Array.get (toPreviousIndex modelIndex) (Array.push state.latest state.previous) of
-        Just chunk ->
-            { state
-                | current = replayChunk updateModel (toMsgLength modelIndex) chunk
-                , currentIndex = clamp 0 (lengthHelper state) modelIndex
-            }
-
-        Nothing ->
-            state
-
-
-toUpdateState :
-    (msg -> model -> ( model, Cmd msg ))
-    -> ReplayState model msg
-    -> UpdateState model msg
-toUpdateState updateModel state =
-    let
-        previousIndex =
-            toPreviousIndex state.currentIndex
-    in
-    case Array.get previousIndex (Array.push state.latest state.previous) of
-        Just chunk ->
+    -> List Je.Value
+    -> Set Int
+    -> Jd.Decoder (History model msg)
+decodeHelper updateModel msgDecoder strategy history model index encodedMsgs persisted =
+    case encodedMsgs of
+        head :: nextMsgs ->
             let
-                msgLength =
-                    toMsgLength state.currentIndex
+                ( nextModel, nextHistory, nextHelper ) =
+                    case Jd.decodeValue msgDecoder head of
+                        Ok msg ->
+                            let
+                                updatedModel =
+                                    updateModel msg model
 
-                ( msgs, persisted ) =
-                    partitionPersisted state.currentIndex state.persisted
+                                updateHistory =
+                                    if Set.member index persisted then
+                                        updateAndPersist
 
-                updateAndPersistWithoutCmd msg model =
-                    Tuple.first (updateStateAndPersist updateModel msg model)
+                                    else
+                                        update
+                            in
+                            ( updatedModel
+                            , updateHistory msg updatedModel history
+                            , decodeHelper
+                            )
+
+                        Err _ ->
+                            ( model
+                            , history
+                            , case strategy of
+                                UntilError ->
+                                    decodePersistedHelper
+
+                                SkipErrors ->
+                                    decodeHelper
+                            )
             in
-            List.foldl updateAndPersistWithoutCmd
-                { latest = toUpdateChunk (rewindChunk msgLength chunk)
-                , latestLength = msgLength
-                , current = state.current
-                , currentIndex = state.currentIndex
-                , previous = Array.slice 0 previousIndex state.previous
-                , previousLength = previousIndex
-                , initial = state.initial
-                , persisted = persisted
-                }
-                msgs
-
-        Nothing ->
-            { latest = toUpdateChunk state.latest
-            , latestLength = state.latestLength
-            , current = replayChunk updateModel state.latestLength state.latest
-            , currentIndex = lengthHelper state
-            , previous = state.previous
-            , previousLength = state.previousLength
-            , initial = state.initial
-            , persisted = state.persisted
-            }
-
-
-toPreviousIndex : Int -> Int
-toPreviousIndex modelIndex =
-    modelIndex // chunkLength
-
-
-toMsgLength : Int -> Int
-toMsgLength modelIndex =
-    modBy chunkLength modelIndex
-
-
-partitionPersisted : Int -> List ( Int, msg ) -> ( List msg, List ( Int, msg ) )
-partitionPersisted modelIndex persisted =
-    partitionPersistedHelper modelIndex persisted []
-
-
-partitionPersistedHelper :
-    Int
-    -> List ( Int, msg )
-    -> List msg
-    -> ( List msg, List ( Int, msg ) )
-partitionPersistedHelper modelIndex persisted stale =
-    case persisted of
-        ( index, msg ) :: tail ->
-            if index > modelIndex then
-                partitionPersistedHelper modelIndex tail (msg :: stale)
-
-            else
-                ( stale, persisted )
+            nextHelper
+                updateModel
+                msgDecoder
+                strategy
+                nextHistory
+                nextModel
+                (index + 1)
+                nextMsgs
+                persisted
 
         [] ->
-            ( stale, persisted )
+            Jd.succeed history
+
+
+decodePersistedHelper :
+    (msg -> model -> model)
+    -> Jd.Decoder msg
+    -> DecodeStrategy
+    -> History model msg
+    -> model
+    -> Int
+    -> List Je.Value
+    -> Set Int
+    -> Jd.Decoder (History model msg)
+decodePersistedHelper updateModel msgDecoder strategy history model index encodedMsgs persisted =
+    case ( encodedMsgs, Set.member index persisted ) of
+        ( head :: tails, True ) ->
+            case Jd.decodeValue msgDecoder head of
+                Ok msg ->
+                    let
+                        updatedModel =
+                            updateModel msg model
+                    in
+                    decodePersistedHelper
+                        updateModel
+                        msgDecoder
+                        strategy
+                        (updateAndPersist msg updatedModel history)
+                        updatedModel
+                        (index + 1)
+                        tails
+                        persisted
+
+                Err _ ->
+                    decodePersistedHelper
+                        updateModel
+                        msgDecoder
+                        strategy
+                        history
+                        model
+                        (index + 1)
+                        tails
+                        persisted
+
+        ( _ :: tails, _ ) ->
+            decodePersistedHelper
+                updateModel
+                msgDecoder
+                strategy
+                history
+                model
+                (index + 1)
+                tails
+                persisted
+
+        ( [], _ ) ->
+            Jd.succeed history
 
 
 
--- UpdateChunk
+-- Chunk
 
 
-type alias UpdateChunk model msg =
-    ( List msg, model )
+type Chunk model msg
+    = Replay (ReplayChunk model msg)
+    | Update (UpdateChunk model msg)
 
 
-updateChunk : msg -> UpdateChunk model msg -> UpdateChunk model msg
-updateChunk msg ( msgs, model ) =
-    ( msg :: msgs, model )
+isReplayChunk : Chunk model msg -> Bool
+isReplayChunk chunk =
+    case chunk of
+        Replay _ ->
+            True
+
+        Update _ ->
+            False
 
 
-toReplayChunk : UpdateChunk model msg -> ReplayChunk model msg
-toReplayChunk ( msgs, model ) =
-    ( model, List.reverse msgs )
+chunkLength : Chunk model msg -> Int
+chunkLength chunk =
+    case chunk of
+        Update ( msgs, _ ) ->
+            List.length msgs
+
+        Replay ( _, msgs ) ->
+            List.length msgs
+
+
+chunkMsgs : Chunk model msg -> List msg
+chunkMsgs chunk =
+    case chunk of
+        Update ( msgs, _ ) ->
+            msgs
+
+        Replay ( _, msgs ) ->
+            msgs
+
+
+chunkModel : Chunk model msg -> model
+chunkModel chunk =
+    case chunk of
+        Update ( _, model ) ->
+            model
+
+        Replay ( model, _ ) ->
+            model
+
+
+toggleChunkReplay : Chunk model msg -> Chunk model msg
+toggleChunkReplay chunk =
+    case chunk of
+        Update updateChunk ->
+            Replay (toReplayChunk updateChunk)
+
+        Replay replayChunk ->
+            Update (toUpdateChunk replayChunk)
+
+
+insertChunkMsg : msg -> Chunk model msg -> Chunk model msg
+insertChunkMsg msg chunk =
+    case chunk of
+        Replay replayChunk ->
+            insertChunkMsg msg (toggleChunkReplay chunk)
+
+        Update ( msgs, model ) ->
+            Update ( msg :: msgs, model )
+
+
+asReplayChunk : Chunk model msg -> ReplayChunk model msg
+asReplayChunk chunk =
+    case chunk of
+        Replay replayChunk ->
+            replayChunk
+
+        Update updateChunk ->
+            toReplayChunk updateChunk
 
 
 
@@ -496,25 +433,19 @@ type alias ReplayChunk model msg =
     ( model, List msg )
 
 
-replayChunk :
-    (msg -> model -> ( model, Cmd msg ))
-    -> Int
-    -> ReplayChunk model msg
-    -> model
-replayChunk updateModel msgLength ( model, msgs ) =
-    List.foldl (replayChunkHelper updateModel) model (List.take msgLength msgs)
-
-
-replayChunkHelper : (msg -> model -> ( model, Cmd msg )) -> msg -> model -> model
-replayChunkHelper updateModel msg model =
-    Tuple.first (updateModel msg model)
-
-
-rewindChunk : Int -> ReplayChunk model msg -> ReplayChunk model msg
-rewindChunk msgLength ( model, msgs ) =
-    ( model, List.take msgLength msgs )
-
-
 toUpdateChunk : ReplayChunk model msg -> UpdateChunk model msg
 toUpdateChunk ( model, msgs ) =
     ( List.reverse msgs, model )
+
+
+
+-- UpdateChunk
+
+
+type alias UpdateChunk model msg =
+    ( List msg, model )
+
+
+toReplayChunk : UpdateChunk model msg -> ReplayChunk model msg
+toReplayChunk ( msgs, model ) =
+    ( model, List.reverse msgs )
