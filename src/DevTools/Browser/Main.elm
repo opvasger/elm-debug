@@ -52,6 +52,7 @@ type alias Model model msg =
     , viewportWidth : Int
     , isModelOverlayed : Bool
     , loadModelError : Maybe Jd.Error
+    , decodeStrategy : History.DecodeStrategy
     , mouseEvent : MouseEvent
     }
 
@@ -67,6 +68,7 @@ encodeModel encodeMsg model =
         , ( "viewportHeight", Je.int model.viewportHeight )
         , ( "viewportWidth", Je.int model.viewportWidth )
         , ( "isModelOverlayed", Je.bool model.isModelOverlayed )
+        , ( "decodeStrategy", History.encodeDecodeStrategy model.decodeStrategy )
         ]
 
 
@@ -76,6 +78,18 @@ modelDecoder :
     -> ( model, Cmd msg )
     -> Jd.Decoder ( Model model msg, Cmd msg )
 modelDecoder updateModel msgDecoder modelCmdPair =
+    Jd.andThen
+        (strategyToModelDecoder updateModel msgDecoder modelCmdPair)
+        (Jd.field "decodeStrategy" History.decodeStrategyDecoder)
+
+
+strategyToModelDecoder :
+    (msg -> model -> ( model, Cmd msg ))
+    -> Jd.Decoder msg
+    -> ( model, Cmd msg )
+    -> History.DecodeStrategy
+    -> Jd.Decoder ( Model model msg, Cmd msg )
+strategyToModelDecoder updateModel msgDecoder modelCmdPair strategy =
     Jd.map8
         (\( his, cmd ) dbw dbh dlp dtp vph vpw imo ->
             ( { history = his
@@ -88,11 +102,12 @@ modelDecoder updateModel msgDecoder modelCmdPair =
               , isModelOverlayed = imo
               , loadModelError = Nothing
               , mouseEvent = NoEvent
+              , decodeStrategy = strategy
               }
             , cmd
             )
         )
-        (Jd.field "history" (History.decoder updateModel msgDecoder modelCmdPair))
+        (Jd.field "history" (History.decoder updateModel msgDecoder strategy modelCmdPair))
         (Jd.field "debuggerWidth" Jd.int)
         (Jd.field "debuggerBodyHeight" Jd.int)
         (Jd.field "debuggerLeftPosition" Jd.int)
@@ -124,6 +139,7 @@ type Msg model msg
     | DragMove Int Int
     | DragStop
     | ResetHistory
+    | ToggleDecodeStrategy
 
 
 toMsg : msg -> Msg model msg
@@ -184,6 +200,7 @@ toInitModel loadModelError history =
     , isModelOverlayed = False
     , loadModelError = loadModelError
     , mouseEvent = NoEvent
+    , decodeStrategy = History.UntilError
     }
 
 
@@ -324,6 +341,7 @@ toUpdate config msg model =
                     (loadModelHelper config.update
                         config.msgDecoder
                         (History.initialPair model.history)
+                        model.decodeStrategy
                     )
                 |> Task.attempt ModelLoaded
             )
@@ -372,6 +390,19 @@ toUpdate config msg model =
             in
             ( { model | history = history }, Cmd.map InitAppMsg cmd )
 
+        ToggleDecodeStrategy ->
+            ( { model
+                | decodeStrategy =
+                    case model.decodeStrategy of
+                        History.UntilError ->
+                            History.SkipErrors
+
+                        History.SkipErrors ->
+                            History.UntilError
+              }
+            , Cmd.none
+            )
+
 
 encodeDevTools : (msg -> Je.Value) -> Model model msg -> Je.Value
 encodeDevTools encodeMsg model =
@@ -382,10 +413,11 @@ loadModelHelper :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
     -> ( model, Cmd msg )
+    -> History.DecodeStrategy
     -> String
     -> Task Jd.Error ( Model model msg, Cmd msg )
-loadModelHelper modelUpdater msgDecoder modelCmdPair string =
-    resultToTask (Jd.decodeString (modelDecoder modelUpdater msgDecoder modelCmdPair) string)
+loadModelHelper modelUpdater msgDecoder modelCmdPair strategy string =
+    resultToTask (Jd.decodeString (strategyToModelDecoder modelUpdater msgDecoder modelCmdPair strategy) string)
 
 
 resultToTask : Result err ok -> Task err ok
@@ -473,6 +505,8 @@ view config model html =
                     , viewportHeight = model.viewportHeight
                     , viewportWidth = model.viewportWidth
                     , resetHistoryMsg = ResetHistory
+                    , toggleDecodeStrategyMsg = ToggleDecodeStrategy
+                    , decodeStrategy = model.decodeStrategy
                     }
                 )
             )

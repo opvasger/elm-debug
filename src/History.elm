@@ -1,9 +1,13 @@
 module History exposing
-    ( History
+    ( DecodeStrategy(..)
+    , History
     , currentIndex
     , currentModel
+    , decodeStrategyDecoder
     , decoder
+    , describeDecodeStrategy
     , encode
+    , encodeDecodeStrategy
     , init
     , initialPair
     , isReplaying
@@ -44,7 +48,6 @@ init modelCmdPair =
     ( Update (initState modelCmdPair)
     , Tuple.second modelCmdPair
     )
-
 
 
 length : History model msg -> Int
@@ -213,27 +216,76 @@ encodeHelper encodeMsg isReplay latest state =
         ]
 
 
+
+-- HistoryDecoder
+
+
+type DecodeStrategy
+    = UntilError
+    | SkipErrors
+
+
+describeDecodeStrategy : DecodeStrategy -> String
+describeDecodeStrategy strategy =
+    case strategy of
+        UntilError ->
+            "Reload messages until first error"
+
+        SkipErrors ->
+            "Reload messages and skip on error"
+
+
+encodeDecodeStrategy : DecodeStrategy -> Je.Value
+encodeDecodeStrategy strategy =
+    case strategy of
+        UntilError ->
+            Je.string "untilError"
+
+        SkipErrors ->
+            Je.string "skipErrors"
+
+
+decodeStrategyDecoder : Jd.Decoder DecodeStrategy
+decodeStrategyDecoder =
+    Jd.map
+        (\text ->
+            case text of
+                "untilError" ->
+                    UntilError
+
+                "skipErrors" ->
+                    SkipErrors
+
+                _ ->
+                    UntilError
+        )
+        Jd.string
+
+
 decoder :
     (msg -> model -> ( model, Cmd msg ))
     -> Jd.Decoder msg
+    -> DecodeStrategy
     -> ( model, Cmd msg )
     -> Jd.Decoder ( History model msg, Cmd msg )
-decoder updateModel msgDecoder modelCmdPair =
+decoder updateModel msgDecoder strategy modelCmdPair =
     Jd.map3
-        (decoderHelper updateModel modelCmdPair)
+        (decoderHelper updateModel msgDecoder strategy modelCmdPair)
         (Jd.field "replayIndex" (Jd.maybe Jd.int))
         (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
-        (Jd.field "msgs" (Jd.list msgDecoder))
+        (Jd.field "msgs" (Jd.list Jd.value))
 
 
 decoderHelper :
     (msg -> model -> ( model, Cmd msg ))
+    -> Jd.Decoder msg
+    -> DecodeStrategy
     -> ( model, Cmd msg )
     -> Maybe Int
     -> Set Int
-    -> List msg
+    -> List Jd.Value
     -> ( History model msg, Cmd msg )
-decoderHelper updateModel modelCmdPair replayIndex persistedIndices msgs =
+decoderHelper updateModel msgDecoder strategy modelCmdPair replayIndex persistedIndices jsonMsgs =
     let
         toReplayIndex =
             case replayIndex of
@@ -243,15 +295,23 @@ decoderHelper updateModel modelCmdPair replayIndex persistedIndices msgs =
                 Nothing ->
                     identity
 
-        foldMsgs msg history =
-            Tuple.first <|
-                if Set.member (currentIndex history + 1) persistedIndices then
-                    updateAndPersist updateModel msg history
+        foldMsgs jsonMsg ( history, maybeError ) =
+            case Jd.decodeValue msgDecoder jsonMsg of
+                Ok msg ->
+                    Tuple.mapSecond (always maybeError) <|
+                        if Set.member (currentIndex history + 1) persistedIndices then
+                            updateAndPersist updateModel msg history
 
-                else
-                    update updateModel msg history
+                        else if strategy == SkipErrors || maybeError == Nothing then
+                            update updateModel msg history
+
+                        else
+                            ( history, Cmd.none )
+
+                Err error ->
+                    ( history, Just (Maybe.withDefault error maybeError) )
     in
-    ( toReplayIndex (List.foldl foldMsgs (Tuple.first (init modelCmdPair)) msgs)
+    ( toReplayIndex (Tuple.first (List.foldl foldMsgs ( Tuple.first (init modelCmdPair), Nothing ) jsonMsgs))
     , Cmd.none
     )
 

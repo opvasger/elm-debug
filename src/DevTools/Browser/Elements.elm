@@ -11,6 +11,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Input as Input
+import History
 import Html exposing (Html)
 import Html.Events
 import Json.Decode as Jd
@@ -117,6 +118,7 @@ viewBody config =
         , Border.widthXY 1 0
         , Border.color borderGray
         , Background.color white
+        , clip
         ]
         config.body
 
@@ -257,6 +259,8 @@ viewDebugger :
     , viewportHeight : Int
     , viewportWidth : Int
     , resetHistoryMsg : msg
+    , decodeStrategy : History.DecodeStrategy
+    , toggleDecodeStrategyMsg : msg
     }
     -> Element msg
 viewDebugger config =
@@ -297,7 +301,12 @@ viewDebugger config =
             ]
         , viewBody
             { height = config.bodyHeight
-            , body = none
+            , body =
+                Input.button
+                    []
+                    { label = text (History.describeDecodeStrategy config.decodeStrategy)
+                    , onPress = Just config.toggleDecodeStrategyMsg
+                    }
             }
         , viewControls Nothing
             [ viewIconButton
