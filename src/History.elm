@@ -98,22 +98,12 @@ currentModel (History { current }) =
 
 toggleReplay : (msg -> model -> model) -> History model msg -> History model msg
 toggleReplay updateModel (History ({ current } as history)) =
-    History
-        { history
-            | current =
-                { current
-                    | chunk = toggleChunk current.chunk
-                    , model =
-                        case current.chunk of
-                            Replay ( model, msgs ) ->
-                                ( length (History history) - 1
-                                , List.foldl updateModel model msgs
-                                )
+    case current.chunk of
+        Replay _ ->
+            rewind updateModel (Tuple.first current.model) (History history)
 
-                            Update _ ->
-                                current.model
-                }
-        }
+        Update _ ->
+            History { history | current = { current | chunk = toggleChunk current.chunk } }
 
 
 replay : (msg -> model -> model) -> Int -> History model msg -> History model msg
@@ -156,17 +146,16 @@ replay updateModel index (History ({ current, previous } as history)) =
 
 
 rewind : (msg -> model -> model) -> Int -> History model msg -> History model msg
-rewind updateModel index (History history) =
-    case history.current.chunk of
-        Replay replayChunk ->
-            let
-                _ =
-                    ()
-            in
-            History history
-
-        Update updateChunk ->
-            rewind updateModel index (toggleReplay updateModel (History history))
+rewind updateModel index (History ({ current } as history)) =
+    let
+        ( persistMsgs, persisted ) =
+            Tuple.mapFirst Dict.values
+                (Dict.partition
+                    (\msgIndex msg -> msgIndex > Tuple.first current.model)
+                    history.persisted
+                )
+    in
+    Debug.todo "not implemented yet"
 
 
 updateAndPersist : (msg -> model -> model) -> msg -> History model msg -> History model msg
