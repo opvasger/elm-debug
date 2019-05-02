@@ -1,5 +1,6 @@
 module Mario exposing
     ( encodeMsg
+    , fromCache
     , init
     , msgDecoder
     , subscriptions
@@ -15,6 +16,10 @@ import Html.Attributes as Ha
 import Json.Decode as Jd
 import Json.Encode as Je
 import Task
+
+
+type alias Flags =
+    Jd.Value
 
 
 type alias Velocity =
@@ -74,7 +79,12 @@ type alias Model =
     }
 
 
-init : { devTools : Maybe String } -> ( Model, Cmd Msg )
+fromCache : Flags -> Maybe String
+fromCache =
+    Result.withDefault Nothing << Jd.decodeValue (Jd.field "devTools" (Jd.maybe Jd.string))
+
+
+init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( { face = Right
       , position = Position 0 0

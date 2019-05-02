@@ -6,16 +6,16 @@ Tools for developing Elm programs!
 ## Try out my example
 The module is still being developed and will probably go through major changes.
 
-If you want to try it, you can clone the repo and run these commands from the `/examples` folder:
+If you want to try it, you can clone the repo and run these commands from the root folder:
 ```bash
 # install dependencies
 npm install
 
-# start example with linux
-npm start
+# start example with mac/linux
+npm run example
 
 # start example with windows
-npm run start:win
+npm run example:win
 ```
 
 ## Goals
@@ -27,4 +27,3 @@ The overarching goal is to close the loop between writing Elm code and interacti
 5. The boilerplate necessary to enable the first four goals should be minimal, and if needed be, incremental.
 
 I strongly believe that the optimal design and implementation of these goals will transform how we build our applications. Going through the loop of compiling code, reloading browser windows and getting the application into the right state costs seconds, but those seconds are spent at such a frequency that writing interactive applications is incredibly time-consuming. I hope it doesn't have to be.
-

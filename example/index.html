@@ -19,7 +19,7 @@
             }
         })
 
-        example.ports.output.subscribe(function (output) {
+        example.ports.toCache.subscribe(function (output) {
 
             if (output.devTools) localStorage.setItem("elm-dev-tools", output.devTools);
         })

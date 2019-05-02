@@ -1,0 +1,38 @@
+{
+  "name": "elm-devtools",
+  "version": "0.1.0",
+  "description": "Tools for developing Elm programs!",
+  "directories": {
+    "example": "example"
+  },
+  "bin": {
+    "elm-devtools": "bin/cli.js"
+  },
+  "scripts": {
+    "xref": "elm-xref",
+    "test": "elm-test",
+    "example": "live-server --watch=./example/dist example & nodemon --watch example/src --ext elm --exec 'cd example && elm make src/Main.elm --output=dist/index.js'",
+    "example:win": "start live-server --watch=./example/dist example && nodemon --watch example/src --ext elm --exec \"cd example && elm make src/Main.elm --output=dist/index.js\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/opvasger/elm-devtools.git"
+  },
+  "keywords": [],
+  "author": "asger nielsen <opvasger@gmail.com>",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/opvasger/elm-devtools/issues"
+  },
+  "homepage": "https://github.com/opvasger/elm-devtools#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "elm": "0.19.0",
+    "elm-json": "0.2.0",
+    "elm-test": "0.19.0-rev6",
+    "elm-xref": "4.0.0",
+    "google-closure-compiler": "20190415.0.0",
+    "live-server": "1.2.1",
+    "nodemon": "1.19.0"
+  }
+}

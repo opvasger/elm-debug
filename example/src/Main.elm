@@ -3,11 +3,11 @@ port module Main exposing (main)
 -- Import "Form" instead of "Mario" to try the other example
 
 import DevTools.Browser
+import Form exposing (encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
 import Json.Encode
-import Mario exposing (encodeMsg, init, msgDecoder, subscriptions, update, view)
 
 
-port output : Json.Encode.Value -> Cmd msg
+port toCache : Json.Encode.Value -> Cmd msg
 
 
 main =
@@ -20,7 +20,7 @@ main =
             { printModel = Debug.toString
             , encodeMsg = encodeMsg
             , msgDecoder = msgDecoder
-            , toSession = .devTools
-            , output = output
+            , fromCache = fromCache
+            , toCache = toCache
             }
         }

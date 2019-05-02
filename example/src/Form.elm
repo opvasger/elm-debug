@@ -1,5 +1,6 @@
 module Form exposing
     ( encodeMsg
+    , fromCache
     , init
     , msgDecoder
     , subscriptions
@@ -13,6 +14,16 @@ import Html.Attributes as Ha
 import Html.Events as He
 import Json.Decode as Jd
 import Json.Encode as Je
+
+
+type alias Flags =
+    { devTools : Maybe String
+    }
+
+
+fromCache : Flags -> Maybe String
+fromCache =
+    .devTools
 
 
 type alias Model =
@@ -53,7 +64,7 @@ type Page
     | Count CountState
 
 
-init : { devTools : Maybe String } -> ( Model, Cmd Msg )
+init : Flags -> ( Model, Cmd Msg )
 init _ =
     ( { page = initAuth }
     , Cmd.none

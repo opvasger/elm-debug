@@ -2,45 +2,58 @@ module DevTools.Browser exposing (application, document, element, sandbox)
 
 import Browser
 import Browser.Navigation
-import DevTools.Browser.Main as Main
+import DevTools.Browser.Program as Program exposing (Program)
 import Html exposing (Html)
+import Json.Decode as Jd
+import Json.Encode as Je
 import Url exposing (Url)
+
+
+type alias Config flags model msg =
+    { printModel : model -> String
+    , encodeMsg : msg -> Je.Value
+    , msgDecoder : Jd.Decoder msg
+    , fromCache : flags -> Maybe String
+    , toCache : Je.Value -> Cmd (Program.Msg model msg)
+    }
 
 
 sandbox :
     { init : model
     , view : model -> Html msg
     , update : msg -> model -> model
-    , devTools : Main.Configuration flags model msg
+    , devTools : Config flags model msg
     }
-    -> Main.Program flags model msg
+    -> Program flags model msg
 sandbox { init, view, update, devTools } =
     Browser.document
         { init =
             \flags ->
-                Main.toInit
+                Program.mapInit
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = devTools.msgDecoder
-                    , modelCmdPair = ( init, Cmd.none )
-                    , session = devTools.toSession flags
+                    , init = ( init, Cmd.none )
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            Main.toDocument
+            Program.mapDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = \model -> { title = "", body = view model :: [] }
+                , viewApp = \model -> { title = "", body = view model :: [] }
+                , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , update =
-            Main.toUpdate
+            Program.mapUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
-                , output = devTools.output
+                , toCache = devTools.toCache
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , subscriptions =
-            Main.toSubscriptions
+            Program.mapSubscriptions
                 { subscriptions = always Sub.none
                 , msgDecoder = devTools.msgDecoder
+                , update = \msg model -> ( update msg model, Cmd.none )
                 }
         }
 
@@ -50,36 +63,38 @@ element :
     , view : model -> Html msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : Main.Configuration flags model msg
+    , devTools : Config flags model msg
     }
-    -> Main.Program flags model msg
+    -> Program flags model msg
 element { init, view, update, subscriptions, devTools } =
     Browser.element
         { init =
             \flags ->
-                Main.toInit
+                Program.mapInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , modelCmdPair = init flags
-                    , session = devTools.toSession flags
+                    , init = init flags
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            Main.toHtml
+            Program.mapHtml
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = view
+                , viewApp = view
+                , update = update
                 }
         , update =
-            Main.toUpdate
+            Program.mapUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
-                , output = devTools.output
+                , toCache = devTools.toCache
                 , update = update
                 }
         , subscriptions =
-            Main.toSubscriptions
+            Program.mapSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
+                , update = update
                 }
         }
 
@@ -89,36 +104,38 @@ document :
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : Main.Configuration flags model msg
+    , devTools : Config flags model msg
     }
-    -> Main.Program flags model msg
+    -> Program flags model msg
 document { init, view, update, subscriptions, devTools } =
     Browser.document
         { init =
             \flags ->
-                Main.toInit
+                Program.mapInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , modelCmdPair = init flags
-                    , session = devTools.toSession flags
+                    , init = init flags
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            Main.toDocument
+            Program.mapDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = view
+                , viewApp = view
+                , update = update
                 }
         , update =
-            Main.toUpdate
+            Program.mapUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
-                , output = devTools.output
+                , toCache = devTools.toCache
                 }
         , subscriptions =
-            Main.toSubscriptions
+            Program.mapSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
+                , update = update
                 }
         }
 
@@ -130,37 +147,39 @@ application :
     , subscriptions : model -> Sub msg
     , onUrlRequest : Browser.UrlRequest -> msg
     , onUrlChange : Url -> msg
-    , devTools : Main.Configuration flags model msg
+    , devTools : Config flags model msg
     }
-    -> Main.Program flags model msg
+    -> Program flags model msg
 application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devTools } =
     Browser.application
         { init =
             \flags url key ->
-                Main.toInit
+                Program.mapInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , modelCmdPair = init flags url key
-                    , session = devTools.toSession flags
+                    , init = init flags url key
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            Main.toDocument
+            Program.mapDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = view
+                , viewApp = view
+                , update = update
                 }
         , update =
-            Main.toUpdate
+            Program.mapUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
-                , output = devTools.output
+                , toCache = devTools.toCache
                 }
         , subscriptions =
-            Main.toSubscriptions
+            Program.mapSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
+                , update = update
                 }
-        , onUrlChange = Main.toMsg << onUrlChange
-        , onUrlRequest = Main.toMsg << onUrlRequest
+        , onUrlChange = Program.mapUrlMsg << onUrlChange
+        , onUrlRequest = Program.mapUrlMsg << onUrlRequest
         }
