@@ -217,7 +217,7 @@ strategyToDecoder strategy =
             History.skipErrorsDecoder
 
         NoErrors ->
-            History.decoder
+            History.noErrorsDecoder
 
 
 encodeDecodingStrategy : DecodingStrategy -> Je.Value
