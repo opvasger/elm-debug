@@ -6,9 +6,10 @@ cache:
 
 install:
   - npm install -g elm@0.19.0-bugfix6
-  - chmod +x $(npm config get prefix)/bin/elm
+  - npm install -g elm-test@0.19.0-rev6
+  - npm install -g elm-xref@4.0.0
 
 script:
-  - elm make
-  - elm-format src/ --validate
-  - npm test
+  - npm run build
+  - npm run xref
+  - npm run test
