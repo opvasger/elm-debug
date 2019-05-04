@@ -1,7 +1,5 @@
 language: elm
 
-sudo: false
-
 cache:
   directories:
     - elm-stuff
