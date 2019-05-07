@@ -79,9 +79,9 @@ type alias Model =
     }
 
 
-fromCache : Flags -> Maybe String
+fromCache : Flags -> Maybe Je.Value
 fromCache =
-    Result.withDefault Nothing << Jd.decodeValue (Jd.field "devTools" (Jd.maybe Jd.string))
+    Result.withDefault Nothing << Jd.decodeValue (Jd.field "devTools" (Jd.maybe Jd.value))
 
 
 init : Flags -> ( Model, Cmd Msg )

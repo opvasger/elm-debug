@@ -26,8 +26,11 @@ import Set exposing (Set)
 type History model msg
     = History
         { current :
-            { model : Indexed model
-            , chunk : Chunk model msg
+            { model : model
+            , index : Int
+            }
+        , recent :
+            { chunk : Chunk model msg
             , length : Int
             }
         , previous :
@@ -59,8 +62,11 @@ init : model -> History model msg
 init model =
     History
         { current =
+            { model = model
+            , index = 0
+            }
+        , recent =
             { chunk = Update ( [], model )
-            , model = ( 0, model )
             , length = 1
             }
         , previous =
@@ -72,52 +78,52 @@ init model =
 
 
 isReplaying : History model msg -> Bool
-isReplaying (History { current }) =
-    isChunkReplaying current.chunk
+isReplaying (History { recent }) =
+    isChunkReplaying recent.chunk
 
 
 length : History model msg -> Int
-length (History { current, previous }) =
-    case current.chunk of
+length (History { current, recent, previous }) =
+    case recent.chunk of
         Update _ ->
-            Tuple.first current.model + 1
+            current.index + 1
 
         Replay _ ->
-            current.length + previous.length * maxChunkMsgLength
+            recent.length + previous.length * maxChunkMsgLength
 
 
 currentIndex : History model msg -> Int
 currentIndex (History { current }) =
-    Tuple.first current.model
+    current.index
 
 
 currentModel : History model msg -> model
 currentModel (History { current }) =
-    Tuple.second current.model
+    current.model
 
 
 toggleReplay : (msg -> model -> model) -> History model msg -> History model msg
-toggleReplay updateModel (History ({ current } as history)) =
-    case current.chunk of
+toggleReplay updateModel (History ({ current, recent } as history)) =
+    case recent.chunk of
         Replay _ ->
-            rewind updateModel (Tuple.first current.model) (History history)
+            rewind updateModel (History history)
 
         Update _ ->
-            History { history | current = { current | chunk = toggleChunk current.chunk } }
+            History { history | recent = { recent | chunk = toggleChunk recent.chunk } }
 
 
 replay : (msg -> model -> model) -> Int -> History model msg -> History model msg
-replay updateModel index (History ({ current, previous } as history)) =
-    case current.chunk of
+replay updateModel requestIndex (History ({ current, recent, previous } as history)) =
+    case recent.chunk of
         Replay ( currModel, currMsgs ) ->
             let
                 historyLength =
                     length (History history)
 
                 replayIndex =
-                    clamp 0 (historyLength - 1) index
+                    clamp 0 (historyLength - 1) requestIndex
 
-                model =
+                ( index, model ) =
                     case Array.get (replayIndex // maxChunkMsgLength) previous.chunks of
                         Just ( prevModel, prevMsgs ) ->
                             ( replayIndex
@@ -139,19 +145,19 @@ replay updateModel index (History ({ current, previous } as history)) =
                                 , List.foldl updateModel currModel currMsgs
                                 )
             in
-            History { history | current = { current | model = model } }
+            History { history | current = { current | model = model, index = index } }
 
         Update _ ->
-            replay updateModel index (toggleReplay updateModel (History history))
+            replay updateModel requestIndex (toggleReplay updateModel (History history))
 
 
-rewind : (msg -> model -> model) -> Int -> History model msg -> History model msg
-rewind updateModel index (History ({ current } as history)) =
+rewind : (msg -> model -> model) -> History model msg -> History model msg
+rewind updateModel (History ({ current } as history)) =
     let
         ( persistMsgs, persisted ) =
             Tuple.mapFirst Dict.values
                 (Dict.partition
-                    (\msgIndex msg -> msgIndex > Tuple.first current.model)
+                    (\msgIndex msg -> msgIndex > current.index)
                     history.persisted
                 )
     in
@@ -169,43 +175,42 @@ updateAndPersist updateModel msg (History history) =
 
 update : (msg -> model -> model) -> msg -> History model msg -> History model msg
 update updateModel msg (History history) =
-    case history.current.chunk of
+    case history.recent.chunk of
         Update ( msgs, model ) ->
             let
-                ( current, previous ) =
-                    if history.current.length < maxChunkMsgLength then
-                        ( { chunk = Update ( msg :: msgs, model )
-                          , length = history.current.length + 1
-                          , model =
-                                ( Tuple.first history.current.model + 1
-                                , updateModel msg (Tuple.second history.current.model)
-                                )
+                ( current, recent, previous ) =
+                    if history.recent.length < maxChunkMsgLength then
+                        ( { model = updateModel msg history.current.model
+                          , index = history.current.index + 1
+                          }
+                        , { chunk = Update ( msg :: msgs, model )
+                          , length = history.recent.length + 1
                           }
                         , history.previous
                         )
 
                     else
-                        ( { chunk =
+                        ( { model = updateModel msg history.current.model
+                          , index = history.current.index + 1
+                          }
+                        , { length = 2
+                          , chunk =
                                 Update
                                     ( [ msg ]
-                                    , Tuple.second history.current.model
+                                    , history.current.model
                                     )
-                          , length = 2
-                          , model =
-                                ( Tuple.first history.current.model + 1
-                                , updateModel msg (Tuple.second history.current.model)
-                                )
                           }
-                        , { chunks =
-                                Array.push (toReplayChunk history.current.chunk)
+                        , { length = history.previous.length + 1
+                          , chunks =
+                                Array.push (toReplayChunk history.recent.chunk)
                                     history.previous.chunks
-                          , length = history.previous.length + 1
                           }
                         )
             in
             History
                 { history
                     | current = current
+                    , recent = recent
                     , previous = previous
                 }
 
@@ -213,34 +218,22 @@ update updateModel msg (History history) =
             update updateModel msg (toggleReplay updateModel (History history))
 
 
-keyStrings :
-    { messages : String
-    , persistedIndices : String
-    , replayIndex : String
-    }
-keyStrings =
-    { messages = "messages"
-    , persistedIndices = "persistedIndices"
-    , replayIndex = "replayIndex"
-    }
-
-
 encode : (msg -> Je.Value) -> History model msg -> Je.Value
-encode encodeMsg ((History { current, previous, persisted }) as history) =
+encode encodeMsg ((History { current, recent, previous, persisted }) as history) =
     Je.object
-        [ ( keyStrings.messages
+        [ ( "messages"
           , Je.list identity
                 (Array.foldr ((++) << List.map encodeMsg << Tuple.second)
                     []
-                    (Array.push (toReplayChunk current.chunk) previous.chunks)
+                    (Array.push (toReplayChunk recent.chunk) previous.chunks)
                 )
           )
-        , ( keyStrings.persistedIndices
+        , ( "persistedIndices"
           , Je.list Je.int (Dict.keys persisted)
           )
-        , ( keyStrings.replayIndex
-          , if isChunkReplaying current.chunk then
-                Je.int (Tuple.first current.model)
+        , ( "replayIndex"
+          , if isChunkReplaying recent.chunk then
+                Je.int current.index
 
             else
                 Je.null
@@ -252,9 +245,9 @@ noErrorsDecoder : (msg -> model -> model) -> Jd.Decoder msg -> model -> Jd.Decod
 noErrorsDecoder updateModel msgDecoder model =
     Jd.map3
         (noErrorsDecoderHelper updateModel (init model))
-        (Jd.field keyStrings.messages (Jd.list msgDecoder))
-        (Jd.field keyStrings.persistedIndices (Jd.map Set.fromList (Jd.list Jd.int)))
-        (Jd.field keyStrings.replayIndex (Jd.maybe Jd.int))
+        (Jd.field "messages" (Jd.list msgDecoder))
+        (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
+        (Jd.field "replayIndex" (Jd.maybe Jd.int))
 
 
 noErrorsDecoderHelper :
@@ -284,9 +277,9 @@ untilErrorDecoder : (msg -> model -> model) -> Jd.Decoder msg -> model -> Jd.Dec
 untilErrorDecoder updateModel msgDecoder model =
     Jd.map3
         (untilErrorDecoderHelper updateModel msgDecoder (init model))
-        (Jd.field keyStrings.messages (Jd.list Jd.value))
-        (Jd.field keyStrings.persistedIndices (Jd.map Set.fromList (Jd.list Jd.int)))
-        (Jd.field keyStrings.replayIndex (Jd.maybe Jd.int))
+        (Jd.field "messages" (Jd.list Jd.value))
+        (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
+        (Jd.field "replayIndex" (Jd.maybe Jd.int))
 
 
 untilErrorDecoderHelper :
@@ -333,9 +326,9 @@ skipErrorsDecoder : (msg -> model -> model) -> Jd.Decoder msg -> model -> Jd.Dec
 skipErrorsDecoder updateModel msgDecoder model =
     Jd.map3
         (skipErrorsDecoderHelper updateModel msgDecoder (init model) 0)
-        (Jd.field keyStrings.messages (Jd.list Jd.value))
-        (Jd.field keyStrings.persistedIndices (Jd.map Set.fromList (Jd.list Jd.int)))
-        (Jd.field keyStrings.replayIndex (Jd.maybe Jd.int))
+        (Jd.field "messages" (Jd.list Jd.value))
+        (Jd.field "persistedIndices" (Jd.map Set.fromList (Jd.list Jd.int)))
+        (Jd.field "replayIndex" (Jd.maybe Jd.int))
 
 
 skipErrorsDecoderHelper :

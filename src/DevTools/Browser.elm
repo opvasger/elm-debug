@@ -13,7 +13,7 @@ type alias Config flags model msg =
     { printModel : model -> String
     , encodeMsg : msg -> Je.Value
     , msgDecoder : Jd.Decoder msg
-    , fromCache : flags -> Maybe String
+    , fromCache : flags -> Maybe Je.Value
     , toCache : Je.Value -> Cmd (Program.Msg model msg)
     }
 

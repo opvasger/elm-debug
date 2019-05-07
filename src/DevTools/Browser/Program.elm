@@ -84,8 +84,8 @@ updateHistory :
     -> msg
     -> History model msg
     -> History model msg
-updateHistory src =
-    case src of
+updateHistory msgSrc =
+    case msgSrc of
         Init ->
             History.updateAndPersist
 
@@ -336,7 +336,7 @@ mapInit :
     { init : ( model, Cmd msg )
     , msgDecoder : Jd.Decoder msg
     , update : msg -> model -> ( model, Cmd msg )
-    , fromCache : Maybe String
+    , fromCache : Maybe Je.Value
     }
     -> ( Model model msg, Cmd (Msg model msg) )
 mapInit { fromCache, update, msgDecoder, init } =
@@ -419,14 +419,14 @@ mapUpdate { update, encodeMsg, msgDecoder } msg ({ importDecoding } as model) =
             , Cmd.none
             )
 
-        UpdateApp src appMsg ->
+        UpdateApp msgSrc appMsg ->
             let
                 ( _, appCmd ) =
                     update appMsg (History.currentModel model.history)
             in
             ( { model
                 | history =
-                    updateHistory src
+                    updateHistory msgSrc
                         (withoutCmd update)
                         appMsg
                         model.history
