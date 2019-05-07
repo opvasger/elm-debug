@@ -49,8 +49,7 @@ rewindPersisted =
                 rwdHistory =
                     History.rewind
                         (+)
-                        0
-                        updHistory
+                        (History.replay (+) 0 updHistory)
             in
             Expect.equal
                 perHistory
@@ -76,8 +75,7 @@ rewindUpdates =
                 rewinded =
                     History.rewind
                         (+)
-                        rewindIndex
-                        history
+                        (History.replay (+) rewindIndex history)
             in
             Expect.equal
                 initModel
@@ -109,8 +107,7 @@ rewindPersistedLength =
                 rewinded =
                     History.rewind
                         (+)
-                        rewindIndex
-                        persisted
+                        (History.replay (+) rewindIndex persisted)
             in
             Expect.atLeast
                 (List.length perMsgs + 1)
