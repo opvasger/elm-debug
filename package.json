@@ -10,7 +10,7 @@
   },
   "scripts": {
     "xref": "elm-xref",
-    "test": "elm-test",
+    "test": "elm-test tests/Suite.elm",
     "build": "elm make",
     "example": "live-server --watch=./example/dist example & nodemon --watch example/src --ext elm --exec 'cd example && elm make src/Main.elm --output=dist/index.js'",
     "example:win": "start live-server --watch=./example/dist example && nodemon --watch example/src --ext elm --exec \"cd example && elm make src/Main.elm --output=dist/index.js\""

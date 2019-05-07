@@ -230,7 +230,7 @@ encode encodeMsg ((History { current, previous, persisted }) as history) =
     Je.object
         [ ( keyStrings.messages
           , Je.list identity
-                (Array.foldl ((++) << List.map encodeMsg << Tuple.second)
+                (Array.foldr ((++) << List.map encodeMsg << Tuple.second)
                     []
                     (Array.push (toReplayChunk current.chunk) previous.chunks)
                 )

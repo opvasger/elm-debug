@@ -10,15 +10,6 @@ import Test exposing (Test)
 
 
 
--- Helpers
-
-
-triple : a -> b -> c -> ( a, b, c )
-triple a b c =
-    ( a, b, c )
-
-
-
 -- Tests
 
 
@@ -151,4 +142,13 @@ encodeDecodeEquality =
                         (History.noErrorsDecoder (+) Json.Decode.int 0)
                         (History.encode Json.Encode.int history)
             in
-            Expect.equal decoded (Result.Ok history)
+            Expect.equal (Result.Ok history) decoded
+
+
+
+-- Helpers
+
+
+triple : a -> b -> c -> ( a, b, c )
+triple a b c =
+    ( a, b, c )
