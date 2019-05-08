@@ -15,7 +15,7 @@
     "test": "elm-test tests",
     "example": "npm run example:serve & npm run example:build",
     "example:win": "start npm run example:serve && npm run example:build",
-    "example:serve": "live-server --watch=example/dist --no-browser example",
+    "example:serve": "live-server --no-css-inject --no-browser --watch=dist example",
     "example:build": "nodemon --ext elm --exec \"cd example && elm make src/Main.elm --output=dist/index.js\""
   },
   "repository": {
