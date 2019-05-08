@@ -469,9 +469,14 @@ mapUpdate { update, encodeMsg, msgDecoder } msg ({ importDecoding } as model) =
             )
 
         UpdateMouse mouse ->
-            ( { model | mouse = mouse }
-            , Cmd.none
-            )
+            case ( mouse, model.mouse ) of
+                ( Target _, Drag _ _ ) ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    ( { model | mouse = mouse }
+                    , Cmd.none
+                    )
 
         MoveWindow to ->
             case model.mouse of
