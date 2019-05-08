@@ -3,6 +3,9 @@ Tools for developing Elm programs!
 
 ![](/example/example.gif)
 
+![](https://img.shields.io/npm/v/elm-devtools.svg)
+![](https://img.shields.io/elm-package/v/opvasger/devtools.svg)
+
 ## Try out my example
 The module is still being developed and will probably go through major changes.
 
