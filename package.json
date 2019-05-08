@@ -9,11 +9,14 @@
     "elm-devtools": "bin/cli.js"
   },
   "scripts": {
+    "build": "elm make --output=/dev/null",
     "xref": "elm-xref",
-    "test": "elm-test tests/Suite.elm",
-    "build": "elm make",
-    "example": "live-server --watch=./example/dist example & nodemon --watch example/src --ext elm --exec 'cd example && elm make src/Main.elm --output=dist/index.js'",
-    "example:win": "start live-server --watch=./example/dist example && nodemon --watch example/src --ext elm --exec \"cd example && elm make src/Main.elm --output=dist/index.js\""
+    "format": "elm-format --yes src/",
+    "test": "elm-test tests",
+    "example": "npm run example:serve & npm run example:build",
+    "example:win": "start npm run example:serve && npm run example:build",
+    "example:serve": "live-server --watch=example/dist --no-browser example",
+    "example:build": "nodemon --ext elm --exec \"cd example && elm make src/Main.elm --output=dist/index.js\""
   },
   "repository": {
     "type": "git",
@@ -32,6 +35,7 @@
     "elm-json": "0.2.0",
     "elm-test": "0.19.0-rev6",
     "elm-xref": "4.0.0",
+    "elm-format": "0.8.1",
     "google-closure-compiler": "20190415.0.0",
     "live-server": "1.2.1",
     "nodemon": "1.19.0"

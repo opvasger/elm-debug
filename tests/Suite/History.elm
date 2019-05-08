@@ -51,9 +51,7 @@ rewindPersisted =
                         (+)
                         (History.replay (+) 0 updHistory)
             in
-            Expect.equal
-                perHistory
-                (History.toggleReplay (+) rwdHistory)
+            Expect.equal perHistory rwdHistory
 
 
 rewindUpdates : Test
@@ -118,7 +116,7 @@ encodeDecodeEquality : Test
 encodeDecodeEquality =
     Test.fuzz
         (Fuzz.list (Fuzz.map2 Tuple.pair Fuzz.bool Fuzz.int))
-        "encoding a history and decoding it with the same initial model always yields the same history"
+        "encoding/decoding with the same initial model always yields the same history in replay"
     <|
         \msgs ->
             let
@@ -139,7 +137,9 @@ encodeDecodeEquality =
                         (History.noErrorsDecoder (+) Json.Decode.int 0)
                         (History.encode Json.Encode.int history)
             in
-            Expect.equal (Result.Ok history) decoded
+            Expect.equal
+                (Result.Ok (History.toggleReplay (+) history))
+                decoded
 
 
 
