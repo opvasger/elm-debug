@@ -158,7 +158,7 @@ rewind updateModel (History ({ current, recent, previous } as history)) =
             current.index // maxChunkMsgLength
 
         previousLength =
-            max 0 (previousIndex - 1)
+            max 0 previousIndex
 
         ( msgs, persisted ) =
             Tuple.mapFirst Dict.values
