@@ -27,8 +27,9 @@ type History model msg
     = History
         { latestChunk : Chunk model msg
         , latestLength : Int
-        , currentIndex : Int
         , currentModel : model
+        , currentIndex : Int
+        , currentMsgs : List ( Int, msg )
         , previousChunks : Array (ReplayChunk model msg)
         , previousLength : Int
         , persistedMsgs : Dict Int msg
@@ -51,6 +52,7 @@ init model =
         , latestLength = 1
         , currentModel = model
         , currentIndex = 0
+        , currentMsgs = []
         , previousChunks = Array.empty
         , previousLength = 0
         , persistedMsgs = Dict.empty
@@ -91,50 +93,53 @@ currentModel (History h) =
 
 toggleReplay : (msg -> model -> model) -> History model msg -> History model msg
 toggleReplay updateModel (History h) =
-    case h.latestChunk of
-        Replay _ _ ->
-            rewind updateModel (History h)
+    if isChunkReplaying h.latestChunk then
+        rewind updateModel (History h)
 
-        Update _ _ ->
-            History { h | latestChunk = toggleChunk h.latestChunk }
+    else
+        History { h | latestChunk = toggleChunk h.latestChunk }
 
 
 replay : (msg -> model -> model) -> Int -> History model msg -> History model msg
-replay updateModel requestIndex (History h) =
+replay updateModel index (History h) =
     case h.latestChunk of
-        Replay currModel currMsgs ->
+        Replay latestModel latestMsgs ->
             let
-                latestModelIndex =
-                    length (History h) - 1
-
-                replayIndex =
-                    clamp 0 latestModelIndex requestIndex
+                replayModelIndex =
+                    clamp 0 (length (History h) - 1) index
             in
-            case Array.get (replayIndex // maxChunkMsgLength) h.previousChunks of
-                Just ( prevModel, prevMsgs ) ->
-                    History
-                        { h
-                            | currentModel = List.foldl updateModel prevModel (List.take (modBy maxChunkMsgLength replayIndex) prevMsgs)
-                            , currentIndex = replayIndex
-                        }
-
+            case Array.get (replayModelIndex // maxChunkMsgLength) h.previousChunks of
                 Nothing ->
-                    if replayIndex // maxChunkMsgLength == h.previousLength then
-                        History
-                            { h
-                                | currentModel = List.foldl updateModel currModel (List.take (modBy maxChunkMsgLength replayIndex) currMsgs)
-                                , currentIndex = replayIndex
-                            }
+                    replayHelper updateModel
+                        replayModelIndex
+                        ( latestModel, latestMsgs )
+                        (History h)
 
-                    else
-                        History
-                            { h
-                                | currentModel = List.foldl updateModel currModel currMsgs
-                                , currentIndex = latestModelIndex
-                            }
+                Just previousChunk ->
+                    replayHelper updateModel
+                        replayModelIndex
+                        previousChunk
+                        (History h)
 
         Update _ _ ->
-            replay updateModel requestIndex (toggleReplay updateModel (History h))
+            replay updateModel index (toggleReplay updateModel (History h))
+
+
+replayHelper :
+    (msg -> model -> model)
+    -> Int
+    -> ReplayChunk model msg
+    -> History model msg
+    -> History model msg
+replayHelper updateModel modelIndex ( model, msgs ) (History h) =
+    History
+        { h
+            | currentIndex = modelIndex
+            , currentModel =
+                List.foldl updateModel
+                    model
+                    (List.take (modBy maxChunkMsgLength modelIndex) msgs)
+        }
 
 
 rewind : (msg -> model -> model) -> History model msg -> History model msg
@@ -202,13 +207,13 @@ updateAndPersist updateModel msg (History h) =
 update : (msg -> model -> model) -> msg -> History model msg -> History model msg
 update updateModel msg (History h) =
     case h.latestChunk of
-        Update msgs model ->
+        Update latestMsgs latestModel ->
             if h.latestLength < maxChunkMsgLength then
                 History
                     { h
                         | currentModel = updateModel msg h.currentModel
                         , currentIndex = h.currentIndex + 1
-                        , latestChunk = Update (msg :: msgs) model
+                        , latestChunk = Update (msg :: latestMsgs) latestModel
                         , latestLength = h.latestLength + 1
                     }
 
@@ -413,13 +418,13 @@ chunkLength chunk =
 
 
 rewindChunk : Int -> Chunk model msg -> Chunk model msg
-rewindChunk requestIndex chunk =
+rewindChunk index chunk =
     case chunk of
         Update msgs model ->
-            Update (List.drop (List.length msgs - requestIndex) msgs) model
+            Update (List.drop (List.length msgs - index) msgs) model
 
         Replay model msgs ->
-            Update (List.reverse (List.take requestIndex msgs)) model
+            Update (List.reverse (List.take index msgs)) model
 
 
 toReplayChunk : Chunk model msg -> ReplayChunk model msg
