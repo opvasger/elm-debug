@@ -83,7 +83,7 @@ rewindUpdates =
 rewindPersistedLength : Test
 rewindPersistedLength =
     Test.fuzz (Fuzz.map3 triple Fuzz.int (Fuzz.list Fuzz.int) (Fuzz.list Fuzz.int))
-        "rewinding with a number of persisted updates always yields a length at least as long + 1"
+        "rewinding with a number of persisted updates always yields a length at least as long as that number + 1"
     <|
         \( rewindIndex, updMsgs, perMsgs ) ->
             let

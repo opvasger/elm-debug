@@ -49,10 +49,6 @@ type alias UpdateChunk model msg =
     ( List msg, model )
 
 
-type alias Indexed model =
-    ( Int, model )
-
-
 maxChunkMsgLength : Int
 maxChunkMsgLength =
     64
@@ -89,7 +85,7 @@ length (History { current, recent, previous }) =
             current.index + 1
 
         Replay _ ->
-            recent.length + previous.length * maxChunkMsgLength
+            recent.length + previous.length * (maxChunkMsgLength + 1)
 
 
 currentIndex : History model msg -> Int
