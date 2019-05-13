@@ -12,6 +12,7 @@ module DevTools.Browser.Program exposing
 
 import Browser
 import Browser.Events
+import Deque exposing (Deque)
 import Element as El exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
@@ -392,7 +393,7 @@ appSubscriptions :
     -> History model msg
     -> Sub (Msg model msg)
 appSubscriptions subscriptions updateModel history =
-    if History.isReplaying history then
+    if History.isReplay history then
         Sub.none
 
     else
@@ -626,7 +627,7 @@ view { encodeMsg, printModel, appHtml, appModel } model =
 
 mapHtmlMsgs : History model msg -> Bool -> msg -> Msg model msg
 mapHtmlMsgs history rewindOnHtmlMsg =
-    if not (History.isReplaying history) || rewindOnHtmlMsg then
+    if not (History.isReplay history) || rewindOnHtmlMsg then
         UpdateApp View
 
     else
@@ -696,7 +697,7 @@ viewWindow { window, viewport, mouse, history, isModelShown, importDecoding } =
         , viewBody
             { height = window.body.height
             }
-            El.none
+            (El.column [] (List.map (El.text << Debug.toString) (Deque.toList (History.currentMsgs history))))
         , viewCtrlBar
             [ viewIconButton
                 { isActive = False
@@ -713,7 +714,7 @@ viewWindow { window, viewport, mouse, history, isModelShown, importDecoding } =
                 , onChange = ReplayApp
                 }
             , viewIconButton
-                { isActive = not (History.isReplaying history)
+                { isActive = not (History.isReplay history)
                 , target = ToggleReplayButton
                 , currentTarget = mouseTarget mouse
                 , onClick = ToggleReplay
