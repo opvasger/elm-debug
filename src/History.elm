@@ -75,8 +75,8 @@ length (History h) =
         h.currentLength + 1
 
 
-clampLength : History model msg -> Int -> Int
-clampLength history =
+clampMsgLength : History model msg -> Int -> Int
+clampMsgLength history =
     clamp 0 (length history - 1)
 
 
@@ -108,13 +108,17 @@ replay : (msg -> model -> model) -> Int -> History model msg -> History model ms
 replay updateModel n (History h) =
     let
         msgLength =
-            clampLength (History h) n
+            clampMsgLength (History h) n
     in
     case h.latestChunk of
         Chunk.Replay latestModel latestMsgs ->
             History
                 { h
-                    | currentMsgs = Debug.todo "not implemented yet"
+                    | currentMsgs =
+                        toCurrentMsgs
+                            msgLength
+                            h.previousChunks
+                            latestMsgs
                     , currentLength = msgLength
                     , currentModel =
                         Chunk.replay updateModel
@@ -142,20 +146,26 @@ rewind updateModel (History h) =
                     h.persistedMsgs
                 )
 
-        withoutMsgs =
+        beforeMsgs =
             case Array.get previousLength h.previousChunks of
                 Just ( previousModel, previousMsgs ) ->
                     let
                         latestChunk =
                             Chunk.rewind (modBy latestMaxLength h.currentLength)
                                 (Chunk.Replay previousModel previousMsgs)
+
+                        previousChunks =
+                            Array.slice 0 previousLength h.previousChunks
                     in
                     History
                         { h
                             | latestChunk = latestChunk
                             , latestLength = Chunk.length latestChunk
-                            , currentMsgs = Debug.todo "not implemented yet"
-                            , previousChunks = Array.slice 0 previousLength h.previousChunks
+                            , currentMsgs =
+                                toCurrentMsgs h.currentLength
+                                    previousChunks
+                                    previousMsgs
+                            , previousChunks = previousChunks
                             , previousLength = previousLength
                             , persistedMsgs = persistedMsgs
                         }
@@ -171,14 +181,29 @@ rewind updateModel (History h) =
                             { h
                                 | latestChunk = latestChunk
                                 , latestLength = Chunk.length latestChunk
-                                , currentMsgs = Debug.todo "not implemented yet"
+                                , currentMsgs =
+                                    toCurrentMsgs h.currentLength
+                                        h.previousChunks
+                                        (Tuple.second (Chunk.toReplay latestChunk))
                                 , persistedMsgs = persistedMsgs
                             }
 
                     else
                         History { h | persistedMsgs = persistedMsgs }
     in
-    List.foldl (updateAndPersist updateModel) withoutMsgs msgs
+    List.foldl (updateAndPersist updateModel) beforeMsgs msgs
+
+
+toCurrentMsgs : Int -> Array (Chunk.Replay model msg) -> List msg -> Deque ( Int, msg )
+toCurrentMsgs msgLength previousChunks latestMsgs =
+    let
+        startMsgLength =
+            Debug.todo "not implemented yet"
+
+        endMsgLength =
+            Debug.todo "not implemented yet"
+    in
+    Debug.todo "not implemented yet"
 
 
 updateAndPersist : (msg -> model -> model) -> msg -> History model msg -> History model msg
@@ -270,7 +295,7 @@ noErrorsDecoderHelper :
     -> Maybe Int
     -> History model msg
 noErrorsDecoderHelper updateModel history messages persistedIndices replayLength =
-    Maybe.withDefault (toggleReplay updateModel)
+    Maybe.withDefault identity
         (Maybe.map (replay updateModel) replayLength)
         (List.foldl
             (\msg updated ->
@@ -324,12 +349,12 @@ untilErrorDecoderHelper updateModel msgDecoder history jsonMsgs persistedIndices
                         replayLength
 
                 Err _ ->
-                    Maybe.withDefault (toggleReplay updateModel)
+                    Maybe.withDefault identity
                         (Maybe.map (replay updateModel) replayLength)
                         history
 
         [] ->
-            Maybe.withDefault (toggleReplay updateModel)
+            Maybe.withDefault identity
                 (Maybe.map (replay updateModel) replayLength)
                 history
 
@@ -385,6 +410,6 @@ skipErrorsDecoderHelper updateModel msgDecoder history dropCount jsonMsgs persis
                         replayLength
 
         [] ->
-            Maybe.withDefault (toggleReplay updateModel)
+            Maybe.withDefault identity
                 (Maybe.map (replay updateModel) replayLength)
                 history

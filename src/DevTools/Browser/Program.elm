@@ -112,15 +112,15 @@ type alias Model model msg =
 
 
 encodeModel : (msg -> Je.Value) -> Model model msg -> Je.Value
-encodeModel encodeMsg { viewport, window, history, rewindOnHtmlMsg, isModelShown, cacheDecoding, importDecoding } =
+encodeModel encodeMsg model =
     Je.object
-        [ ( "viewport", Size.encode viewport )
-        , ( "window", encodeWindow window )
-        , ( "history", History.encode encodeMsg history )
-        , ( "rewindOnHtmlMsg", Je.bool rewindOnHtmlMsg )
-        , ( "isModelShown", Je.bool isModelShown )
-        , ( "cacheDecoding", encodeCacheDecoding cacheDecoding )
-        , ( "importDecoding", encodeImportDecoding importDecoding )
+        [ ( "viewport", Size.encode model.viewport )
+        , ( "window", encodeWindow model.window )
+        , ( "history", History.encode encodeMsg model.history )
+        , ( "rewindOnHtmlMsg", Je.bool model.rewindOnHtmlMsg )
+        , ( "isModelShown", Je.bool model.isModelShown )
+        , ( "cacheDecoding", encodeCacheDecoding model.cacheDecoding )
+        , ( "importDecoding", encodeImportDecoding model.importDecoding )
         ]
 
 
@@ -349,7 +349,7 @@ mapInit { fromCache, update, msgDecoder, init } =
       , mouse = Idle
       , window =
             { position = Position 200 200
-            , body = Size 200 300
+            , body = Size 200 200
             }
       , importDecoding =
             { strategy = UntilError
@@ -614,7 +614,7 @@ view { encodeMsg, printModel, appHtml, appModel } model =
     El.layout
         [ El.inFront
             (El.el
-                [ El.inFront (viewWindow model)
+                [ El.inFront (viewWindow encodeMsg model)
                 ]
                 (viewAppModel printModel model.isModelShown appModel)
             )
@@ -645,8 +645,8 @@ viewAppModel printModel isModelShown model =
         El.none
 
 
-viewWindow : Model model msg -> Element (Msg model msg)
-viewWindow { window, viewport, mouse, history, isModelShown, importDecoding } =
+viewWindow : (msg -> Je.Value) -> Model model msg -> Element (Msg model msg)
+viewWindow encodeMsg { window, viewport, mouse, history, isModelShown, importDecoding } =
     let
         moveRight =
             clamp 0
@@ -697,7 +697,7 @@ viewWindow { window, viewport, mouse, history, isModelShown, importDecoding } =
         , viewBody
             { height = window.body.height
             }
-            (El.column [] (List.map (El.text << Debug.toString) (Deque.toList (History.currentMsgs history))))
+            (viewMsgs encodeMsg (History.currentMsgs history))
         , viewCtrlBar
             [ viewIconButton
                 { isActive = False
@@ -730,6 +730,36 @@ printImportError : Jd.Error -> String
 printImportError =
     -- TODO this message could be interesting to improve in the spirit of elms great error-messages
     Jd.errorToString
+
+
+viewMsgs : (msg -> Je.Value) -> Deque ( Int, msg ) -> Element (Msg model msg)
+viewMsgs encodeMsg indexedMsgs =
+    El.column []
+        (Deque.foldl
+            (\( index, msg ) els ->
+                let
+                    encodedMsg =
+                        Je.encode 0 (encodeMsg msg)
+
+                    ( name, params ) =
+                        case Jd.decodeString (Jd.keyValuePairs Jd.value) encodedMsg of
+                            Ok (nameAndParams :: []) ->
+                                Tuple.mapSecond (Je.encode 0) nameAndParams
+
+                            _ ->
+                                ( encodedMsg, "" )
+                in
+                El.row
+                    []
+                    [ El.text name
+                    , El.text params
+                    , El.text (String.fromInt index)
+                    ]
+                    :: els
+            )
+            []
+            indexedMsgs
+        )
 
 
 viewBody :

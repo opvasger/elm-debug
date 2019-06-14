@@ -1,5 +1,5 @@
 language: node_js
-node_js: "node" # use latest version
+node_js: "node"
 
 cache:
   directories:
