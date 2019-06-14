@@ -4,17 +4,17 @@ import Browser
 import Browser.Navigation
 import DevTools.Browser.Program as Program exposing (Program)
 import Html exposing (Html)
-import Json.Decode as Jd
-import Json.Encode as Je
+import Json.Decode
+import Json.Encode
 import Url exposing (Url)
 
 
 type alias Config flags model msg =
     { printModel : model -> String
-    , encodeMsg : msg -> Je.Value
-    , msgDecoder : Jd.Decoder msg
-    , fromCache : flags -> Maybe Je.Value
-    , toCache : Je.Value -> Cmd (Program.Msg model msg)
+    , encodeMsg : msg -> Json.Encode.Value
+    , msgDecoder : Json.Decode.Decoder msg
+    , fromCache : flags -> Maybe Json.Encode.Value
+    , toCache : Json.Encode.Value -> Cmd (Program.Msg model msg)
     }
 
 

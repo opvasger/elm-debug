@@ -1,9 +1,9 @@
 module History.Chunk exposing
-    ( Chunk(..)
+    ( Chunk
     , Replay
+    , fromReplay
     , init
-    , isReplay
-    , length
+    , insert
     , replay
     , rewind
     , toReplay
@@ -12,53 +12,48 @@ module History.Chunk exposing
 
 
 type Chunk model msg
-    = Replay model (List msg)
-    | Update (List msg) model
+    = Record (List msg) model
+    | Replay model (List msg)
 
 
 init : model -> Chunk model msg
 init =
-    Update []
-
-
-isReplay : Chunk model msg -> Bool
-isReplay chunk =
-    case chunk of
-        Update _ _ ->
-            False
-
-        Replay _ _ ->
-            True
-
-
-length : Chunk model msg -> Int
-length chunk =
-    case chunk of
-        Update msgs _ ->
-            List.length msgs
-
-        Replay _ msgs ->
-            List.length msgs
-
-
-rewind : Int -> Chunk model msg -> Chunk model msg
-rewind msgLength chunk =
-    case chunk of
-        Update msgs model ->
-            Update (List.drop (List.length msgs - msgLength) msgs) model
-
-        Replay model msgs ->
-            Update (List.reverse (List.take msgLength msgs)) model
+    Record []
 
 
 toggle : Chunk model msg -> Chunk model msg
 toggle chunk =
     case chunk of
-        Replay model msgs ->
-            Update (List.reverse msgs) model
-
-        Update msgs model ->
+        Record msgs model ->
             Replay model (List.reverse msgs)
+
+        Replay model msgs ->
+            Record (List.reverse msgs) model
+
+
+insert : msg -> Chunk model msg -> Chunk model msg
+insert msg chunk =
+    case chunk of
+        Record msgs model ->
+            Record (msg :: msgs) model
+
+        Replay _ _ ->
+            insert msg (toggle chunk)
+
+
+toReplay : Chunk model msg -> Replay model msg
+toReplay chunk =
+    case chunk of
+        Replay model msgs ->
+            ( model, msgs )
+
+        Record _ _ ->
+            toReplay (toggle chunk)
+
+
+fromReplay : Replay model msg -> Chunk model msg
+fromReplay ( model, msgs ) =
+    Replay model msgs
 
 
 
@@ -70,28 +65,10 @@ type alias Replay model msg =
 
 
 replay : (msg -> model -> model) -> Int -> Replay model msg -> model
-replay updateModel msgLength ( model, msgs ) =
-    case msgs of
-        msgHead :: msgTail ->
-            if msgLength > 0 then
-                replay updateModel
-                    (msgLength - 1)
-                    ( updateModel msgHead model
-                    , msgTail
-                    )
-
-            else
-                model
-
-        [] ->
-            model
+replay update index ( model, msgs ) =
+    List.foldl update model (List.take index msgs)
 
 
-toReplay : Chunk model msg -> Replay model msg
-toReplay chunk =
-    case chunk of
-        Replay model msgs ->
-            ( model, msgs )
-
-        Update _ _ ->
-            toReplay (toggle chunk)
+rewind : Int -> Replay model msg -> Replay model msg
+rewind index =
+    Tuple.mapSecond (List.take index)
