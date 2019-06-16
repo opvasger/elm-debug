@@ -2,6 +2,7 @@ module History exposing
     ( History
     , currentIndex
     , currentModel
+    , decoder
     , encode
     , init
     , isReplay
@@ -10,12 +11,15 @@ module History exposing
     , recordForever
     , replay
     , reset
+    , skipErrorsDecoder
     , toggleReplay
+    , untilErrorDecoder
     )
 
 import History.Chunk as Chunk exposing (Chunk)
 import History.State as State exposing (State)
-import Json.Encode
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
 
 
 type History model msg
@@ -110,10 +114,40 @@ replay update index =
         >> History
 
 
-encode : (msg -> Json.Encode.Value) -> History model msg -> Json.Encode.Value
+encode : (msg -> Encode.Value) -> History model msg -> Encode.Value
 encode encodeMsg =
     toState
         >> State.encode encodeMsg
+
+
+decoder :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> History model msg
+    -> Decoder (History model msg)
+decoder update msgDecoder =
+    toState
+        >> State.toInitialModel
+        >> State.decoder update msgDecoder
+        >> Decode.map History
+
+
+untilErrorDecoder :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> History model msg
+    -> Decoder (History model msg)
+untilErrorDecoder update msgDecoder =
+    Debug.todo "..."
+
+
+skipErrorsDecoder :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> History model msg
+    -> Decoder (History model msg)
+skipErrorsDecoder update msgDecoder =
+    Debug.todo "..."
 
 
 toState : History model msg -> State model msg

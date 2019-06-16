@@ -1,5 +1,6 @@
 module History.State exposing
     ( State
+    , decoder
     , encode
     , getReplay
     , init
@@ -19,7 +20,9 @@ module History.State exposing
 
 import Array exposing (Array)
 import History.Chunk as Chunk exposing (Chunk)
-import Json.Encode
+import Json.Decode as Decode exposing (Decoder)
+import Json.Encode as Encode
+import Set exposing (Set)
 
 
 type alias State model msg =
@@ -171,19 +174,51 @@ invalidatePersisted update state =
         state
 
 
-encode : (msg -> Json.Encode.Value) -> State model msg -> Json.Encode.Value
+encode : (msg -> Encode.Value) -> State model msg -> Encode.Value
 encode encodeMsg state =
-    Json.Encode.object
-        [ ( "messages", Json.Encode.list encodeMsg (toMsgs state) )
-        , ( "persistedIndices", Json.Encode.list (Tuple.first >> Json.Encode.int) state.persistedMsgs )
+    Encode.object
+        [ ( "messages", Encode.list encodeMsg (toMsgs state) )
+        , ( "persistedIndices", Encode.list (Tuple.first >> Encode.int) state.persistedMsgs )
         , ( "replayIndex"
           , if Chunk.isReplay state.latestChunk then
-                Json.Encode.int state.currentIndex
+                Encode.int state.currentIndex
 
             else
-                Json.Encode.null
+                Encode.null
           )
         ]
+
+
+decoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+decoder update msgDecoder model =
+    Decode.map3
+        (\msgs persistedIndices replayIndex ->
+            List.foldl
+                (\msg state ->
+                    if Set.member (state.currentIndex + 1) persistedIndices then
+                        state
+                            |> updateCurrent update msg
+                            |> insertLatest msg
+                            |> insertPrevious update
+                            |> insertPersisted msg
+
+                    else
+                        state
+                            |> updateCurrent update msg
+                            |> insertLatest msg
+                            |> insertPrevious update
+                )
+                (init model)
+                msgs
+                |> Maybe.withDefault identity
+                    (Maybe.map
+                        (\idx -> optimizeForReplay >> replayCurrent update idx)
+                        replayIndex
+                    )
+        )
+        (Decode.field "messages" (Decode.list msgDecoder))
+        (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
+        (Decode.field "replayIndex" (Decode.maybe Decode.int))
 
 
 toMsgs : State model msg -> List msg
