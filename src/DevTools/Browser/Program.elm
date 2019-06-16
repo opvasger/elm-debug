@@ -11,6 +11,7 @@ module DevTools.Browser.Program exposing
     )
 
 import Browser
+import File.Download
 import History exposing (History)
 import Html exposing (Html)
 import Html.Attributes
@@ -30,6 +31,7 @@ type Msg model msg
     | ReplayApp Int
     | ToggleAppReplay
     | ToggleViewInteractive
+    | DownloadSession
 
 
 type alias Model model msg =
@@ -124,6 +126,14 @@ mapUpdate config msg model =
             , Cmd.none
             )
 
+        DownloadSession ->
+            ( model
+            , File.Download.string
+                "devtools-session"
+                "application/json"
+                (Json.Encode.encode 0 (encodeSession config.encodeMsg model))
+            )
+
 
 mapDocument :
     { encodeMsg : msg -> Json.Encode.Value
@@ -140,10 +150,23 @@ mapDocument config model =
     in
     { title = title
     , body =
-        viewResetButton
+        viewButton ResetApp "Reset"
             :: viewReplaySlider model.history
-            :: viewPauseButton model.isViewInteractive
-            :: viewToggleReplayButton model.history
+            :: viewButton ToggleViewInteractive
+                (if model.isViewInteractive then
+                    "Resume"
+
+                 else
+                    "Pause"
+                )
+            :: viewButton ToggleAppReplay
+                (if History.isReplay model.history then
+                    "Record"
+
+                 else
+                    "Replay"
+                )
+            :: viewButton DownloadSession "Download"
             :: viewHistoryState model.history
             :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
     }
@@ -192,6 +215,14 @@ recordFromSrc src =
 -- Helpers
 
 
+encodeSession : (msg -> Json.Encode.Value) -> Model model msg -> Json.Encode.Value
+encodeSession encodeMsg model =
+    Json.Encode.object
+        [ ( "history", History.encode encodeMsg model.history )
+        , ( "isViewInteractive", Json.Encode.bool model.isViewInteractive )
+        ]
+
+
 updateAppIf : Bool -> msg -> Msg model msg
 updateAppIf shouldUpdate =
     if shouldUpdate then
@@ -206,25 +237,12 @@ withoutCmd update msg model =
     Tuple.first (update msg model)
 
 
-viewResetButton : Html (Msg model msg)
-viewResetButton =
+viewButton : Msg model msg -> String -> Html (Msg model msg)
+viewButton msg text =
     Html.button
-        [ Html.Events.onClick ResetApp
+        [ Html.Events.onClick msg
         ]
-        [ Html.text "Reset"
-        ]
-
-
-viewToggleReplayButton : History model msg -> Html (Msg model msg)
-viewToggleReplayButton history =
-    Html.button
-        [ Html.Events.onClick ToggleAppReplay
-        ]
-        [ if History.isReplay history then
-            Html.text "Record"
-
-          else
-            Html.text "Replay"
+        [ Html.text text
         ]
 
 

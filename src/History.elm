@@ -2,6 +2,7 @@ module History exposing
     ( History
     , currentIndex
     , currentModel
+    , encode
     , init
     , isReplay
     , length
@@ -14,6 +15,7 @@ module History exposing
 
 import History.Chunk as Chunk exposing (Chunk)
 import History.State as State exposing (State)
+import Json.Encode
 
 
 type History model msg
@@ -106,6 +108,12 @@ replay update index =
         >> State.optimizeForReplay
         >> State.replayCurrent update index
         >> History
+
+
+encode : (msg -> Json.Encode.Value) -> History model msg -> Json.Encode.Value
+encode encodeMsg =
+    toState
+        >> State.encode encodeMsg
 
 
 toState : History model msg -> State model msg

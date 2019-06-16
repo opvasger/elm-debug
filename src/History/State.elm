@@ -1,5 +1,6 @@
 module History.State exposing
     ( State
+    , encode
     , getReplay
     , init
     , insertLatest
@@ -18,6 +19,7 @@ module History.State exposing
 
 import Array exposing (Array)
 import History.Chunk as Chunk exposing (Chunk)
+import Json.Encode
 
 
 type alias State model msg =
@@ -167,3 +169,25 @@ invalidatePersisted update state =
 
     else
         state
+
+
+encode : (msg -> Json.Encode.Value) -> State model msg -> Json.Encode.Value
+encode encodeMsg state =
+    Json.Encode.object
+        [ ( "messages", Json.Encode.list encodeMsg (toMsgs state) )
+        , ( "persistedIndices", Json.Encode.list (Tuple.first >> Json.Encode.int) state.persistedMsgs )
+        , ( "replayIndex"
+          , if Chunk.isReplay state.latestChunk then
+                Json.Encode.int state.currentIndex
+
+            else
+                Json.Encode.null
+          )
+        ]
+
+
+toMsgs : State model msg -> List msg
+toMsgs state =
+    state.previousChunks
+        |> Array.push (Chunk.toReplay state.latestChunk)
+        |> Array.foldl (\( _, chunkMsgs ) msgs -> msgs ++ chunkMsgs) []
