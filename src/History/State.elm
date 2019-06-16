@@ -1,6 +1,7 @@
 module History.State exposing
     ( State
     , getReplay
+    , init
     , insertLatest
     , insertPersisted
     , insertPrevious
@@ -33,6 +34,18 @@ type alias State model msg =
 maxChunkLength : Int
 maxChunkLength =
     64
+
+
+init : model -> State model msg
+init model =
+    { latestChunk = Chunk.init model
+    , latestLength = 0
+    , currentModel = model
+    , currentIndex = 0
+    , previousChunks = Array.empty
+    , previousLength = 0
+    , persistedMsgs = []
+    }
 
 
 msgLength : State model msg -> Int

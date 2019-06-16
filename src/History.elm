@@ -12,7 +12,6 @@ module History exposing
     , toggleReplay
     )
 
-import Array
 import History.Chunk as Chunk exposing (Chunk)
 import History.State as State exposing (State)
 
@@ -22,16 +21,9 @@ type History model msg
 
 
 init : model -> History model msg
-init model =
-    History
-        { latestChunk = Chunk.init model
-        , latestLength = 0
-        , currentModel = model
-        , currentIndex = 0
-        , previousChunks = Array.empty
-        , previousLength = 0
-        , persistedMsgs = []
-        }
+init =
+    State.init
+        >> History
 
 
 isReplay : History model msg -> Bool
