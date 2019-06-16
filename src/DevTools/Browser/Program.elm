@@ -150,24 +150,24 @@ mapDocument config model =
     in
     { title = title
     , body =
-        viewButton ResetApp "Reset"
-            :: viewReplaySlider model.history
-            :: viewButton ToggleViewInteractive
-                (if model.isViewInteractive then
+        viewReplaySlider model.history
+            :: viewButton ResetApp "Reset"
+            :: viewButton ToggleAppReplay
+                (if History.isReplay model.history then
                     "Resume"
 
                  else
                     "Pause"
                 )
-            :: viewButton ToggleAppReplay
-                (if History.isReplay model.history then
-                    "Record"
+            :: viewButton DownloadSession "Download"
+            :: viewButton ToggleViewInteractive
+                (if model.isViewInteractive then
+                    "Disable View Events"
 
                  else
-                    "Replay"
+                    "Enable View Events"
                 )
-            :: viewButton DownloadSession "Download"
-            :: viewHistoryState model.history
+            :: viewStateCount model.history
             :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
     }
 
@@ -246,8 +246,8 @@ viewButton msg text =
         ]
 
 
-viewHistoryState : History model msg -> Html (Msg model msg)
-viewHistoryState history =
+viewStateCount : History model msg -> Html (Msg model msg)
+viewStateCount history =
     let
         currentIndex =
             History.currentIndex history
@@ -257,28 +257,15 @@ viewHistoryState history =
 
         children =
             if currentIndex == length then
-                Html.text (String.fromInt length) :: []
+                Html.text (String.fromInt (length + 1)) :: []
 
             else
-                [ Html.text (String.fromInt currentIndex)
+                [ Html.text (String.fromInt (currentIndex + 1))
                 , Html.text "/"
-                , Html.text (String.fromInt length)
+                , Html.text (String.fromInt (length + 1))
                 ]
     in
     Html.div [] children
-
-
-viewPauseButton : Bool -> Html (Msg model msg)
-viewPauseButton isViewInteractive =
-    Html.button
-        [ Html.Events.onClick ToggleViewInteractive
-        ]
-        [ if isViewInteractive then
-            Html.text "Disable View Events"
-
-          else
-            Html.text "Enable View Events"
-        ]
 
 
 viewReplaySlider : History model msg -> Html (Msg model msg)
