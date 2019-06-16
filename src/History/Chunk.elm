@@ -4,6 +4,7 @@ module History.Chunk exposing
     , fromReplay
     , init
     , insert
+    , isReplay
     , replay
     , rewind
     , toReplay
@@ -19,6 +20,16 @@ type Chunk model msg
 init : model -> Chunk model msg
 init =
     Record []
+
+
+isReplay : Chunk model msg -> Bool
+isReplay chunk =
+    case chunk of
+        Replay _ _ ->
+            True
+
+        Record _ _ ->
+            False
 
 
 toggle : Chunk model msg -> Chunk model msg

@@ -28,11 +28,14 @@ type Msg model msg
     | UpdateApp MsgSrc msg
     | ResetApp
     | ReplayApp Int
+    | ToggleAppReplay
+    | ToggleViewInteractive
 
 
 type alias Model model msg =
     { history : History model msg
     , initCmd : Cmd msg
+    , isViewInteractive : Bool
     }
 
 
@@ -51,6 +54,7 @@ mapInit :
 mapInit config =
     ( { history = History.init (Tuple.first config.init)
       , initCmd = Tuple.second config.init
+      , isViewInteractive = True
       }
     , Cmd.map (UpdateApp Init) (Tuple.second config.init)
     )
@@ -64,7 +68,11 @@ mapSubscriptions :
     -> Model model msg
     -> Sub (Msg model msg)
 mapSubscriptions config model =
-    Sub.map (UpdateApp Subs) (config.subscriptions (History.currentModel model.history))
+    if History.isReplay model.history then
+        Sub.none
+
+    else
+        Sub.map (UpdateApp Subs) (config.subscriptions (History.currentModel model.history))
 
 
 mapUpdate :
@@ -98,7 +106,21 @@ mapUpdate config msg model =
             )
 
         ReplayApp index ->
-            ( { model | history = History.replay (withoutCmd config.update) index model.history }
+            ( { model
+                | history =
+                    model.history
+                        |> History.replay (withoutCmd config.update) index
+              }
+            , Cmd.none
+            )
+
+        ToggleViewInteractive ->
+            ( { model | isViewInteractive = not model.isViewInteractive }
+            , Cmd.none
+            )
+
+        ToggleAppReplay ->
+            ( { model | history = History.toggleReplay (withoutCmd config.update) model.history }
             , Cmd.none
             )
 
@@ -120,7 +142,10 @@ mapDocument config model =
     , body =
         viewResetButton
             :: viewReplaySlider model.history
-            :: List.map (Html.map (UpdateApp View)) body
+            :: viewPauseButton model.isViewInteractive
+            :: viewToggleReplayButton model.history
+            :: viewHistoryState model.history
+            :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
     }
 
 
@@ -133,7 +158,7 @@ mapHtml :
     -> Model model msg
     -> Html (Msg model msg)
 mapHtml config model =
-    Html.map (UpdateApp View) (config.viewApp (History.currentModel model.history))
+    Html.map (updateAppIf model.isViewInteractive) (config.viewApp (History.currentModel model.history))
 
 
 
@@ -167,6 +192,15 @@ recordFromSrc src =
 -- Helpers
 
 
+updateAppIf : Bool -> msg -> Msg model msg
+updateAppIf shouldUpdate =
+    if shouldUpdate then
+        UpdateApp View
+
+    else
+        always DoNothing
+
+
 withoutCmd : (msg -> model -> ( model, Cmd msg )) -> msg -> model -> model
 withoutCmd update msg model =
     Tuple.first (update msg model)
@@ -178,6 +212,54 @@ viewResetButton =
         [ Html.Events.onClick ResetApp
         ]
         [ Html.text "Reset"
+        ]
+
+
+viewToggleReplayButton : History model msg -> Html (Msg model msg)
+viewToggleReplayButton history =
+    Html.button
+        [ Html.Events.onClick ToggleAppReplay
+        ]
+        [ if History.isReplay history then
+            Html.text "Record"
+
+          else
+            Html.text "Replay"
+        ]
+
+
+viewHistoryState : History model msg -> Html (Msg model msg)
+viewHistoryState history =
+    let
+        currentIndex =
+            History.currentIndex history
+
+        length =
+            History.length history
+
+        children =
+            if currentIndex == length then
+                Html.text (String.fromInt length) :: []
+
+            else
+                [ Html.text (String.fromInt currentIndex)
+                , Html.text "/"
+                , Html.text (String.fromInt length)
+                ]
+    in
+    Html.div [] children
+
+
+viewPauseButton : Bool -> Html (Msg model msg)
+viewPauseButton isViewInteractive =
+    Html.button
+        [ Html.Events.onClick ToggleViewInteractive
+        ]
+        [ if isViewInteractive then
+            Html.text "Disable View Events"
+
+          else
+            Html.text "Enable View Events"
         ]
 
 
