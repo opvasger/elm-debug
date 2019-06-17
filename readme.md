@@ -38,9 +38,9 @@ Any previous state of an application can be recomputed using the initial state a
 - Reload with code changes but only partial (or no) loss of application state.
 
 ### Sessions
-Debugging is done in sessions. A session is essentially made up of:
+These devtools run in sessions. A session is essentially made up of:
 1. devtools settings and state.
-2. all messages that ever updated the debugged applications model.
+2. all messages that ever updated the debugged applications state.
 
 Sessions keep track of what your doing during development. They persist through browser-reloads, code-changes, can be downloaded, sent, opened by collaborators, and submitted as bug-reports.
 
