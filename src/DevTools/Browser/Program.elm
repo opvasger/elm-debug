@@ -161,7 +161,7 @@ mapUpdate config msg model =
             , File.toString file
                 |> Task.map
                     (model
-                        |> sessionDecoder (withoutCmd config.update) config.msgDecoder model.decodeStrategy
+                        |> sessionDecoder (withoutCmd config.update) config.msgDecoder NoErrors
                         |> Decode.decodeString
                     )
                 |> Task.andThen resultToTask
@@ -381,6 +381,7 @@ encodeSession encodeMsg model =
     Encode.object
         [ ( "history", History.encode encodeMsg model.history )
         , ( "isViewInteractive", Encode.bool model.isViewInteractive )
+        , ( "isModelVisible", Encode.bool model.isModelVisible )
         , ( "decodeStrategy", encodeDecodeStrategy model.decodeStrategy )
         , ( "description", Encode.string model.description )
         ]

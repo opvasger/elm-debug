@@ -21,6 +21,7 @@ module History.State exposing
     )
 
 import Array exposing (Array)
+import Dict exposing (Dict)
 import History.Chunk as Chunk exposing (Chunk)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -34,7 +35,7 @@ type alias State model msg =
     , currentIndex : Int
     , previousChunks : Array (Chunk.Replay model msg)
     , previousLength : Int
-    , persistedMsgs : List ( Int, msg )
+    , persistedMsgs : Dict Int msg
     }
 
 
@@ -51,7 +52,7 @@ init model =
     , currentIndex = 0
     , previousChunks = Array.empty
     , previousLength = 0
-    , persistedMsgs = []
+    , persistedMsgs = Dict.empty
     }
 
 
@@ -152,7 +153,7 @@ getReplay index state =
 
 insertPersisted : msg -> State model msg -> State model msg
 insertPersisted msg state =
-    { state | persistedMsgs = ( state.currentIndex, msg ) :: state.persistedMsgs }
+    { state | persistedMsgs = Dict.insert state.currentIndex msg state.persistedMsgs }
 
 
 invalidatePersisted : (msg -> model -> model) -> State model msg -> State model msg
@@ -161,8 +162,8 @@ invalidatePersisted update state =
         let
             ( msgs, persistedMsgs ) =
                 state.persistedMsgs
-                    |> List.partition (\( index, msg ) -> index > state.currentIndex)
-                    |> Tuple.mapFirst (List.map Tuple.second)
+                    |> Dict.partition (\index _ -> index > state.currentIndex)
+                    |> Tuple.mapFirst Dict.values
 
             recordInvalidated msg =
                 updateCurrent update msg
@@ -180,7 +181,7 @@ encode : (msg -> Encode.Value) -> State model msg -> Encode.Value
 encode encodeMsg state =
     Encode.object
         [ ( "messages", Encode.list encodeMsg (toMsgs state) )
-        , ( "persistedIndices", Encode.list (Tuple.first >> Encode.int) state.persistedMsgs )
+        , ( "persistedIndices", Encode.list Encode.int (Dict.keys state.persistedMsgs) )
         , ( "replayIndex"
           , if Chunk.isReplay state.latestChunk then
                 Encode.int state.currentIndex
@@ -191,50 +192,178 @@ encode encodeMsg state =
         ]
 
 
-noErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
-noErrorsDecoder update msgDecoder model =
-    Decode.map3
-        (\msgs persistedIndices replayIndex ->
-            List.foldl
-                (\msg state ->
-                    if Set.member (state.currentIndex + 1) persistedIndices then
-                        state
-                            |> updateCurrent update msg
-                            |> insertLatest msg
-                            |> insertPrevious update
-                            |> insertPersisted msg
-
-                    else
-                        state
-                            |> updateCurrent update msg
-                            |> insertLatest msg
-                            |> insertPrevious update
-                )
-                (init model)
-                msgs
-                |> Maybe.withDefault identity
-                    (Maybe.map
-                        (\idx -> optimizeForReplay >> replayCurrent update idx)
-                        replayIndex
-                    )
-        )
-        (Decode.field "messages" (Decode.list msgDecoder))
-        (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
-        (Decode.field "replayIndex" (Decode.maybe Decode.int))
-
-
-untilErrorDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
-untilErrorDecoder update msgDecoder model =
-    Debug.todo "not implemented yet"
-
-
-skipErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
-skipErrorsDecoder update msgDecoder model =
-    Debug.todo "not implemented yet"
-
-
 toMsgs : State model msg -> List msg
 toMsgs state =
     state.previousChunks
         |> Array.push (Chunk.toReplay state.latestChunk)
         |> Array.foldl (\( _, chunkMsgs ) msgs -> msgs ++ chunkMsgs) []
+
+
+noErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+noErrorsDecoder update msgDecoder model =
+    Decode.map3
+        (\replayIndex persistedIndices ->
+            List.foldl (recordDecodedMsg update persistedIndices) (init model)
+                >> replayDecodedState update replayIndex
+        )
+        (Decode.field "replayIndex" (Decode.maybe Decode.int))
+        (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
+        (Decode.field "messages" (Decode.list msgDecoder))
+
+
+untilErrorDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+untilErrorDecoder update msgDecoder model =
+    Decode.map3
+        (\replayIndex persistedIndices ->
+            untilErrorDecoderHelper update msgDecoder persistedIndices (init model)
+                >> replayDecodedState update replayIndex
+        )
+        (Decode.field "replayIndex" (Decode.maybe Decode.int))
+        (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
+        (Decode.field "messages" (Decode.list Decode.value))
+
+
+untilErrorDecoderHelper :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> Set Int
+    -> State model msg
+    -> List Decode.Value
+    -> State model msg
+untilErrorDecoderHelper update msgDecoder persistedIndices state msgs =
+    case msgs of
+        head :: tail ->
+            case Decode.decodeValue msgDecoder head of
+                Ok msg ->
+                    untilErrorDecoderHelper
+                        update
+                        msgDecoder
+                        persistedIndices
+                        (recordDecodedMsg update persistedIndices msg state)
+                        tail
+
+                Err _ ->
+                    persistedDecoderHelper
+                        update
+                        msgDecoder
+                        persistedIndices
+                        state
+                        tail
+                        (state.currentIndex + 1)
+
+        [] ->
+            state
+
+
+skipErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+skipErrorsDecoder update msgDecoder model =
+    Decode.map3
+        (\replayIndex persistedIndices ->
+            skipErrorsDecoderHelper update msgDecoder persistedIndices (init model) 0
+                >> replayDecodedState update replayIndex
+        )
+        (Decode.field "replayIndex" (Decode.maybe Decode.int))
+        (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
+        (Decode.field "messages" (Decode.list Decode.value))
+
+
+skipErrorsDecoderHelper :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> Set Int
+    -> State model msg
+    -> Int
+    -> List Decode.Value
+    -> State model msg
+skipErrorsDecoderHelper update msgDecoder persistedIndices state index msgs =
+    case msgs of
+        head :: tail ->
+            let
+                continue nextState =
+                    skipErrorsDecoderHelper update
+                        msgDecoder
+                        persistedIndices
+                        nextState
+                        (index + 1)
+                        tail
+            in
+            case Decode.decodeValue msgDecoder head of
+                Ok msg ->
+                    continue (recordDecodedMsg update persistedIndices msg state)
+
+                Err _ ->
+                    continue state
+
+        [] ->
+            state
+
+
+persistedDecoderHelper :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> Set Int
+    -> State model msg
+    -> List Decode.Value
+    -> Int
+    -> State model msg
+persistedDecoderHelper update msgDecoder persistedIndices state msgs index =
+    case msgs of
+        head :: tail ->
+            let
+                continue nextState =
+                    persistedDecoderHelper update
+                        msgDecoder
+                        persistedIndices
+                        nextState
+                        tail
+                        (index + 1)
+            in
+            if Set.member index persistedIndices then
+                case Decode.decodeValue msgDecoder head of
+                    Ok msg ->
+                        state
+                            |> updateCurrent update msg
+                            |> insertLatest msg
+                            |> insertPrevious update
+                            |> insertPersisted msg
+                            |> continue
+
+                    Err _ ->
+                        continue state
+
+            else
+                continue state
+
+        [] ->
+            state
+
+
+recordDecodedMsg :
+    (msg -> model -> model)
+    -> Set Int
+    -> msg
+    -> State model msg
+    -> State model msg
+recordDecodedMsg update persistedIndices msg state =
+    if Set.member (state.currentIndex + 1) persistedIndices then
+        state
+            |> updateCurrent update msg
+            |> insertLatest msg
+            |> insertPrevious update
+            |> insertPersisted msg
+
+    else
+        state
+            |> updateCurrent update msg
+            |> insertLatest msg
+            |> insertPrevious update
+
+
+replayDecodedState : (msg -> model -> model) -> Maybe Int -> State model msg -> State model msg
+replayDecodedState update maybe =
+    case maybe of
+        Just index ->
+            optimizeForReplay >> replayCurrent update index
+
+        Nothing ->
+            identity
