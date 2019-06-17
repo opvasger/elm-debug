@@ -1,6 +1,5 @@
 module History.State exposing
     ( State
-    , decoder
     , encode
     , getReplay
     , init
@@ -10,11 +9,14 @@ module History.State exposing
     , invalidatePersisted
     , maxChunkLength
     , msgLength
+    , noErrorsDecoder
     , optimizeForRecord
     , optimizeForReplay
     , replayCurrent
     , rewindToCurrent
+    , skipErrorsDecoder
     , toInitialModel
+    , untilErrorDecoder
     , updateCurrent
     )
 
@@ -189,8 +191,8 @@ encode encodeMsg state =
         ]
 
 
-decoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
-decoder update msgDecoder model =
+noErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+noErrorsDecoder update msgDecoder model =
     Decode.map3
         (\msgs persistedIndices replayIndex ->
             List.foldl
@@ -219,6 +221,16 @@ decoder update msgDecoder model =
         (Decode.field "messages" (Decode.list msgDecoder))
         (Decode.field "persistedIndices" (Decode.map Set.fromList (Decode.list Decode.int)))
         (Decode.field "replayIndex" (Decode.maybe Decode.int))
+
+
+untilErrorDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+untilErrorDecoder update msgDecoder model =
+    Debug.todo "not implemented yet"
+
+
+skipErrorsDecoder : (msg -> model -> model) -> Decoder msg -> model -> Decoder (State model msg)
+skipErrorsDecoder update msgDecoder model =
+    Debug.todo "not implemented yet"
 
 
 toMsgs : State model msg -> List msg

@@ -2,11 +2,11 @@ module History exposing
     ( History
     , currentIndex
     , currentModel
-    , decoder
     , encode
     , init
     , isReplay
     , length
+    , noErrorsDecoder
     , record
     , recordForever
     , replay
@@ -120,15 +120,15 @@ encode encodeMsg =
         >> State.encode encodeMsg
 
 
-decoder :
+noErrorsDecoder :
     (msg -> model -> model)
     -> Decoder msg
     -> History model msg
     -> Decoder (History model msg)
-decoder update msgDecoder =
+noErrorsDecoder update msgDecoder =
     toState
         >> State.toInitialModel
-        >> State.decoder update msgDecoder
+        >> State.noErrorsDecoder update msgDecoder
         >> Decode.map History
 
 
@@ -138,7 +138,10 @@ untilErrorDecoder :
     -> History model msg
     -> Decoder (History model msg)
 untilErrorDecoder update msgDecoder =
-    Debug.todo "..."
+    toState
+        >> State.toInitialModel
+        >> State.untilErrorDecoder update msgDecoder
+        >> Decode.map History
 
 
 skipErrorsDecoder :
@@ -147,7 +150,10 @@ skipErrorsDecoder :
     -> History model msg
     -> Decoder (History model msg)
 skipErrorsDecoder update msgDecoder =
-    Debug.todo "..."
+    toState
+        >> State.toInitialModel
+        >> State.skipErrorsDecoder update msgDecoder
+        >> Decode.map History
 
 
 toState : History model msg -> State model msg

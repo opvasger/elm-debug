@@ -35,18 +35,22 @@ type Msg model msg
     | ToggleAppReplay
     | ToggleViewInteractive
     | ToggleDecodeStrategy
+    | ToggleModelVisibility
     | DownloadSession
     | SelectSession
     | DecodeSession File
     | SessionDecoded (Result Decode.Error (Model model msg))
+    | InputDescription String
 
 
 type alias Model model msg =
     { history : History model msg
     , initCmd : Cmd msg
     , isViewInteractive : Bool
+    , isModelVisible : Bool
     , decodeStrategy : DecodeStrategy
     , decodeError : Maybe Decode.Error
+    , description : String
     }
 
 
@@ -68,6 +72,8 @@ mapInit config =
       , isViewInteractive = True
       , decodeError = Nothing
       , decodeStrategy = UntilError
+      , description = ""
+      , isModelVisible = False
       }
     , Cmd.map (UpdateApp Init) (Tuple.second config.init)
     )
@@ -165,15 +171,23 @@ mapUpdate config msg model =
         SessionDecoded result ->
             case result of
                 Ok sessionModel ->
-                    ( sessionModel, Cmd.map (UpdateApp Init) model.initCmd )
+                    ( sessionModel
+                    , Cmd.map (UpdateApp Init) model.initCmd
+                    )
 
                 Err error ->
                     ( { model | decodeError = Just error }, Cmd.none )
 
         ToggleDecodeStrategy ->
-            ( { model | decodeStrategy = loopDecodeStrategy model.decodeStrategy }
+            ( { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }
             , Cmd.none
             )
+
+        ToggleModelVisibility ->
+            ( { model | isModelVisible = not model.isModelVisible }, Cmd.none )
+
+        InputDescription text ->
+            ( { model | description = text }, Cmd.none )
 
 
 mapDocument :
@@ -220,8 +234,17 @@ mapDocument config model =
                  else
                     "View Events Disabled"
                 )
+            :: viewButton ToggleModelVisibility
+                (if model.isModelVisible then
+                    "Showing Model Overlay"
+
+                 else
+                    "Hiding Model Overlay"
+                )
             :: viewStateCount model.history
+            :: viewDescription model.description
             :: viewDecodeError model.decodeError
+            :: viewModel config.printModel model.history model.isModelVisible
             :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
     }
 
@@ -281,8 +304,8 @@ decodeStrategyDecoder =
         Decode.string
 
 
-loopDecodeStrategy : DecodeStrategy -> DecodeStrategy
-loopDecodeStrategy strategy =
+nextDecodeStrategy : DecodeStrategy -> DecodeStrategy
+nextDecodeStrategy strategy =
     case strategy of
         NoErrors ->
             UntilError
@@ -303,7 +326,7 @@ toHistoryDecoder :
 toHistoryDecoder strategy =
     case strategy of
         NoErrors ->
-            History.decoder
+            History.noErrorsDecoder
 
         UntilError ->
             History.untilErrorDecoder
@@ -359,6 +382,7 @@ encodeSession encodeMsg model =
         [ ( "history", History.encode encodeMsg model.history )
         , ( "isViewInteractive", Encode.bool model.isViewInteractive )
         , ( "decodeStrategy", encodeDecodeStrategy model.decodeStrategy )
+        , ( "description", Encode.string model.description )
         ]
 
 
@@ -369,18 +393,22 @@ sessionDecoder :
     -> Model model msg
     -> Decoder (Model model msg)
 sessionDecoder update msgDecoder strategy model =
-    Decode.map3
-        (\history isViewInteractive decodeStrategy ->
+    Decode.map5
+        (\history isViewInteractive decodeStrategy description isModelVisible ->
             { history = history
             , initCmd = model.initCmd
             , isViewInteractive = isViewInteractive
             , decodeError = Nothing
             , decodeStrategy = decodeStrategy
+            , description = description
+            , isModelVisible = isModelVisible
             }
         )
         (Decode.field "history" (toHistoryDecoder strategy update msgDecoder model.history))
         (Decode.field "isViewInteractive" Decode.bool)
         (Decode.field "decodeStrategy" decodeStrategyDecoder)
+        (Decode.field "description" Decode.string)
+        (Decode.field "isModelVisible" Decode.bool)
 
 
 updateAppIf : Bool -> msg -> Msg model msg
@@ -404,6 +432,27 @@ viewButton msg text =
         ]
         [ Html.text text
         ]
+
+
+viewModel : (model -> String) -> History model msg -> Bool -> Html (Msg model msg)
+viewModel printModel history isModelVisible =
+    if isModelVisible then
+        Html.div []
+            [ Html.text (printModel (History.currentModel history))
+            ]
+
+    else
+        Html.text ""
+
+
+viewDescription : String -> Html (Msg model msg)
+viewDescription text =
+    Html.textarea
+        [ Html.Attributes.value text
+        , Html.Events.onInput InputDescription
+        , Html.Attributes.placeholder "You can describe what you're doing here!"
+        ]
+        []
 
 
 viewDecodeError : Maybe Decode.Error -> Html msg
