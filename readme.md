@@ -44,10 +44,25 @@ These devtools run in sessions. A session is essentially made up of:
 
 Sessions keep track of what your doing during development. They persist through browser-reloads, code-changes, can be downloaded, sent, opened by collaborators, and submitted as bug-reports.
 
-### Supporting Code-changes
-A major feature of these devtools is to be able to change code and have the application reload with new logic yet approximately the same state. I have a lot to say about what "approximately" means in this context:
-1. If the code changes didn't involve the message-definition, you load into the state you would've been in if you took the exact same actions as before. It might look different because the view changed. It might have a different state because updates were performed differently. This is not a side-effect, but an important feature - **change code and you will 100% of the time see how those changes look in the state you were in before the changes**.
-2. If you changed your message-definition, some part of it's previous definition will have lost any meaning in the program. These devtools have 3 built-in ways to deal with this:
-    - Restart the application, which you generally don't want to do.
-    - Go the state right before the first unkown message.
-    - Skip over unknown messages and do all actions that are known in order. This basically works better or worse depending on the coupling between your messsages. If you remove your `LogIn` constructor and expect `ViewAccount` to work afterwards, you will be dissapointed.
+### Support for Code-Changes
+To reliably support code-changes in sessions, it is essential that interactions are recorded rather than states. Interactions are modeled in Elm applications with a single type, usually called `Msg`. Let's do an example:
+```elm
+type Msg = Increment | Decrement
+
+update msg count = case msg of
+    Increment -> count + 1
+    Decrement -> count - 1
+
+state = List.foldl update 0 [ Increment, Decrement, Increment ]
+```
+If you run this example, the value of `state.count` will be `1`.
+
+Refactor this into an application, and devtools would deal with changes to this code in different ways:
+- If `Msg` was given another constructor, called `Reset` which updates `Reset -> 0`, the value of `state` is still `1`.
+- If `Msg` had `Decrement` removed (or changed), one of three strategies (of your choice) could be used:
+    1. Restart the application, as `Decrement` has no meaning in the program anymore. The value of `state` is now `0`, and   we've accomplished nothing. This is how most web-app development works.
+    2. Filter `Decrement` out of the list and update accordingly. The value of `state` is now `2`. This works better or worse depending on the coupling between the updates your messages perform. If you remove `LogIn` and expect `ViewAccount` to work, you will be dissapointed.
+    3. Take messages until you reach the first `Decrement` and update using those. The value of `state` is now `1`. This is really great, as it captures the remaining valid sequence of updates the application could do. If `LogIn` goes away, you'll never try to `ViewAccount`.
+- If `update` is changed, any sequence of messages will still be (generally) valid. `Increment` might do a `+ 2` instead, but messages still capture your interactions, so you can tweak `update` until it works as intended. You can tweak `view` and `subscriptions` in the same way.
+
+By recording interactions rather than state, Elm applications can be written while running, and you will only ever have partial to full state-loss when you modify the definition of messages, which is the very definition of making those interactions impossible or different.
