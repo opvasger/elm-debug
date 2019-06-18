@@ -55,7 +55,7 @@ update msg count = case msg of
 
 state = List.foldl update 0 [ Increment, Decrement, Increment ]
 ```
-If you run this example, the value of `state.count` will be `1`.
+If you run this example, the value of `state` will be `1`.
 
 Refactor this into an application, and devtools would deal with changes to this code in different ways:
 - If `Msg` was given another constructor, called `Reset` which updates `Reset -> 0`, the value of `state` is still `1`.
