@@ -21,6 +21,7 @@ import Html.Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task exposing (Task)
+import Throttle exposing (Throttle)
 
 
 type alias Program flags model msg =
@@ -41,6 +42,7 @@ type Msg model msg
     | DecodeSession File
     | SessionDecoded (Result Decode.Error (Model model msg))
     | InputDescription String
+    | UpdateCacheThrottle Throttle.Tick
 
 
 type alias Model model msg =
@@ -51,6 +53,7 @@ type alias Model model msg =
     , decodeStrategy : DecodeStrategy
     , decodeError : Maybe Decode.Error
     , description : String
+    , cacheThrottle : Throttle (Msg model msg)
     }
 
 
@@ -74,6 +77,7 @@ mapInit config =
       , decodeStrategy = UntilError
       , description = ""
       , isModelVisible = False
+      , cacheThrottle = Throttle.init
       }
     , Cmd.map (UpdateApp Init) (Tuple.second config.init)
     )
@@ -111,37 +115,44 @@ mapUpdate config msg model =
             )
 
         UpdateApp src appMsg ->
-            ( { model | history = recordFromSrc src (withoutCmd config.update) appMsg model.history }
-            , model.history
-                |> History.currentModel
-                |> config.update appMsg
-                |> Tuple.second
-                |> Cmd.map (UpdateApp Update)
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model
+                    | history = recordFromSrc src (withoutCmd config.update) appMsg model.history
+                  }
+                , model.history
+                    |> History.currentModel
+                    |> config.update appMsg
+                    |> Tuple.second
+                    |> Cmd.map (UpdateApp Update)
+                )
 
         ResetApp ->
-            ( { model | history = History.reset model.history }
-            , Cmd.map (UpdateApp Init) model.initCmd
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | history = History.reset model.history }
+                , Cmd.map (UpdateApp Init) model.initCmd
+                )
 
         ReplayApp index ->
-            ( { model
-                | history =
-                    model.history
-                        |> History.replay (withoutCmd config.update) index
-              }
-            , Cmd.none
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model
+                    | history =
+                        model.history
+                            |> History.replay (withoutCmd config.update) index
+                  }
+                , Cmd.none
+                )
 
         ToggleViewInteractive ->
-            ( { model | isViewInteractive = not model.isViewInteractive }
-            , Cmd.none
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | isViewInteractive = not model.isViewInteractive }
+                , Cmd.none
+                )
 
         ToggleAppReplay ->
-            ( { model | history = History.toggleReplay (withoutCmd config.update) model.history }
-            , Cmd.none
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | history = History.toggleReplay (withoutCmd config.update) model.history }
+                , Cmd.none
+                )
 
         DownloadSession ->
             ( model
@@ -171,23 +182,30 @@ mapUpdate config msg model =
         SessionDecoded result ->
             case result of
                 Ok sessionModel ->
-                    ( sessionModel
-                    , Cmd.map (UpdateApp Init) model.initCmd
-                    )
+                    tryCacheSession config.toCache config.encodeMsg <|
+                        ( sessionModel
+                        , Cmd.map (UpdateApp Init) model.initCmd
+                        )
 
                 Err error ->
                     ( { model | decodeError = Just error }, Cmd.none )
 
         ToggleDecodeStrategy ->
-            ( { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }
-            , Cmd.none
-            )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }, Cmd.none )
 
         ToggleModelVisibility ->
-            ( { model | isModelVisible = not model.isModelVisible }, Cmd.none )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | isModelVisible = not model.isModelVisible }, Cmd.none )
 
         InputDescription text ->
-            ( { model | description = text }, Cmd.none )
+            tryCacheSession config.toCache config.encodeMsg <|
+                ( { model | description = text }, Cmd.none )
+
+        UpdateCacheThrottle tick ->
+            Tuple.mapFirst
+                (\cacheThrottle -> { model | cacheThrottle = cacheThrottle })
+                (Throttle.update UpdateCacheThrottle tick model.cacheThrottle)
 
 
 mapDocument :
@@ -366,14 +384,21 @@ recordFromSrc src =
 -- Helpers
 
 
-resultToTask : Result err ok -> Task err ok
-resultToTask result =
-    case result of
-        Ok value ->
-            Task.succeed value
-
-        Err error ->
-            Task.fail error
+tryCacheSession :
+    (Encode.Value -> Cmd (Msg model msg))
+    -> (msg -> Encode.Value)
+    -> ( Model model msg, Cmd (Msg model msg) )
+    -> ( Model model msg, Cmd (Msg model msg) )
+tryCacheSession toCache encodeMsg ( model, cmd ) =
+    let
+        ( cacheThrottle, cacheSession ) =
+            Throttle.try UpdateCacheThrottle
+                (toCache (encodeSession encodeMsg model))
+                model.cacheThrottle
+    in
+    ( { model | cacheThrottle = cacheThrottle }
+    , Cmd.batch [ cmd, cacheSession ]
+    )
 
 
 encodeSession : (msg -> Encode.Value) -> Model model msg -> Encode.Value
@@ -403,6 +428,7 @@ sessionDecoder update msgDecoder strategy model =
             , decodeStrategy = decodeStrategy
             , description = description
             , isModelVisible = isModelVisible
+            , cacheThrottle = Throttle.init
             }
         )
         (Decode.field "history" (toHistoryDecoder strategy update msgDecoder model.history))
@@ -410,6 +436,16 @@ sessionDecoder update msgDecoder strategy model =
         (Decode.field "decodeStrategy" decodeStrategyDecoder)
         (Decode.field "description" Decode.string)
         (Decode.field "isModelVisible" Decode.bool)
+
+
+resultToTask : Result err ok -> Task err ok
+resultToTask result =
+    case result of
+        Ok value ->
+            Task.succeed value
+
+        Err error ->
+            Task.fail error
 
 
 updateAppIf : Bool -> msg -> Msg model msg
