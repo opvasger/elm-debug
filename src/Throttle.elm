@@ -4,25 +4,25 @@ import Process
 import Task
 
 
-type Throttle msg
+type Throttle
     = Ready
     | Wait
-    | Block (Cmd msg)
+    | Block
 
 
 type Tick
     = Tick
 
 
-init : Throttle msg
+init : Throttle
 init =
     Ready
 
 
-update : (Tick -> msg) -> Tick -> Throttle msg -> ( Throttle msg, Cmd msg )
-update msg tick throttle =
+update : (Tick -> msg) -> Cmd msg -> Tick -> Throttle -> ( Throttle, Cmd msg )
+update msg cmd tick throttle =
     case throttle of
-        Block cmd ->
+        Block ->
             ( Wait, emitAndWait msg cmd )
 
         Wait ->
@@ -32,14 +32,14 @@ update msg tick throttle =
             ( Ready, Cmd.none )
 
 
-try : (Tick -> msg) -> Cmd msg -> Throttle msg -> ( Throttle msg, Cmd msg )
+try : (Tick -> msg) -> Cmd msg -> Throttle -> ( Throttle, Cmd msg )
 try msg cmd throttle =
     case throttle of
-        Block _ ->
+        Block ->
             ( throttle, Cmd.none )
 
         Wait ->
-            ( Block cmd, Cmd.none )
+            ( Block, Cmd.none )
 
         Ready ->
             ( Wait, emitAndWait msg cmd )

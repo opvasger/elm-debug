@@ -53,7 +53,7 @@ type alias Model model msg =
     , decodeStrategy : DecodeStrategy
     , decodeError : Maybe Decode.Error
     , description : String
-    , cacheThrottle : Throttle (Msg model msg)
+    , cacheThrottle : Throttle
     }
 
 
@@ -205,7 +205,11 @@ mapUpdate config msg model =
         UpdateCacheThrottle tick ->
             Tuple.mapFirst
                 (\cacheThrottle -> { model | cacheThrottle = cacheThrottle })
-                (Throttle.update UpdateCacheThrottle tick model.cacheThrottle)
+                (Throttle.update UpdateCacheThrottle
+                    (config.toCache (encodeSession config.encodeMsg model))
+                    tick
+                    model.cacheThrottle
+                )
 
 
 mapDocument :
