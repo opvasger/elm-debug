@@ -19,11 +19,17 @@ init =
     Ready
 
 
-update : (Tick -> msg) -> Cmd msg -> Tick -> Throttle -> ( Throttle, Cmd msg )
-update msg cmd tick throttle =
+update :
+    (Tick -> msg)
+    -> (model -> Cmd msg)
+    -> Tick
+    -> Throttle
+    -> model
+    -> ( Throttle, Cmd msg )
+update msg cmd tick throttle model =
     case throttle of
         Block ->
-            ( Wait, emitAndWait msg cmd )
+            ( Wait, emitAndWait msg (cmd model) )
 
         Wait ->
             ( Ready, Cmd.none )
@@ -32,8 +38,13 @@ update msg cmd tick throttle =
             ( Ready, Cmd.none )
 
 
-try : (Tick -> msg) -> Cmd msg -> Throttle -> ( Throttle, Cmd msg )
-try msg cmd throttle =
+try :
+    (Tick -> msg)
+    -> (model -> Cmd msg)
+    -> Throttle
+    -> model
+    -> ( Throttle, Cmd msg )
+try msg cmd throttle model =
     case throttle of
         Block ->
             ( throttle, Cmd.none )
@@ -42,7 +53,7 @@ try msg cmd throttle =
             ( Block, Cmd.none )
 
         Ready ->
-            ( Wait, emitAndWait msg cmd )
+            ( Wait, emitAndWait msg (cmd model) )
 
 
 emitAndWait : (Tick -> msg) -> Cmd msg -> Cmd msg

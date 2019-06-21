@@ -206,9 +206,10 @@ mapUpdate config msg model =
             Tuple.mapFirst
                 (\cacheThrottle -> { model | cacheThrottle = cacheThrottle })
                 (Throttle.update UpdateCacheThrottle
-                    (config.toCache (encodeSession config.encodeMsg model))
+                    (config.toCache << encodeSession config.encodeMsg)
                     tick
                     model.cacheThrottle
+                    model
                 )
 
 
@@ -397,8 +398,9 @@ tryCacheSession toCache encodeMsg ( model, cmd ) =
     let
         ( cacheThrottle, cacheSession ) =
             Throttle.try UpdateCacheThrottle
-                (toCache (encodeSession encodeMsg model))
+                (toCache << encodeSession encodeMsg)
                 model.cacheThrottle
+                model
     in
     ( { model | cacheThrottle = cacheThrottle }
     , Cmd.batch [ cmd, cacheSession ]
