@@ -20,16 +20,17 @@ init =
 
 
 update :
-    (Tick -> msg)
-    -> (model -> Cmd msg)
-    -> Tick
-    -> Throttle
-    -> model
+    { onTick : Tick -> msg
+    , toCmd : args -> Cmd msg
+    , tick : Tick
+    , throttle : Throttle
+    , args : args
+    }
     -> ( Throttle, Cmd msg )
-update msg cmd tick throttle model =
+update { onTick, toCmd, tick, throttle, args } =
     case throttle of
         Block ->
-            ( Wait, emitAndWait msg (cmd model) )
+            ( Wait, emitAndWait onTick (toCmd args) )
 
         Wait ->
             ( Ready, Cmd.none )
@@ -39,12 +40,13 @@ update msg cmd tick throttle model =
 
 
 try :
-    (Tick -> msg)
-    -> (model -> Cmd msg)
-    -> Throttle
-    -> model
+    { onTick : Tick -> msg
+    , toCmd : args -> Cmd msg
+    , throttle : Throttle
+    , args : args
+    }
     -> ( Throttle, Cmd msg )
-try msg cmd throttle model =
+try { onTick, toCmd, throttle, args } =
     case throttle of
         Block ->
             ( throttle, Cmd.none )
@@ -53,7 +55,7 @@ try msg cmd throttle model =
             ( Block, Cmd.none )
 
         Ready ->
-            ( Wait, emitAndWait msg (cmd model) )
+            ( Wait, emitAndWait onTick (toCmd args) )
 
 
 emitAndWait : (Tick -> msg) -> Cmd msg -> Cmd msg

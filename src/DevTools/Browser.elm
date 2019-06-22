@@ -13,8 +13,8 @@ type alias Config flags model msg =
     { printModel : model -> String
     , encodeMsg : msg -> Encode.Value
     , msgDecoder : Decoder msg
-    , fromCache : flags -> Maybe Encode.Value
-    , toCache : Encode.Value -> Cmd (Program.Msg model msg)
+    , fromCache : flags -> Maybe String
+    , toCache : String -> Cmd (Program.Msg model msg)
     }
 
 

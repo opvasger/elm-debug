@@ -4,6 +4,7 @@ module History exposing
     , currentModel
     , encode
     , init
+    , initialModel
     , isReplay
     , length
     , noErrorsDecoder
@@ -55,6 +56,12 @@ currentModel : History model msg -> model
 currentModel =
     toState
         >> .currentModel
+
+
+initialModel : History model msg -> model
+initialModel =
+    toState
+        >> State.toInitialModel
 
 
 reset : History model msg -> History model msg

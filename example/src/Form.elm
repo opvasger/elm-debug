@@ -17,11 +17,11 @@ import Json.Encode as Je
 
 
 type alias Flags =
-    { devTools : Maybe Jd.Value
+    { devTools : Maybe String
     }
 
 
-fromCache : Flags -> Maybe Jd.Value
+fromCache : Flags -> Maybe String
 fromCache =
     .devTools
 

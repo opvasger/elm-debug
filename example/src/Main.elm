@@ -7,7 +7,7 @@ import Json.Encode
 import Mario exposing (encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
 
 
-port toCache : Json.Encode.Value -> Cmd msg
+port toCache : String -> Cmd msg
 
 
 main =
