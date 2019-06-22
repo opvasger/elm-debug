@@ -420,8 +420,7 @@ view :
     -> List (Html msg)
     -> List (Html (Msg model msg))
 view config model body =
-    viewReplaySlider model.history
-        :: viewButton ResetApp "Reset"
+    viewButton ResetApp "Reset"
         :: viewButton ToggleAppReplay
             (if History.isReplay model.history then
                 "Continue"
@@ -434,29 +433,30 @@ view config model body =
         :: viewButton ToggleDecodeStrategy
             (case model.decodeStrategy of
                 NoErrors ->
-                    "Upload all message with no errors"
+                    "Decode messages with no errors"
 
                 UntilError ->
-                    "Upload messages until first error"
+                    "Decode messages until first error"
 
                 SkipErrors ->
-                    "Upload messages and skip errors"
+                    "Decode messages and skip errors"
             )
         :: viewButton ToggleViewInteractive
             (if model.isViewInteractive then
-                "View Events Enabled"
+                "Enable View Events"
 
              else
-                "View Events Disabled"
+                "Disable View Events"
             )
         :: viewButton ToggleModelVisibility
             (if model.isModelVisible then
-                "Showing Model Overlay"
+                "Hide Model"
 
              else
-                "Hiding Model Overlay"
+                "Show Model"
             )
         :: viewStateCount model.history
+        :: viewReplaySlider model.history
         :: viewDescription model.description
         :: viewDecodeError model.decodeError
         :: viewModel config.printModel model.history model.isModelVisible
