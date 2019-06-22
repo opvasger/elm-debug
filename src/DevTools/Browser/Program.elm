@@ -21,7 +21,7 @@ import Html.Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task exposing (Task)
-import Throttle exposing (Throttle)
+import Throttle
 
 
 type alias Program flags model msg =
@@ -42,7 +42,7 @@ type Msg model msg
     | DecodeSession File
     | SessionDecoded (Result Decode.Error (Model model msg))
     | InputDescription String
-    | UpdateCacheThrottle Throttle.Tick
+    | UpdateCacheThrottle
 
 
 type alias Model model msg =
@@ -53,7 +53,7 @@ type alias Model model msg =
     , decodeStrategy : DecodeStrategy
     , decodeError : Maybe ( SessionSrc, Decode.Error )
     , description : String
-    , cacheThrottle : Throttle
+    , cacheThrottle : Throttle.Model
     }
 
 
@@ -71,9 +71,14 @@ mapInit :
     -> ( Model model msg, Cmd (Msg model msg) )
 mapInit config =
     let
+        decodeStrategy =
+            config.fromCache
+                |> Maybe.map (Result.withDefault NoErrors << Decode.decodeString (Decode.field "decodeStrategy" decodeStrategyDecoder))
+                |> Maybe.withDefault NoErrors
+
         decodeSession =
             config.init
-                |> sessionDecoder (ignoreCmd config.update) config.msgDecoder NoErrors
+                |> sessionDecoder (ignoreCmd config.update) config.msgDecoder decodeStrategy
 
         toModel decodeError =
             { history = History.init (Tuple.first config.init)
@@ -129,27 +134,31 @@ mapUpdate config msg model =
                 |> Tuple.second
                 |> Cmd.map (UpdateApp Update)
                 |> Tuple.pair { model | history = recordFromSrc src (ignoreCmd config.update) appMsg model.history }
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ResetApp ->
             Cmd.map (UpdateApp Init) model.initCmd
-                |> Tuple.pair { model | history = History.reset model.history }
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> Tuple.pair
+                    { model
+                        | history = History.reset model.history
+                        , decodeError = Nothing
+                    }
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ReplayApp index ->
             { model | history = History.replay (ignoreCmd config.update) index model.history }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleViewInteractive ->
             { model | isViewInteractive = not model.isViewInteractive }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleAppReplay ->
             { model | history = History.toggleReplay (ignoreCmd config.update) model.history }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         DownloadSession ->
             encodeSession config.encodeMsg model
@@ -178,7 +187,7 @@ mapUpdate config msg model =
             case result of
                 Ok sessionModel ->
                     noCmd sessionModel
-                        |> tryCacheSession config.toCache config.encodeMsg
+                        |> emitCacheSession config.toCache config.encodeMsg
 
                 Err error ->
                     noCmd { model | decodeError = Just ( Upload, error ) }
@@ -186,26 +195,23 @@ mapUpdate config msg model =
         ToggleDecodeStrategy ->
             { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleModelVisibility ->
             { model | isModelVisible = not model.isModelVisible }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
         InputDescription text ->
             { model | description = text }
                 |> noCmd
-                |> tryCacheSession config.toCache config.encodeMsg
+                |> emitCacheSession config.toCache config.encodeMsg
 
-        UpdateCacheThrottle tick ->
-            Throttle.update
-                { onTick = UpdateCacheThrottle
-                , toCmd = config.toCache << encodeSession config.encodeMsg
-                , tick = tick
-                , throttle = model.cacheThrottle
-                , args = model
-                }
+        UpdateCacheThrottle ->
+            Throttle.update (config.toCache << encodeSession config.encodeMsg)
+                UpdateCacheThrottle
+                model.cacheThrottle
+                model
                 |> Tuple.mapFirst (\cacheThrottle -> { model | cacheThrottle = cacheThrottle })
 
 
@@ -347,18 +353,16 @@ type SessionSrc
     | Upload
 
 
-tryCacheSession :
+emitCacheSession :
     (String -> Cmd (Msg model msg))
     -> (msg -> Encode.Value)
     -> ( Model model msg, Cmd (Msg model msg) )
     -> ( Model model msg, Cmd (Msg model msg) )
-tryCacheSession toCache encodeMsg ( model, cmd ) =
-    Throttle.try
-        { onTick = UpdateCacheThrottle
-        , toCmd = toCache << encodeSession encodeMsg
-        , throttle = model.cacheThrottle
-        , args = model
-        }
+emitCacheSession toCache encodeMsg ( model, cmd ) =
+    Throttle.emit (toCache << encodeSession encodeMsg)
+        UpdateCacheThrottle
+        model.cacheThrottle
+        model
         |> Tuple.mapBoth
             (\throttle -> { model | cacheThrottle = throttle })
             (\cacheCmd -> Cmd.batch [ cacheCmd, cmd ])
@@ -420,10 +424,10 @@ view config model body =
         :: viewButton ResetApp "Reset"
         :: viewButton ToggleAppReplay
             (if History.isReplay model.history then
-                "Paused"
+                "Continue"
 
              else
-                "Recoding"
+                "Pause"
             )
         :: viewButton DownloadSession "Download"
         :: viewButton SelectSession "Upload"

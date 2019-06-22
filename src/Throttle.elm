@@ -1,36 +1,25 @@
-module Throttle exposing (Throttle, Tick, init, try, update)
+module Throttle exposing (Model, emit, init, update)
 
 import Process
 import Task
 
 
-type Throttle
+type Model
     = Ready
     | Wait
     | Block
 
 
-type Tick
-    = Tick
-
-
-init : Throttle
+init : Model
 init =
     Ready
 
 
-update :
-    { onTick : Tick -> msg
-    , toCmd : args -> Cmd msg
-    , tick : Tick
-    , throttle : Throttle
-    , args : args
-    }
-    -> ( Throttle, Cmd msg )
-update { onTick, toCmd, tick, throttle, args } =
-    case throttle of
+update : (args -> Cmd msg) -> msg -> Model -> args -> ( Model, Cmd msg )
+update toCmd msg model args =
+    case model of
         Block ->
-            ( Wait, emitAndWait onTick (toCmd args) )
+            ( Wait, emitAndWait msg (toCmd args) )
 
         Wait ->
             ( Ready, Cmd.none )
@@ -39,28 +28,22 @@ update { onTick, toCmd, tick, throttle, args } =
             ( Ready, Cmd.none )
 
 
-try :
-    { onTick : Tick -> msg
-    , toCmd : args -> Cmd msg
-    , throttle : Throttle
-    , args : args
-    }
-    -> ( Throttle, Cmd msg )
-try { onTick, toCmd, throttle, args } =
-    case throttle of
+emit : (args -> Cmd msg) -> msg -> Model -> args -> ( Model, Cmd msg )
+emit toCmd msg model args =
+    case model of
         Block ->
-            ( throttle, Cmd.none )
+            ( model, Cmd.none )
 
         Wait ->
             ( Block, Cmd.none )
 
         Ready ->
-            ( Wait, emitAndWait onTick (toCmd args) )
+            ( Wait, emitAndWait msg (toCmd args) )
 
 
-emitAndWait : (Tick -> msg) -> Cmd msg -> Cmd msg
+emitAndWait : msg -> Cmd msg -> Cmd msg
 emitAndWait msg cmd =
     Cmd.batch
         [ cmd
-        , Task.perform (always (msg Tick)) (Process.sleep 2000)
+        , Task.perform (always msg) (Process.sleep 2000)
         ]
