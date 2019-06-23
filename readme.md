@@ -1,10 +1,10 @@
 # Elm DevTools
 Tools for developing Elm programs!
 
-![](/example/example.gif)
+![Demo Gif](/example/example.gif)
 
-![](https://img.shields.io/npm/v/elm-devtools.svg)
-![](https://img.shields.io/elm-package/v/opvasger/devtools.svg)
+![NPM Version Badge](https://img.shields.io/npm/v/elm-devtools.svg)
+![Elm-package Version Badge](https://img.shields.io/elm-package/v/opvasger/devtools.svg)
 
 ## Try out my example
 The module is still being developed and will probably go through major changes.
@@ -69,4 +69,4 @@ Refactor this into an application, and devtools would deal with changes to this 
     3. Take messages until you reach the first `Decrement` and update using those. The value of `state` is now `1`. This is really great, as it captures the remaining valid sequence of updates the application could do. If `LogIn` goes away, you'll never try to `ViewAccount`.
 - If `update` is changed, any sequence of messages will still be (generally) valid. `Increment` might do a `+ 2` instead, but messages still capture your interactions, so you can tweak `update` until it works as intended. You can tweak `view` and `subscriptions` in the same way.
 
-By recording interactions rather than state, Elm applications can be written while running, and you will only ever have impared message-replay when you modify the definition of messages - And those imparements should be, as you've probably seen above, predictable.
+By recording interactions rather than state, Elm applications can be written while running, and you will only ever have impared (but predictable) message-replay when you modify the definition of messages.
