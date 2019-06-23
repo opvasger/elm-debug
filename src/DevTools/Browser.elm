@@ -2,7 +2,7 @@ module DevTools.Browser exposing (application, document, element, sandbox)
 
 import Browser
 import Browser.Navigation
-import DevTools.Browser.Program as Program exposing (Program)
+import DevTools.Browser.Main as Main exposing (Program)
 import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -14,7 +14,7 @@ type alias Config flags model msg =
     , encodeMsg : msg -> Encode.Value
     , msgDecoder : Decoder msg
     , fromCache : flags -> Maybe String
-    , toCache : String -> Cmd (Program.Msg model msg)
+    , toCache : String -> Cmd (Main.Msg model msg)
     }
 
 
@@ -29,28 +29,28 @@ sandbox { init, view, update, devTools } =
     Browser.document
         { init =
             \flags ->
-                Program.mapInit
+                Main.toInit
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = devTools.msgDecoder
                     , init = ( init, Cmd.none )
                     , fromCache = devTools.fromCache flags
                     }
         , view =
-            Program.mapDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , viewApp = \model -> { title = "", body = view model :: [] }
+                , view = \model -> { title = "", body = view model :: [] }
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , update =
-            Program.mapUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , toCache = devTools.toCache
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , subscriptions =
-            Program.mapSubscriptions
+            Main.toSubscriptions
                 { subscriptions = always Sub.none
                 , msgDecoder = devTools.msgDecoder
                 , update = \msg model -> ( update msg model, Cmd.none )
@@ -70,28 +70,28 @@ element { init, view, update, subscriptions, devTools } =
     Browser.element
         { init =
             \flags ->
-                Program.mapInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
                     , init = init flags
                     , fromCache = devTools.fromCache flags
                     }
         , view =
-            Program.mapHtml
+            Main.toHtml
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , viewApp = view
+                , view = view
                 , update = update
                 }
         , update =
-            Program.mapUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , toCache = devTools.toCache
                 , update = update
                 }
         , subscriptions =
-            Program.mapSubscriptions
+            Main.toSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
                 , update = update
@@ -111,28 +111,28 @@ document { init, view, update, subscriptions, devTools } =
     Browser.document
         { init =
             \flags ->
-                Program.mapInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
                     , init = init flags
                     , fromCache = devTools.fromCache flags
                     }
         , view =
-            Program.mapDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , viewApp = view
+                , view = view
                 , update = update
                 }
         , update =
-            Program.mapUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
                 , toCache = devTools.toCache
                 }
         , subscriptions =
-            Program.mapSubscriptions
+            Main.toSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
                 , update = update
@@ -154,32 +154,32 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devT
     Browser.application
         { init =
             \flags url key ->
-                Program.mapInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
                     , init = init flags url key
                     , fromCache = devTools.fromCache flags
                     }
         , view =
-            Program.mapDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , viewApp = view
+                , view = view
                 , update = update
                 }
         , update =
-            Program.mapUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
                 , toCache = devTools.toCache
                 }
         , subscriptions =
-            Program.mapSubscriptions
+            Main.toSubscriptions
                 { msgDecoder = devTools.msgDecoder
                 , subscriptions = subscriptions
                 , update = update
                 }
-        , onUrlChange = Program.mapUrlMsg << onUrlChange
-        , onUrlRequest = Program.mapUrlMsg << onUrlRequest
+        , onUrlChange = Main.toUrlMsg << onUrlChange
+        , onUrlRequest = Main.toUrlMsg << onUrlRequest
         }
