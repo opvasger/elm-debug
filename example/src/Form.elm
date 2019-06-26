@@ -77,18 +77,36 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model ) of
         ( FromAuth authMsg, InAuth authModel ) ->
-            ( updateAuth authMsg authModel
-                |> InAuth
-                |> toggleModel
-            , Cmd.none
-            )
+            let
+                updated =
+                    updateAuth authMsg authModel
+            in
+            case ( authMsg, updated.status ) of
+                ( LogIn, LoggingIn ) ->
+                    ( InAccount (initAccount updated.name)
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( InAuth updated
+                    , Cmd.none
+                    )
 
         ( FromAccount acntMsg, InAccount acntModel ) ->
-            ( updateAccount acntMsg acntModel
-                |> InAccount
-                |> toggleModel
-            , Cmd.none
-            )
+            let
+                updated =
+                    updateAccount acntMsg acntModel
+            in
+            case ( acntMsg, updated.status ) of
+                ( LogOut, LoggingOut ) ->
+                    ( InAuth initAuth
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( InAccount updated
+                    , Cmd.none
+                    )
 
         _ ->
             ( model, Cmd.none )
@@ -110,26 +128,6 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.none
-
-
-toggleModel : Model -> Model
-toggleModel model =
-    case model of
-        InAuth { name, status } ->
-            case status of
-                LoggingIn ->
-                    InAccount (initAccount name)
-
-                _ ->
-                    model
-
-        InAccount { status } ->
-            case status of
-                LoggingOut ->
-                    InAuth initAuth
-
-                _ ->
-                    model
 
 
 
