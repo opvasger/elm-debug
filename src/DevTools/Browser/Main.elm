@@ -14,7 +14,9 @@ import Browser
 import File exposing (File)
 import File.Download
 import File.Select
+import Helper
 import History exposing (History)
+import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
 import Html exposing (Html)
 import Html.Attributes
 import Html.Events
@@ -73,27 +75,27 @@ toInit config =
     let
         decodeStrategy =
             config.fromCache
-                |> Maybe.map (Decode.decodeString (Decode.field "decodeStrategy" decodeStrategyDecoder))
-                |> Maybe.map (Result.withDefault NoErrors)
-                |> Maybe.withDefault NoErrors
+                |> Maybe.map (Decode.decodeString (Decode.field "decodeStrategy" DecodeStrategy.decoder))
+                |> Maybe.map (Result.withDefault DecodeStrategy.NoErrors)
+                |> Maybe.withDefault DecodeStrategy.NoErrors
 
         decodeSession =
             config.init
-                |> sessionDecoder (ignoreCmd config.update) config.msgDecoder decodeStrategy
+                |> sessionDecoder (Helper.updateModel config.update) config.msgDecoder decodeStrategy
 
         toModel decodeError =
             { history = History.init (Tuple.first config.init)
             , initCmd = Tuple.second config.init
             , isViewInteractive = True
             , decodeError = Maybe.map (Tuple.pair Cache) decodeError
-            , decodeStrategy = UntilError
+            , decodeStrategy = DecodeStrategy.UntilError
             , description = ""
             , isModelVisible = False
             , cacheThrottle = Throttle.init
             }
     in
     config.fromCache
-        |> Maybe.map (noCmd << unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
+        |> Maybe.map (Helper.withoutCmd << Helper.unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
         |> Maybe.withDefault
             ( toModel Nothing
             , Cmd.map (UpdateApp Init) (Tuple.second config.init)
@@ -127,14 +129,14 @@ toUpdate :
 toUpdate config msg model =
     case msg of
         DoNothing ->
-            noCmd model
+            Helper.withoutCmd model
 
         UpdateApp src appMsg ->
             History.currentModel model.history
                 |> config.update appMsg
                 |> Tuple.second
                 |> Cmd.map (UpdateApp Update)
-                |> Tuple.pair { model | history = recordFromSrc src (ignoreCmd config.update) appMsg model.history }
+                |> Tuple.pair { model | history = recordFromSrc src (Helper.updateModel config.update) appMsg model.history }
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ResetApp ->
@@ -147,18 +149,18 @@ toUpdate config msg model =
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ReplayApp index ->
-            { model | history = History.replay (ignoreCmd config.update) index model.history }
-                |> noCmd
+            { model | history = History.replay (Helper.updateModel config.update) index model.history }
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleViewInteractive ->
             { model | isViewInteractive = not model.isViewInteractive }
-                |> noCmd
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleAppReplay ->
-            { model | history = History.toggleReplay (ignoreCmd config.update) model.history }
-                |> noCmd
+            { model | history = History.toggleReplay (Helper.updateModel config.update) model.history }
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         DownloadSession ->
@@ -176,36 +178,36 @@ toUpdate config msg model =
                 decodeSession =
                     model.initCmd
                         |> Tuple.pair (History.initialModel model.history)
-                        |> sessionDecoder (ignoreCmd config.update) config.msgDecoder NoErrors
+                        |> sessionDecoder (Helper.updateModel config.update) config.msgDecoder DecodeStrategy.NoErrors
             in
             File.toString file
                 |> Task.map (Decode.decodeString decodeSession)
-                |> Task.andThen resultToTask
+                |> Task.andThen Helper.resultToTask
                 |> Task.attempt SessionDecoded
                 |> Tuple.pair model
 
         SessionDecoded result ->
             case result of
                 Ok sessionModel ->
-                    noCmd sessionModel
+                    Helper.withoutCmd sessionModel
                         |> emitCacheSession config.toCache config.encodeMsg
 
                 Err error ->
-                    noCmd { model | decodeError = Just ( Upload, error ) }
+                    Helper.withoutCmd { model | decodeError = Just ( Upload, error ) }
 
         ToggleDecodeStrategy ->
-            { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }
-                |> noCmd
+            { model | decodeStrategy = DecodeStrategy.loop model.decodeStrategy }
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleModelVisibility ->
             { model | isModelVisible = not model.isModelVisible }
-                |> noCmd
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         InputDescription text ->
             { model | description = text }
-                |> noCmd
+                |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         UpdateCacheThrottle ->
@@ -247,80 +249,6 @@ toHtml config model =
         |> List.singleton
         |> view config model
         |> Html.div []
-
-
-
--- DecodeStrategy
-
-
-type DecodeStrategy
-    = NoErrors
-    | UntilError
-    | SkipErrors
-
-
-encodeDecodeStrategy : DecodeStrategy -> Encode.Value
-encodeDecodeStrategy strategy =
-    case strategy of
-        NoErrors ->
-            Encode.string "NoErrors"
-
-        UntilError ->
-            Encode.string "UntilError"
-
-        SkipErrors ->
-            Encode.string "SkipErrors"
-
-
-decodeStrategyDecoder : Decoder DecodeStrategy
-decodeStrategyDecoder =
-    Decode.andThen
-        (\text ->
-            case text of
-                "NoErrors" ->
-                    Decode.succeed NoErrors
-
-                "UntilError" ->
-                    Decode.succeed UntilError
-
-                "SkipErrors" ->
-                    Decode.succeed SkipErrors
-
-                _ ->
-                    Decode.fail (text ++ " should be either 'NoErrors', 'UntilError', or 'SkipErrors'")
-        )
-        Decode.string
-
-
-nextDecodeStrategy : DecodeStrategy -> DecodeStrategy
-nextDecodeStrategy strategy =
-    case strategy of
-        NoErrors ->
-            UntilError
-
-        UntilError ->
-            SkipErrors
-
-        SkipErrors ->
-            NoErrors
-
-
-toHistoryDecoder :
-    DecodeStrategy
-    -> (msg -> model -> model)
-    -> Decoder msg
-    -> History model msg
-    -> Decoder (History model msg)
-toHistoryDecoder strategy =
-    case strategy of
-        NoErrors ->
-            History.noErrorsDecoder
-
-        UntilError ->
-            History.untilErrorDecoder
-
-        SkipErrors ->
-            History.skipErrorsDecoder
 
 
 
@@ -381,7 +309,7 @@ encodeSession encodeMsg model =
             [ ( "history", History.encode encodeMsg model.history )
             , ( "isViewInteractive", Encode.bool model.isViewInteractive )
             , ( "isModelVisible", Encode.bool model.isModelVisible )
-            , ( "decodeStrategy", encodeDecodeStrategy model.decodeStrategy )
+            , ( "decodeStrategy", DecodeStrategy.encode model.decodeStrategy )
             , ( "description", Encode.string model.description )
             ]
 
@@ -405,9 +333,9 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , cacheThrottle = Throttle.init
             }
         )
-        (Decode.field "history" (toHistoryDecoder strategy update msgDecoder (History.init model)))
+        (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder (History.init model)))
         (Decode.field "isViewInteractive" Decode.bool)
-        (Decode.field "decodeStrategy" decodeStrategyDecoder)
+        (Decode.field "decodeStrategy" DecodeStrategy.decoder)
         (Decode.field "description" Decode.string)
         (Decode.field "isModelVisible" Decode.bool)
 
@@ -437,16 +365,7 @@ view config model body =
         :: viewButton DownloadSession "Download"
         :: viewButton SelectSession "Upload"
         :: viewButton ToggleDecodeStrategy
-            (case model.decodeStrategy of
-                NoErrors ->
-                    "Decode messages with no errors"
-
-                UntilError ->
-                    "Decode messages until first error"
-
-                SkipErrors ->
-                    "Decode messages and skip errors"
-            )
+            (DecodeStrategy.toString model.decodeStrategy)
         :: viewButton ToggleViewInteractive
             (if model.isViewInteractive then
                 "Disable View Events"
@@ -469,26 +388,6 @@ view config model body =
         :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
 
 
-resultToTask : Result err ok -> Task err ok
-resultToTask result =
-    case result of
-        Ok value ->
-            Task.succeed value
-
-        Err error ->
-            Task.fail error
-
-
-unwrapResult : (err -> ok) -> Result err ok -> ok
-unwrapResult fromError result =
-    case result of
-        Ok value ->
-            value
-
-        Err error ->
-            fromError error
-
-
 updateAppIf : Bool -> msg -> Msg model msg
 updateAppIf shouldUpdate =
     if shouldUpdate then
@@ -496,16 +395,6 @@ updateAppIf shouldUpdate =
 
     else
         always DoNothing
-
-
-noCmd : model -> ( model, Cmd msg )
-noCmd model =
-    ( model, Cmd.none )
-
-
-ignoreCmd : (msg -> model -> ( model, Cmd msg )) -> msg -> model -> model
-ignoreCmd update msg model =
-    Tuple.first (update msg model)
 
 
 viewButton : Msg model msg -> String -> Html (Msg model msg)
