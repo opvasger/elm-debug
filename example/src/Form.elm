@@ -26,86 +26,85 @@ fromCache =
     .devTools
 
 
-type alias Model =
-    { page : Page
-    }
+type Model
+    = InAuth AuthModel
+    | InAccount AccountModel
 
 
 type Msg
-    = InputName String
-    | InputPass String
-    | LogIn
-    | LogOut
-    | Increment
-    | Decrement
+    = FromAuth AuthMsg
+    | FromAccount AccountMsg
 
 
-type Error
-    = NoError
-    | NoName
-    | NoPass
+msgDecoder : Jd.Decoder Msg
+msgDecoder =
+    Jd.oneOf
+        [ Jd.field "Log In" (Jd.null (FromAuth LogIn))
+        , Jd.field "Log Out" (Jd.null (FromAccount LogOut))
+        , Jd.map (FromAuth << InputName) (Jd.field "Input Name" Jd.string)
+        , Jd.map (FromAuth << InputPass) (Jd.field "Input Pass" Jd.string)
+        , Jd.map (FromAccount << InputNotes) (Jd.field "Input Notes" Jd.string)
+        ]
 
 
-type alias AuthState =
-    { name : String
-    , pass : String
-    , err : Error
-    }
+encodeMsg : Msg -> Je.Value
+encodeMsg msg =
+    case msg of
+        FromAuth (InputName name) ->
+            Je.object [ ( "Input Name", Je.string name ) ]
 
+        FromAuth (InputPass pass) ->
+            Je.object [ ( "Input Pass", Je.string pass ) ]
 
-type alias CountState =
-    { name : String
-    , count : Int
-    }
+        FromAuth LogIn ->
+            Je.object [ ( "Log In", Je.null ) ]
 
+        FromAccount LogOut ->
+            Je.object [ ( "Log Out", Je.null ) ]
 
-type Page
-    = Auth AuthState
-    | Count CountState
+        FromAccount (InputNotes notes) ->
+            Je.object [ ( "Input Notes", Je.string notes ) ]
 
 
 init : Flags -> ( Model, Cmd Msg )
 init _ =
-    ( { page = initAuth }
+    ( InAuth initAuth
     , Cmd.none
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case model.page of
-        Auth state ->
-            case msg of
-                InputName name ->
-                    ( { model | page = Auth { state | name = name } }, Cmd.none )
+    case ( msg, model ) of
+        ( FromAuth authMsg, InAuth authModel ) ->
+            ( updateAuth authMsg authModel
+                |> InAuth
+                |> toggleModel
+            , Cmd.none
+            )
 
-                InputPass pass ->
-                    ( { model | page = Auth { state | pass = pass } }, Cmd.none )
+        ( FromAccount acntMsg, InAccount acntModel ) ->
+            ( updateAccount acntMsg acntModel
+                |> InAccount
+                |> toggleModel
+            , Cmd.none
+            )
 
-                LogIn ->
-                    case authenticate state of
-                        Just err ->
-                            ( { model | page = Auth { state | err = err } }, Cmd.none )
+        _ ->
+            ( model, Cmd.none )
 
-                        Nothing ->
-                            ( { model | page = initCount state.name }, Cmd.none )
 
-                _ ->
-                    ( model, Cmd.none )
+view : Model -> Browser.Document Msg
+view model =
+    { title = "Example"
+    , body =
+        case model of
+            InAuth authModel ->
+                H.map FromAuth (viewAuth authModel) :: []
 
-        Count state ->
-            case msg of
-                LogOut ->
-                    ( { model | page = initAuth }, Cmd.none )
-
-                Increment ->
-                    ( { model | page = Count { state | count = state.count + 1 } }, Cmd.none )
-
-                Decrement ->
-                    ( { model | page = Count { state | count = state.count - 1 } }, Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
+            InAccount acntModel ->
+                H.map FromAccount (viewAccount acntModel) :: []
+    }
 
 
 subscriptions : Model -> Sub Msg
@@ -113,120 +112,115 @@ subscriptions model =
     Sub.none
 
 
-view : Model -> Browser.Document Msg
-view model =
-    { title = "Example"
-    , body =
-        [ viewPage model.page
-        ]
+toggleModel : Model -> Model
+toggleModel model =
+    case model of
+        InAuth { name, status } ->
+            case status of
+                LoggingIn ->
+                    InAccount (initAccount name)
+
+                _ ->
+                    model
+
+        InAccount { status } ->
+            case status of
+                LoggingOut ->
+                    InAuth initAuth
+
+                _ ->
+                    model
+
+
+
+-- Auth
+
+
+type alias AuthModel =
+    { name : String
+    , pass : String
+    , status : AuthStatus
     }
 
 
-authenticate : AuthState -> Maybe Error
-authenticate { name, pass } =
-    if String.length (String.trim name) < 1 then
-        Just NoName
-
-    else if String.length (String.trim pass) < 1 then
-        Just NoPass
-
-    else
-        Nothing
+type AuthStatus
+    = AuthReady
+    | MissingName
+    | MissingPass
+    | LoggingIn
 
 
-errorToString : Error -> String
-errorToString err =
-    case err of
-        NoError ->
+printAuthStatus : AuthStatus -> String
+printAuthStatus status =
+    case status of
+        AuthReady ->
             ""
 
-        NoName ->
-            "please specify a name"
+        MissingName ->
+            "Please specify your name"
 
-        NoPass ->
-            "please specify a password"
+        MissingPass ->
+            "Please specify your password"
+
+        LoggingIn ->
+            "..."
 
 
-initAuth : Page
+type AuthMsg
+    = InputName String
+    | InputPass String
+    | LogIn
+
+
+initAuth : AuthModel
 initAuth =
-    Auth { name = "", pass = "", err = NoError }
+    { name = ""
+    , pass = ""
+    , status = AuthReady
+    }
 
 
-initCount : String -> Page
-initCount name =
-    Count { name = name, count = 0 }
-
-
-msgDecoder : Jd.Decoder Msg
-msgDecoder =
-    Jd.oneOf
-        [ Jd.map InputName (Jd.field "Input Name" Jd.string)
-        , Jd.map InputPass (Jd.field "Input Pass" Jd.string)
-        , Jd.field "Log In" (Jd.null LogIn)
-        , Jd.field "Log Out" (Jd.null LogOut)
-        , Jd.field "Increment" (Jd.null Increment)
-        , Jd.field "Decrement" (Jd.null Decrement)
-        ]
-
-
-encodeMsg : Msg -> Je.Value
-encodeMsg msg =
+updateAuth : AuthMsg -> AuthModel -> AuthModel
+updateAuth msg model =
     case msg of
         InputName name ->
-            Je.object [ ( "Input Name", Je.string name ) ]
+            { model | name = name, status = AuthReady }
 
         InputPass pass ->
-            Je.object [ ( "Input Pass", Je.string pass ) ]
+            { model | pass = pass, status = AuthReady }
 
         LogIn ->
-            Je.object [ ( "Log In", Je.null ) ]
-
-        LogOut ->
-            Je.object [ ( "Log Out", Je.null ) ]
-
-        Increment ->
-            Je.object [ ( "Increment", Je.null ) ]
-
-        Decrement ->
-            Je.object [ ( "Decrement", Je.null ) ]
+            { model | status = authenticate model }
 
 
-centerAttributes : List (H.Attribute Msg)
-centerAttributes =
-    [ Ha.style "height" "95vh"
-    , Ha.style "display" "flex"
-    , Ha.style "flex-direction" "column"
-    , Ha.style "align-items" "center"
-    , Ha.style "justify-content" "center"
-    ]
+authenticate : AuthModel -> AuthStatus
+authenticate model =
+    if String.length (String.trim model.name) < 1 then
+        MissingName
+
+    else if String.length (String.trim model.pass) < 1 then
+        MissingPass
+
+    else
+        LoggingIn
 
 
-viewPage : Page -> Html Msg
-viewPage page =
-    case page of
-        Auth state ->
-            viewAuth state
-
-        Count state ->
-            viewCount state
-
-
-viewAuth : AuthState -> Html Msg
-viewAuth { name, pass, err } =
+viewAuth : AuthModel -> Html AuthMsg
+viewAuth model =
     H.div
         centerAttributes
         [ H.input
             [ Ha.type_ "text"
             , Ha.placeholder "name"
             , He.onInput InputName
-            , Ha.value name
+            , Ha.value model.name
             ]
             []
         , H.input
             [ Ha.type_ "password"
             , Ha.placeholder "pass"
             , He.onInput InputPass
-            , Ha.value pass
+            , Ha.value model.pass
             ]
             []
         , H.button
@@ -234,30 +228,76 @@ viewAuth { name, pass, err } =
             ]
             [ H.text "Log In"
             ]
-        , H.text (errorToString err)
+        , H.text (printAuthStatus model.status)
         ]
 
 
-viewCount : CountState -> Html Msg
-viewCount { name, count } =
+
+-- Account
+
+
+type alias AccountModel =
+    { name : String
+    , status : AccountStatus
+    , notes : String
+    }
+
+
+type AccountStatus
+    = AccountReady
+    | LoggingOut
+
+
+type AccountMsg
+    = LogOut
+    | InputNotes String
+
+
+initAccount : String -> AccountModel
+initAccount name =
+    { name = name
+    , status = AccountReady
+    , notes = ""
+    }
+
+
+updateAccount : AccountMsg -> AccountModel -> AccountModel
+updateAccount msg model =
+    case msg of
+        LogOut ->
+            { model | status = LoggingOut }
+
+        InputNotes notes ->
+            { model | notes = notes }
+
+
+viewAccount : AccountModel -> Html AccountMsg
+viewAccount model =
     H.div centerAttributes
-        [ H.text ("Hello " ++ name)
+        [ H.text ("Hello there, " ++ model.name)
         , H.button
             [ He.onClick LogOut
             ]
             [ H.text "Log Out"
             ]
-        , H.div []
-            [ H.button
-                [ He.onClick Increment
-                ]
-                [ H.text "+"
-                ]
-            , H.text (String.fromInt count)
-            , H.button
-                [ He.onClick Decrement
-                ]
-                [ H.text "-"
-                ]
+        , H.text "How are you feeling?"
+        , H.textarea
+            [ Ha.value model.notes
+            , He.onInput InputNotes
             ]
+            []
         ]
+
+
+
+-- Helpers
+
+
+centerAttributes : List (H.Attribute msg)
+centerAttributes =
+    [ Ha.style "height" "95vh"
+    , Ha.style "display" "flex"
+    , Ha.style "flex-direction" "column"
+    , Ha.style "align-items" "center"
+    , Ha.style "justify-content" "center"
+    ]

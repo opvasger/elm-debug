@@ -442,7 +442,7 @@ view :
     -> List (Html msg)
     -> List (Html (Msg model msg))
 view config model body =
-    viewButton ResetApp "Reset"
+    viewButton ResetApp "Restart"
         :: viewButton ToggleAppReplay
             (if History.isReplay model.history then
                 "Continue"
