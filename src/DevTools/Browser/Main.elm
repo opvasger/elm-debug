@@ -37,7 +37,6 @@ type Msg model msg
     | ToggleViewInteractive
     | ToggleDecodeStrategy
     | ToggleModelVisibility
-    | ToggleCacheSession
     | DownloadSession
     | SelectSession
     | DecodeSession File
@@ -51,7 +50,6 @@ type alias Model model msg =
     , initCmd : Cmd msg
     , isViewInteractive : Bool
     , isModelVisible : Bool
-    , isCachingSession : Bool
     , decodeStrategy : DecodeStrategy
     , decodeError : Maybe ( SessionSrc, Decode.Error )
     , description : String
@@ -92,7 +90,6 @@ toInit config =
             , description = ""
             , isModelVisible = False
             , cacheThrottle = Throttle.init
-            , isCachingSession = True
             }
     in
     config.fromCache
@@ -138,7 +135,7 @@ toUpdate config msg model =
                 |> Tuple.second
                 |> Cmd.map (UpdateApp Update)
                 |> Tuple.pair { model | history = recordFromSrc src (ignoreCmd config.update) appMsg model.history }
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ResetApp ->
             Cmd.map (UpdateApp Init) model.initCmd
@@ -147,22 +144,22 @@ toUpdate config msg model =
                         | history = History.reset model.history
                         , decodeError = Nothing
                     }
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ReplayApp index ->
             { model | history = History.replay (ignoreCmd config.update) index model.history }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleViewInteractive ->
             { model | isViewInteractive = not model.isViewInteractive }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleAppReplay ->
             { model | history = History.toggleReplay (ignoreCmd config.update) model.history }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         DownloadSession ->
             encodeSession config.encodeMsg model
@@ -191,7 +188,7 @@ toUpdate config msg model =
             case result of
                 Ok sessionModel ->
                     noCmd sessionModel
-                        |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                        |> emitCacheSession config.toCache config.encodeMsg
 
                 Err error ->
                     noCmd { model | decodeError = Just ( Upload, error ) }
@@ -199,22 +196,17 @@ toUpdate config msg model =
         ToggleDecodeStrategy ->
             { model | decodeStrategy = nextDecodeStrategy model.decodeStrategy }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleModelVisibility ->
             { model | isModelVisible = not model.isModelVisible }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
-
-        ToggleCacheSession ->
-            { model | isCachingSession = not model.isCachingSession }
-                |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         InputDescription text ->
             { model | description = text }
                 |> noCmd
-                |> emitCacheSession config.toCache config.encodeMsg model.isCachingSession
+                |> emitCacheSession config.toCache config.encodeMsg
 
         UpdateCacheThrottle ->
             Throttle.update (config.toCache << encodeSession config.encodeMsg)
@@ -271,13 +263,13 @@ encodeDecodeStrategy : DecodeStrategy -> Encode.Value
 encodeDecodeStrategy strategy =
     case strategy of
         NoErrors ->
-            Encode.string "UntilError"
+            Encode.string "NoErrors"
 
         UntilError ->
-            Encode.string "SkipErrors"
+            Encode.string "UntilError"
 
         SkipErrors ->
-            Encode.string "NoErrors"
+            Encode.string "SkipErrors"
 
 
 decodeStrategyDecoder : Decoder DecodeStrategy
@@ -370,21 +362,16 @@ type SessionSrc
 emitCacheSession :
     (String -> Cmd (Msg model msg))
     -> (msg -> Encode.Value)
-    -> Bool
     -> ( Model model msg, Cmd (Msg model msg) )
     -> ( Model model msg, Cmd (Msg model msg) )
-emitCacheSession toCache encodeMsg isCachingSession ( model, cmd ) =
-    if isCachingSession then
-        Throttle.emit (toCache << encodeSession encodeMsg)
-            UpdateCacheThrottle
-            model.cacheThrottle
-            model
-            |> Tuple.mapBoth
-                (\throttle -> { model | cacheThrottle = throttle })
-                (\cacheCmd -> Cmd.batch [ cacheCmd, cmd ])
-
-    else
-        ( model, cmd )
+emitCacheSession toCache encodeMsg ( model, cmd ) =
+    Throttle.emit (toCache << encodeSession encodeMsg)
+        UpdateCacheThrottle
+        model.cacheThrottle
+        model
+        |> Tuple.mapBoth
+            (\throttle -> { model | cacheThrottle = throttle })
+            (\cacheCmd -> Cmd.batch [ cacheCmd, cmd ])
 
 
 encodeSession : (msg -> Encode.Value) -> Model model msg -> String
@@ -396,7 +383,6 @@ encodeSession encodeMsg model =
             , ( "isModelVisible", Encode.bool model.isModelVisible )
             , ( "decodeStrategy", encodeDecodeStrategy model.decodeStrategy )
             , ( "description", Encode.string model.description )
-            , ( "isCachingSession", Encode.bool model.isCachingSession )
             ]
 
 
@@ -407,8 +393,8 @@ sessionDecoder :
     -> ( model, Cmd msg )
     -> Decoder (Model model msg)
 sessionDecoder update msgDecoder strategy ( model, cmd ) =
-    Decode.map6
-        (\history isViewInteractive decodeStrategy description isModelVisible isCachingSession ->
+    Decode.map5
+        (\history isViewInteractive decodeStrategy description isModelVisible ->
             { history = history
             , initCmd = cmd
             , isViewInteractive = isViewInteractive
@@ -417,7 +403,6 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , description = description
             , isModelVisible = isModelVisible
             , cacheThrottle = Throttle.init
-            , isCachingSession = isCachingSession
             }
         )
         (Decode.field "history" (toHistoryDecoder strategy update msgDecoder (History.init model)))
@@ -425,7 +410,6 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
         (Decode.field "decodeStrategy" decodeStrategyDecoder)
         (Decode.field "description" Decode.string)
         (Decode.field "isModelVisible" Decode.bool)
-        (Decode.field "isCachingSession" Decode.bool)
 
 
 
@@ -452,13 +436,6 @@ view config model body =
             )
         :: viewButton DownloadSession "Download"
         :: viewButton SelectSession "Upload"
-        :: viewButton ToggleCacheSession
-            (if model.isCachingSession then
-                "Disable Caching"
-
-             else
-                "Enable Caching"
-            )
         :: viewButton ToggleDecodeStrategy
             (case model.decodeStrategy of
                 NoErrors ->
@@ -472,10 +449,10 @@ view config model body =
             )
         :: viewButton ToggleViewInteractive
             (if model.isViewInteractive then
-                "Enable View Events"
+                "Disable View Events"
 
              else
-                "Disable View Events"
+                "Enable View Events"
             )
         :: viewButton ToggleModelVisibility
             (if model.isModelVisible then
