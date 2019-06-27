@@ -24,6 +24,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task exposing (Task)
 import Throttle
+import Time
 
 
 type alias Program flags model msg =
@@ -39,12 +40,14 @@ type Msg model msg
     | ToggleViewInteractive
     | ToggleDecodeStrategy
     | ToggleModelVisibility
-    | DownloadSession
+    | DownloadSession (Maybe Time.Posix)
+    | DownloadSessionWithDate
     | SelectSession
     | DecodeSession File
     | SessionDecoded (Result Decode.Error (Model model msg))
     | InputDescription String
     | UpdateCacheThrottle
+    | InputTitle String
 
 
 type alias Model model msg =
@@ -56,6 +59,7 @@ type alias Model model msg =
     , decodeError : Maybe ( SessionSrc, Decode.Error )
     , description : String
     , cacheThrottle : Throttle.Model
+    , title : String
     }
 
 
@@ -92,6 +96,7 @@ toInit config =
             , description = ""
             , isModelVisible = False
             , cacheThrottle = Throttle.init
+            , title = defaultTitle
             }
     in
     config.fromCache
@@ -163,9 +168,19 @@ toUpdate config msg model =
                 |> Helper.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
-        DownloadSession ->
+        DownloadSessionWithDate ->
+            ( model, Task.perform (DownloadSession << Just) Time.now )
+
+        DownloadSession maybeTime ->
+            let
+                filename =
+                    Helper.replaceEmptyWith defaultTitle model.title
+                        ++ Maybe.withDefault ""
+                            (Maybe.map ((++) "." << Helper.printUtcTime) maybeTime)
+                        ++ ".json"
+            in
             encodeSession config.encodeMsg model
-                |> File.Download.string "devtools-session" "application/json"
+                |> File.Download.string filename "application/json"
                 |> Tuple.pair model
 
         SelectSession ->
@@ -216,6 +231,11 @@ toUpdate config msg model =
                 model.cacheThrottle
                 model
                 |> Tuple.mapFirst (\cacheThrottle -> { model | cacheThrottle = cacheThrottle })
+
+        InputTitle text ->
+            { model | title = text }
+                |> Helper.withoutCmd
+                |> emitCacheSession config.toCache config.encodeMsg
 
 
 toDocument :
@@ -287,6 +307,11 @@ type SessionSrc
     | Upload
 
 
+defaultTitle : String
+defaultTitle =
+    "devtools-session"
+
+
 emitCacheSession :
     (String -> Cmd (Msg model msg))
     -> (msg -> Encode.Value)
@@ -311,6 +336,7 @@ encodeSession encodeMsg model =
             , ( "isModelVisible", Encode.bool model.isModelVisible )
             , ( "decodeStrategy", DecodeStrategy.encode model.decodeStrategy )
             , ( "description", Encode.string model.description )
+            , ( "title", Encode.string model.title )
             ]
 
 
@@ -321,8 +347,8 @@ sessionDecoder :
     -> ( model, Cmd msg )
     -> Decoder (Model model msg)
 sessionDecoder update msgDecoder strategy ( model, cmd ) =
-    Decode.map5
-        (\history isViewInteractive decodeStrategy description isModelVisible ->
+    Decode.map6
+        (\history isViewInteractive decodeStrategy description isModelVisible title ->
             { history = history
             , initCmd = cmd
             , isViewInteractive = isViewInteractive
@@ -331,6 +357,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , description = description
             , isModelVisible = isModelVisible
             , cacheThrottle = Throttle.init
+            , title = title
             }
         )
         (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder (History.init model)))
@@ -338,6 +365,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
         (Decode.field "decodeStrategy" DecodeStrategy.decoder)
         (Decode.field "description" Decode.string)
         (Decode.field "isModelVisible" Decode.bool)
+        (Decode.field "title" Decode.string)
 
 
 
@@ -362,7 +390,7 @@ view config model body =
              else
                 "Pause"
             )
-        :: viewButton DownloadSession "Download"
+        :: viewButton DownloadSessionWithDate "Download"
         :: viewButton SelectSession "Upload"
         :: viewButton ToggleDecodeStrategy
             (DecodeStrategy.toString model.decodeStrategy)
@@ -382,6 +410,7 @@ view config model body =
             )
         :: viewStateCount model.history
         :: viewReplaySlider model.history
+        :: viewTitle model.title
         :: viewDescription model.description
         :: viewDecodeError model.decodeError
         :: viewModel config.printModel model.history model.isModelVisible
@@ -404,6 +433,17 @@ viewButton msg text =
         ]
         [ Html.text text
         ]
+
+
+viewTitle : String -> Html (Msg model msg)
+viewTitle title =
+    Html.input
+        [ Html.Attributes.type_ "text"
+        , Html.Attributes.placeholder defaultTitle
+        , Html.Attributes.value title
+        , Html.Events.onInput InputTitle
+        ]
+        []
 
 
 viewModel : (model -> String) -> History model msg -> Bool -> Html (Msg model msg)
@@ -464,7 +504,7 @@ viewStateCount history =
                 , Html.text (String.fromInt (length + 1))
                 ]
     in
-    Html.div [] children
+    Html.span [] children
 
 
 viewReplaySlider : History model msg -> Html (Msg model msg)

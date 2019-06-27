@@ -1,5 +1,8 @@
 module Helper exposing
     ( enumerate
+    , monthNumber
+    , printUtcTime
+    , replaceEmptyWith
     , resultToTask
     , unwrapResult
     , updateModel
@@ -7,6 +10,82 @@ module Helper exposing
     )
 
 import Task exposing (Task)
+import Time
+
+
+
+-- String
+
+
+replaceEmptyWith : String -> String -> String
+replaceEmptyWith replace text =
+    if String.length (String.trim text) < 1 then
+        replace
+
+    else
+        text
+
+
+
+-- Time
+
+
+printUtcTime : Time.Posix -> String
+printUtcTime time =
+    List.foldl (++)
+        ""
+        [ Time.toYear Time.utc time
+            |> String.fromInt
+            |> String.right 2
+        , "-"
+        , Time.toMonth Time.utc time
+            |> monthNumber
+            |> String.fromInt
+            |> String.padLeft 2 '0'
+        , "-"
+        , Time.toDay Time.utc time
+            |> String.fromInt
+        ]
+
+
+monthNumber : Time.Month -> Int
+monthNumber month =
+    case month of
+        Time.Jan ->
+            1
+
+        Time.Feb ->
+            2
+
+        Time.Mar ->
+            3
+
+        Time.Apr ->
+            4
+
+        Time.May ->
+            5
+
+        Time.Jun ->
+            6
+
+        Time.Jul ->
+            7
+
+        Time.Aug ->
+            8
+
+        Time.Sep ->
+            9
+
+        Time.Oct ->
+            10
+
+        Time.Nov ->
+            11
+
+        Time.Dec ->
+            12
 
 
 
