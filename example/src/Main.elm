@@ -1,6 +1,7 @@
 port module Main exposing (main)
 
--- Import "Form" instead of "Mario" to try the other example
+-- Available examples are "Form", "Mario", and "Counter".
+-- Change the import to try other examples!
 
 import DevTools.Browser
 import Form exposing (encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
