@@ -1,6 +1,6 @@
-module Test.DevTools.Browser.Program exposing (suite)
+module Test.DevTools.Browser.Main exposing (suite)
 
-import DevTools.Browser.Program
+import DevTools.Browser.Main
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
 import Json.Decode
@@ -11,5 +11,5 @@ import Test exposing (Test)
 
 suite : Test
 suite =
-    Test.describe "DevTools.Browser.Program"
+    Test.describe "DevTools.Browser.Main"
         []
