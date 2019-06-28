@@ -17,7 +17,7 @@ module History exposing
     , untilErrorDecoder
     )
 
-import History.Chunk as Chunk exposing (Chunk)
+import History.Chunk as Chunk
 import History.State as State exposing (State)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -76,7 +76,7 @@ toggleReplay update history =
     if isReplay history then
         history
             |> toState
-            >> State.rewindToCurrent update
+            >> State.rewindToCurrent
             >> State.invalidatePersisted update
             |> State.optimizeForRecord
             |> History
@@ -91,24 +91,24 @@ toggleReplay update history =
 record : (msg -> model -> model) -> msg -> History model msg -> History model msg
 record update msg =
     toState
-        >> State.rewindToCurrent update
+        >> State.rewindToCurrent
         >> State.invalidatePersisted update
         >> State.optimizeForRecord
         >> State.updateCurrent update msg
         >> State.insertLatest msg
-        >> State.insertPrevious update
+        >> State.insertPrevious
         >> History
 
 
 recordForever : (msg -> model -> model) -> msg -> History model msg -> History model msg
 recordForever update msg =
     toState
-        >> State.rewindToCurrent update
+        >> State.rewindToCurrent
         >> State.invalidatePersisted update
         >> State.optimizeForRecord
         >> State.updateCurrent update msg
         >> State.insertLatest msg
-        >> State.insertPrevious update
+        >> State.insertPrevious
         >> State.insertPersisted msg
         >> History
 

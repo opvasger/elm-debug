@@ -4,7 +4,7 @@ import Browser
 import Browser.Navigation
 import DevTools.Browser.Main as Main exposing (Program)
 import Html exposing (Html)
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode exposing (Decoder)
 import Json.Encode as Encode
 import Url exposing (Url)
 
@@ -39,7 +39,7 @@ sandbox { init, view, update, devTools } =
             Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = \model -> { title = "", body = view model :: [] }
+                , view = \model -> { title = "", body = [ view model ] }
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
         , update =

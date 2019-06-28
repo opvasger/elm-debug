@@ -142,7 +142,7 @@ enumerateHelper loop init current =
             loop current
     in
     if next == init then
-        current :: []
+        [ current ]
 
     else
         current :: enumerateHelper loop init next

@@ -22,7 +22,7 @@ import Html.Attributes
 import Html.Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Task exposing (Task)
+import Task
 import Throttle
 import Time
 
@@ -40,7 +40,7 @@ type Msg model msg
     | ToggleViewInteractive
     | ToggleDecodeStrategy
     | ToggleModelVisibility
-    | DownloadSession (Maybe Time.Posix)
+    | DownloadSession Time.Posix
     | DownloadSessionWithDate
     | SelectSession
     | DecodeSession File
@@ -169,14 +169,14 @@ toUpdate config msg model =
                 |> emitCacheSession config.toCache config.encodeMsg
 
         DownloadSessionWithDate ->
-            ( model, Task.perform (DownloadSession << Just) Time.now )
+            ( model, Task.perform DownloadSession Time.now )
 
-        DownloadSession maybeTime ->
+        DownloadSession time ->
             let
                 filename =
                     Helper.replaceEmptyWith defaultTitle model.title
-                        ++ Maybe.withDefault ""
-                            (Maybe.map ((++) "." << Helper.printUtcTime) maybeTime)
+                        ++ "."
+                        ++ Helper.printUtcTime time
                         ++ ".json"
             in
             encodeSession config.encodeMsg model
@@ -496,7 +496,7 @@ viewStateCount history =
 
         children =
             if currentIndex == length then
-                Html.text (String.fromInt (length + 1)) :: []
+                [ Html.text (String.fromInt (length + 1)) ]
 
             else
                 [ Html.text (String.fromInt (currentIndex + 1))

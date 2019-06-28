@@ -96,8 +96,8 @@ updateCurrent update msg state =
     }
 
 
-rewindToCurrent : (msg -> model -> model) -> State model msg -> State model msg
-rewindToCurrent update state =
+rewindToCurrent : State model msg -> State model msg
+rewindToCurrent state =
     if Chunk.isReplay state.latestChunk then
         let
             previousLength =
@@ -130,8 +130,8 @@ insertLatest msg state =
     }
 
 
-insertPrevious : (msg -> model -> model) -> State model msg -> State model msg
-insertPrevious update state =
+insertPrevious : State model msg -> State model msg
+insertPrevious state =
     if state.latestLength < maxChunkLength then
         state
 
@@ -168,7 +168,7 @@ invalidatePersisted update state =
             recordInvalidated msg =
                 updateCurrent update msg
                     >> insertLatest msg
-                    >> insertPrevious update
+                    >> insertPrevious
                     >> insertPersisted msg
         in
         List.foldl recordInvalidated { state | persistedMsgs = persistedMsgs } msgs
@@ -324,7 +324,7 @@ persistedDecoderHelper update msgDecoder persistedIndices state msgs index =
                         state
                             |> updateCurrent update msg
                             |> insertLatest msg
-                            |> insertPrevious update
+                            |> insertPrevious
                             |> insertPersisted msg
                             |> continue
 
@@ -349,14 +349,14 @@ recordDecodedMsg update persistedIndices msg state =
         state
             |> updateCurrent update msg
             |> insertLatest msg
-            |> insertPrevious update
+            |> insertPrevious
             |> insertPersisted msg
 
     else
         state
             |> updateCurrent update msg
             |> insertLatest msg
-            |> insertPrevious update
+            |> insertPrevious
 
 
 replayDecodedState : (msg -> model -> model) -> Maybe Int -> State model msg -> State model msg
