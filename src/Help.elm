@@ -1,4 +1,4 @@
-module Helper exposing
+module Help exposing
     ( enumerate
     , monthNumber
     , printUtcTime

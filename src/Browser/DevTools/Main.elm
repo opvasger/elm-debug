@@ -1,4 +1,4 @@
-module DevTools.Browser.Main exposing
+module Browser.DevTools.Main exposing
     ( Model
     , Msg
     , Program
@@ -14,7 +14,7 @@ import Browser
 import File exposing (File)
 import File.Download
 import File.Select
-import Helper
+import Help
 import History exposing (History)
 import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
 import Html exposing (Html)
@@ -85,7 +85,7 @@ toInit config =
 
         decodeSession =
             config.init
-                |> sessionDecoder (Helper.updateModel config.update) config.msgDecoder decodeStrategy
+                |> sessionDecoder (Help.updateModel config.update) config.msgDecoder decodeStrategy
 
         toModel decodeError =
             { history = History.init (Tuple.first config.init)
@@ -100,7 +100,7 @@ toInit config =
             }
     in
     config.fromCache
-        |> Maybe.map (Helper.withoutCmd << Helper.unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
+        |> Maybe.map (Help.withoutCmd << Help.unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
         |> Maybe.withDefault
             ( toModel Nothing
             , Cmd.map (UpdateApp Init) (Tuple.second config.init)
@@ -134,14 +134,14 @@ toUpdate :
 toUpdate config msg model =
     case msg of
         DoNothing ->
-            Helper.withoutCmd model
+            Help.withoutCmd model
 
         UpdateApp src appMsg ->
             History.currentModel model.history
                 |> config.update appMsg
                 |> Tuple.second
                 |> Cmd.map (UpdateApp Update)
-                |> Tuple.pair { model | history = recordFromSrc src (Helper.updateModel config.update) appMsg model.history }
+                |> Tuple.pair { model | history = recordFromSrc src (Help.updateModel config.update) appMsg model.history }
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ResetApp ->
@@ -154,18 +154,18 @@ toUpdate config msg model =
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ReplayApp index ->
-            { model | history = History.replay (Helper.updateModel config.update) index model.history }
-                |> Helper.withoutCmd
+            { model | history = History.replay (Help.updateModel config.update) index model.history }
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleViewInteractive ->
             { model | isViewInteractive = not model.isViewInteractive }
-                |> Helper.withoutCmd
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleAppReplay ->
-            { model | history = History.toggleReplay (Helper.updateModel config.update) model.history }
-                |> Helper.withoutCmd
+            { model | history = History.toggleReplay (Help.updateModel config.update) model.history }
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         DownloadSessionWithDate ->
@@ -174,9 +174,9 @@ toUpdate config msg model =
         DownloadSession time ->
             let
                 filename =
-                    Helper.replaceEmptyWith defaultTitle model.title
+                    Help.replaceEmptyWith defaultTitle model.title
                         ++ "."
-                        ++ Helper.printUtcTime time
+                        ++ Help.printUtcTime time
                         ++ ".json"
             in
             encodeSession config.encodeMsg model
@@ -193,36 +193,36 @@ toUpdate config msg model =
                 decodeSession =
                     model.initCmd
                         |> Tuple.pair (History.initialModel model.history)
-                        |> sessionDecoder (Helper.updateModel config.update) config.msgDecoder DecodeStrategy.NoErrors
+                        |> sessionDecoder (Help.updateModel config.update) config.msgDecoder DecodeStrategy.NoErrors
             in
             File.toString file
                 |> Task.map (Decode.decodeString decodeSession)
-                |> Task.andThen Helper.resultToTask
+                |> Task.andThen Help.resultToTask
                 |> Task.attempt SessionDecoded
                 |> Tuple.pair model
 
         SessionDecoded result ->
             case result of
                 Ok sessionModel ->
-                    Helper.withoutCmd sessionModel
+                    Help.withoutCmd sessionModel
                         |> emitCacheSession config.toCache config.encodeMsg
 
                 Err error ->
-                    Helper.withoutCmd { model | decodeError = Just ( Upload, error ) }
+                    Help.withoutCmd { model | decodeError = Just ( Upload, error ) }
 
         ToggleDecodeStrategy ->
             { model | decodeStrategy = DecodeStrategy.loop model.decodeStrategy }
-                |> Helper.withoutCmd
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ToggleModelVisibility ->
             { model | isModelVisible = not model.isModelVisible }
-                |> Helper.withoutCmd
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         InputDescription text ->
             { model | description = text }
-                |> Helper.withoutCmd
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         UpdateCacheThrottle ->
@@ -234,7 +234,7 @@ toUpdate config msg model =
 
         InputTitle text ->
             { model | title = text }
-                |> Helper.withoutCmd
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
 
@@ -369,7 +369,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
 
 
 
--- Helpers
+-- Helps
 
 
 view :

@@ -1,8 +1,8 @@
-module DevTools.Browser exposing (application, document, element, sandbox)
+module Browser.DevTools exposing (application, document, element, sandbox)
 
 import Browser
+import Browser.DevTools.Main as Main exposing (Program)
 import Browser.Navigation
-import DevTools.Browser.Main as Main exposing (Program)
 import Html exposing (Html)
 import Json.Decode exposing (Decoder)
 import Json.Encode as Encode

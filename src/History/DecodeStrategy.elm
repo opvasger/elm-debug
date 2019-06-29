@@ -9,7 +9,7 @@ module History.DecodeStrategy exposing
     , toString
     )
 
-import Helper
+import Help
 import History exposing (History)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -63,13 +63,13 @@ fromString text =
 decoder : Decoder DecodeStrategy
 decoder =
     Decode.andThen
-        (fromString >> Result.map Decode.succeed >> Helper.unwrapResult Decode.fail)
+        (fromString >> Result.map Decode.succeed >> Help.unwrapResult Decode.fail)
         Decode.string
 
 
 all : List DecodeStrategy
 all =
-    Helper.enumerate loop NoErrors
+    Help.enumerate loop NoErrors
 
 
 loop : DecodeStrategy -> DecodeStrategy
