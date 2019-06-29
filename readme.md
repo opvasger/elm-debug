@@ -3,6 +3,7 @@ Tools for developing Elm programs!
 
 ![Demo Gif](/example/example.gif)
 
+![CI Build Badge](https://api.travis-ci.org/opvasger/elm-devtools.svg?branch=master)
 ![NPM Version Badge](https://img.shields.io/npm/v/elm-devtools.svg)
 ![Elm-package Version Badge](https://img.shields.io/elm-package/v/opvasger/devtools.svg)
 
