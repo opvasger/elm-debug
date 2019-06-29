@@ -2,11 +2,8 @@
   "name": "elm-devtools",
   "version": "0.1.0",
   "description": "Tools for developing Elm programs!",
-  "directories": {
-    "example": "example"
-  },
   "bin": {
-    "elm-devtools": "bin/cli.js"
+    "elm-devtools": "src/cli.js"
   },
   "scripts": {
     "build": "elm make --output=/dev/null",
