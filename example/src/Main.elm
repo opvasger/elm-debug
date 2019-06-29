@@ -1,13 +1,14 @@
 port module Main exposing (main)
 
--- Change "Form" to "Mario" to try the other example
+-- Available examples are "Form", "Mario", and "Counter".
+-- Change the import to try other examples!
 
 import DevTools.Browser
-import Form exposing (encodeMsg, init, msgDecoder, subscriptions, update, view)
+import Form exposing (encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
 import Json.Encode
 
 
-port output : Json.Encode.Value -> Cmd msg
+port toCache : String -> Cmd msg
 
 
 main =
@@ -20,6 +21,7 @@ main =
             { printModel = Debug.toString
             , encodeMsg = encodeMsg
             , msgDecoder = msgDecoder
-            , output = output
+            , fromCache = fromCache
+            , toCache = toCache
             }
         }

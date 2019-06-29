@@ -12,16 +12,17 @@
 <body>
     <script>
 
+        var sessionKey = "example-devtools-session"
+
         var example = Elm.Main.init({
             node: document.body,
             flags: {
-                devTools: localStorage.getItem("elm-dev-tools")
+                devTools: localStorage.getItem(sessionKey)
             }
         })
 
-        example.ports.output.subscribe(function (output) {
-
-            if (output.devTools) localStorage.setItem("elm-dev-tools", output.devTools);
+        example.ports.toCache.subscribe(function (output) {
+            localStorage.setItem(sessionKey, output);
         })
 
     </script>

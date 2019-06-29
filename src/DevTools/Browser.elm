@@ -2,150 +2,184 @@ module DevTools.Browser exposing (application, document, element, sandbox)
 
 import Browser
 import Browser.Navigation
-import DevTools
+import DevTools.Browser.Main as Main exposing (Program)
 import Html exposing (Html)
-import Json.Decode as Jd
+import Json.Decode exposing (Decoder)
+import Json.Encode as Encode
 import Url exposing (Url)
+
+
+type alias Config flags model msg =
+    { printModel : model -> String
+    , encodeMsg : msg -> Encode.Value
+    , msgDecoder : Decoder msg
+    , fromCache : flags -> Maybe String
+    , toCache : String -> Cmd (Main.Msg model msg)
+    }
 
 
 sandbox :
     { init : model
     , view : model -> Html msg
     , update : msg -> model -> model
-    , devTools : DevTools.Config model msg
+    , devTools : Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> Program flags model msg
 sandbox { init, view, update, devTools } =
     Browser.document
         { init =
             \flags ->
-                DevTools.toInit
+                Main.toInit
                     { update = \msg model -> ( update msg model, Cmd.none )
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
-                    , modelCmdPair = ( init, Cmd.none )
+                    , init = ( init, Cmd.none )
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            DevTools.toDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
-                , view = \model -> { title = "", body = view model :: [] }
-                }
-        , update =
-            DevTools.toUpdate
-                { msgDecoder = devTools.msgDecoder
-                , encodeMsg = devTools.encodeMsg
-                , output = devTools.output
+                , view = \model -> { title = "", body = [ view model ] }
                 , update = \msg model -> ( update msg model, Cmd.none )
                 }
-        , subscriptions = DevTools.toSubscriptions (always Sub.none)
+        , update =
+            Main.toUpdate
+                { msgDecoder = devTools.msgDecoder
+                , encodeMsg = devTools.encodeMsg
+                , toCache = devTools.toCache
+                , update = \msg model -> ( update msg model, Cmd.none )
+                }
+        , subscriptions =
+            Main.toSubscriptions
+                { subscriptions = always Sub.none
+                , msgDecoder = devTools.msgDecoder
+                , update = \msg model -> ( update msg model, Cmd.none )
+                }
         }
 
 
 element :
-    { init : Jd.Value -> ( model, Cmd msg )
+    { init : flags -> ( model, Cmd msg )
     , view : model -> Html msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
+    , devTools : Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> Program flags model msg
 element { init, view, update, subscriptions, devTools } =
     Browser.element
         { init =
             \flags ->
-                DevTools.toInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
-                    , modelCmdPair = init flags
+                    , init = init flags
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            DevTools.toHtml
+            Main.toHtml
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
-                }
-        , update =
-            DevTools.toUpdate
-                { msgDecoder = devTools.msgDecoder
-                , encodeMsg = devTools.encodeMsg
-                , output = devTools.output
                 , update = update
                 }
-        , subscriptions = DevTools.toSubscriptions subscriptions
+        , update =
+            Main.toUpdate
+                { msgDecoder = devTools.msgDecoder
+                , encodeMsg = devTools.encodeMsg
+                , toCache = devTools.toCache
+                , update = update
+                }
+        , subscriptions =
+            Main.toSubscriptions
+                { msgDecoder = devTools.msgDecoder
+                , subscriptions = subscriptions
+                , update = update
+                }
         }
 
 
 document :
-    { init : Jd.Value -> ( model, Cmd msg )
+    { init : flags -> ( model, Cmd msg )
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
-    , devTools : DevTools.Config model msg
+    , devTools : Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> Program flags model msg
 document { init, view, update, subscriptions, devTools } =
     Browser.document
         { init =
             \flags ->
-                DevTools.toInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
-                    , modelCmdPair = init flags
+                    , init = init flags
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            DevTools.toDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
+                , update = update
                 }
         , update =
-            DevTools.toUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
-                , output = devTools.output
+                , toCache = devTools.toCache
                 }
-        , subscriptions = DevTools.toSubscriptions subscriptions
+        , subscriptions =
+            Main.toSubscriptions
+                { msgDecoder = devTools.msgDecoder
+                , subscriptions = subscriptions
+                , update = update
+                }
         }
 
 
 application :
-    { init : Jd.Value -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
+    { init : flags -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     , subscriptions : model -> Sub msg
     , onUrlRequest : Browser.UrlRequest -> msg
     , onUrlChange : Url -> msg
-    , devTools : DevTools.Config model msg
+    , devTools : Config flags model msg
     }
-    -> DevTools.Program Jd.Value model msg
+    -> Program flags model msg
 application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devTools } =
     Browser.application
         { init =
             \flags url key ->
-                DevTools.toInit
+                Main.toInit
                     { update = update
                     , msgDecoder = devTools.msgDecoder
-                    , flags = flags
-                    , modelCmdPair = init flags url key
+                    , init = init flags url key
+                    , fromCache = devTools.fromCache flags
                     }
         , view =
-            DevTools.toDocument
+            Main.toDocument
                 { printModel = devTools.printModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
+                , update = update
                 }
         , update =
-            DevTools.toUpdate
+            Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , update = update
-                , output = devTools.output
+                , toCache = devTools.toCache
                 }
-        , subscriptions = DevTools.toSubscriptions subscriptions
-        , onUrlChange = DevTools.toMsg << onUrlChange
-        , onUrlRequest = DevTools.toMsg << onUrlRequest
+        , subscriptions =
+            Main.toSubscriptions
+                { msgDecoder = devTools.msgDecoder
+                , subscriptions = subscriptions
+                , update = update
+                }
+        , onUrlChange = Main.toUrlMsg << onUrlChange
+        , onUrlRequest = Main.toUrlMsg << onUrlRequest
         }

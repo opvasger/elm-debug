@@ -1,0 +1,15 @@
+language: node_js
+node_js: "node"
+
+cache:
+  directories:
+    - elm-stuff
+    - node_modules
+
+install:
+  - npm install -g elm@0.19.0-bugfix6
+  - npm install -g elm-test@0.19.0-rev6
+
+script:
+  - npm run build
+  - npm run test

@@ -1,20 +1,24 @@
 # Elm DevTools
+Tools for developing Elm programs!
 
-![](/example/example.gif)
+![Demo Gif](/example/example.gif)
+
+![NPM Version Badge](https://img.shields.io/npm/v/elm-devtools.svg)
+![Elm-package Version Badge](https://img.shields.io/elm-package/v/opvasger/devtools.svg)
 
 ## Try out my example
 The module is still being developed and will probably go through major changes.
 
-If you want to try it, you can clone the repo and run these commands from the `/examples` folder:
+If you want to try it, you can clone the repo and run these commands from the root folder:
 ```bash
 # install dependencies
 npm install
 
-# start example with linux
-npm start
+# start example with mac/linux
+npm run example
 
 # start example with windows
-npm run start:win
+npm run example:win
 ```
 
 ## Goals
@@ -58,11 +62,11 @@ state = List.foldl update 0 [ Increment, Decrement, Increment ]
 If you run this example, the value of `state` will be `1`.
 
 Refactor this into an application, and devtools would deal with changes to this code in different ways:
-- If `Msg` was given another constructor, called `Reset` which updates `Reset -> 0`, the value of `state` is still `1`.
+- If `Msg` was given another constructor, called `Reset` which updates `Reset -> 0`, the value of `state` is still `1`. Append-only changes are **always** compatible. Great.
 - If `Msg` had `Decrement` removed (or changed), one of three strategies (of your choice) could be used:
     1. Restart the application, as `Decrement` has no meaning in the program anymore. The value of `state` is now `0`, and   we've accomplished nothing. This is how most web-app development works.
     2. Filter `Decrement` out of the list and update accordingly. The value of `state` is now `2`. This works better or worse depending on the coupling between the updates your messages perform. If you remove `LogIn` and expect `ViewAccount` to work, you will be dissapointed.
     3. Take messages until you reach the first `Decrement` and update using those. The value of `state` is now `1`. This is really great, as it captures the remaining valid sequence of updates the application could do. If `LogIn` goes away, you'll never try to `ViewAccount`.
 - If `update` is changed, any sequence of messages will still be (generally) valid. `Increment` might do a `+ 2` instead, but messages still capture your interactions, so you can tweak `update` until it works as intended. You can tweak `view` and `subscriptions` in the same way.
 
-By recording interactions rather than state, Elm applications can be written while running, and you will only ever have partial to full state-loss when you modify the definition of messages, which is the very definition of making those interactions impossible or different.
+By recording interactions rather than state, Elm applications can be written while running, and you will only ever have impared (but predictable) message-replay when you modify the definition of messages.
