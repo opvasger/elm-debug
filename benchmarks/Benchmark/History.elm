@@ -1,7 +1,7 @@
 module Benchmark.History exposing (suite)
 
 import Benchmark exposing (Benchmark, benchmark)
-import Fixtures
+import Benchmark.Fixtures as Fixtures
 import History exposing (History)
 import Json.Decode as Decode
 import Json.Encode as Encode
