@@ -360,7 +360,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , title = title
             }
         )
-        (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder (History.init model)))
+        (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder model))
         (Decode.field "isViewInteractive" Decode.bool)
         (Decode.field "decodeStrategy" DecodeStrategy.decoder)
         (Decode.field "description" Decode.string)

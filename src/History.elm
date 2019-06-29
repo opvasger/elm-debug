@@ -130,36 +130,30 @@ encode encodeMsg =
 noErrorsDecoder :
     (msg -> model -> model)
     -> Decoder msg
-    -> History model msg
+    -> model
     -> Decoder (History model msg)
 noErrorsDecoder update msgDecoder =
-    toState
-        >> State.toInitialModel
-        >> State.noErrorsDecoder update msgDecoder
+    State.noErrorsDecoder update msgDecoder
         >> Decode.map History
 
 
 untilErrorDecoder :
     (msg -> model -> model)
     -> Decoder msg
-    -> History model msg
+    -> model
     -> Decoder (History model msg)
 untilErrorDecoder update msgDecoder =
-    toState
-        >> State.toInitialModel
-        >> State.untilErrorDecoder update msgDecoder
+    State.untilErrorDecoder update msgDecoder
         >> Decode.map History
 
 
 skipErrorsDecoder :
     (msg -> model -> model)
     -> Decoder msg
-    -> History model msg
+    -> model
     -> Decoder (History model msg)
 skipErrorsDecoder update msgDecoder =
-    toState
-        >> State.toInitialModel
-        >> State.skipErrorsDecoder update msgDecoder
+    State.skipErrorsDecoder update msgDecoder
         >> Decode.map History
 
 

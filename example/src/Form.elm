@@ -118,15 +118,15 @@ view model =
     , body =
         case model of
             InAuth authModel ->
-                H.map FromAuth (viewAuth authModel) :: []
+                [ H.map FromAuth (viewAuth authModel) ]
 
             InAccount acntModel ->
-                H.map FromAccount (viewAccount acntModel) :: []
+                [ H.map FromAccount (viewAccount acntModel) ]
     }
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 

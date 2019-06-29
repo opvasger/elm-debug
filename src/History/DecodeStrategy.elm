@@ -89,7 +89,7 @@ toHistoryDecoder :
     DecodeStrategy
     -> (msg -> model -> model)
     -> Decoder msg
-    -> History model msg
+    -> model
     -> Decoder (History model msg)
 toHistoryDecoder strategy =
     case strategy of
