@@ -7,21 +7,6 @@ Tools for developing Elm programs!
 [![NPM Version Badge](https://img.shields.io/npm/v/elm-devtools.svg)](https://www.npmjs.com/package/elm-devtools)
 [![Elm-package Version Badge](https://img.shields.io/elm-package/v/opvasger/devtools.svg)](https://package.elm-lang.org/packages/opvasger/devtools/latest/)
 
-## Try out my example
-The module is still being developed and will probably go through major changes.
-
-If you want to try it, you can clone the repo and run these commands from the root folder:
-```bash
-# install dependencies
-npm install
-
-# start example with mac/linux
-npm run example
-
-# start example with windows
-npm run example:win
-```
-
 ## Goals
 The overarching goal is to close the loop between writing Elm code and interacting with it. This concretely means:
 1. Code changes should be reflected immediately in a running instance of its application.

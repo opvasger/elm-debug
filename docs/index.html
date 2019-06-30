@@ -5,11 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Elm DevTools!</title>
+    <title>Elm DevTools</title>
+    <script src="dist/main.js"></script>
 </head>
 
 <body>
-    <h1>Elm DevTools!</h1>
+    <script>
+
+        var sessionKey = "docs-devtools-session"
+
+        var docs = Elm.Main.init({
+            node: document.body,
+            flags: {
+                devTools: localStorage.getItem(sessionKey)
+            }
+        })
+
+        docs.ports.toCache.subscribe(function (output) {
+            localStorage.setItem(sessionKey, output);
+        })
+
+    </script>
 </body>
 
 </html>

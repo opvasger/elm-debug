@@ -4,8 +4,7 @@ port module Main exposing (main)
 -- Change the import to try other examples!
 
 import Browser.DevTools
-import Form exposing (encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
-import Json.Encode
+import Mario exposing (encodeModel, encodeMsg, fromCache, init, msgDecoder, subscriptions, update, view)
 
 
 port toCache : String -> Cmd msg
@@ -18,7 +17,7 @@ main =
         , view = view
         , subscriptions = subscriptions
         , devTools =
-            { printModel = Debug.toString
+            { encodeModel = encodeModel
             , encodeMsg = encodeMsg
             , msgDecoder = msgDecoder
             , fromCache = fromCache

@@ -1,5 +1,6 @@
 module Mario exposing
-    ( encodeMsg
+    ( encodeModel
+    , encodeMsg
     , fromCache
     , init
     , msgDecoder
@@ -136,7 +137,7 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.batch
         [ Be.onAnimationFrameDelta NextFrame
         , Be.onResize WindowResize
@@ -276,20 +277,6 @@ updateControls isPressed direction controls =
             { controls | right = isPressed }
 
 
-stringAndThenDecoder : Jd.Decoder value -> Jd.Decoder value
-stringAndThenDecoder valueDecoder =
-    Jd.andThen
-        (\str ->
-            case Jd.decodeString valueDecoder str of
-                Ok value ->
-                    Jd.succeed value
-
-                Err error ->
-                    Jd.fail (Jd.errorToString error)
-        )
-        Jd.string
-
-
 toDirectionDecoder : String -> Jd.Decoder Direction
 toDirectionDecoder text =
     case text of
@@ -376,3 +363,43 @@ encodeMsg msg =
                   , Je.string (directionToString direction)
                   )
                 ]
+
+
+encodeModel : Model -> Je.Value
+encodeModel { face, position, velocity, size, controls } =
+    Je.object
+        [ ( "face"
+          , case face of
+                Left ->
+                    Je.string "Left"
+
+                Right ->
+                    Je.string "Right"
+          )
+        , ( "position"
+          , Je.object
+                [ ( "left", Je.float position.left )
+                , ( "top", Je.float position.top )
+                ]
+          )
+        , ( "velocity"
+          , Je.object
+                [ ( "vertical", Je.float velocity.vertical )
+                , ( "horizontal", Je.float velocity.horizontal )
+                ]
+          )
+        , ( "size"
+          , Je.object
+                [ ( "width", Je.int size.width )
+                , ( "height", Je.int size.height )
+                ]
+          )
+        , ( "controls"
+          , Je.object
+                [ ( "up", Je.bool controls.up )
+                , ( "down", Je.bool controls.down )
+                , ( "left", Je.bool controls.left )
+                , ( "right", Je.bool controls.right )
+                ]
+          )
+        ]

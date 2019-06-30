@@ -22,6 +22,7 @@ import Html.Attributes
 import Html.Events
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import JsonTree
 import Task
 import Throttle
 import Time
@@ -240,7 +241,7 @@ toUpdate config msg model =
 
 toDocument :
     { encodeMsg : msg -> Encode.Value
-    , printModel : model -> String
+    , encodeModel : model -> Encode.Value
     , view : model -> Browser.Document msg
     , update : msg -> model -> ( model, Cmd msg )
     }
@@ -258,7 +259,7 @@ toDocument config model =
 
 toHtml :
     { encodeMsg : msg -> Encode.Value
-    , printModel : model -> String
+    , encodeModel : model -> Encode.Value
     , view : model -> Html msg
     , update : msg -> model -> ( model, Cmd msg )
     }
@@ -375,7 +376,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
 view :
     { config
         | encodeMsg : msg -> Encode.Value
-        , printModel : model -> String
+        , encodeModel : model -> Encode.Value
         , update : msg -> model -> ( model, Cmd msg )
     }
     -> Model model msg
@@ -413,7 +414,7 @@ view config model body =
         :: viewTitle model.title
         :: viewDescription model.description
         :: viewDecodeError model.decodeError
-        :: viewModel config.printModel model.history model.isModelVisible
+        :: viewModel config.encodeModel model.history model.isModelVisible
         :: List.map (Html.map (updateAppIf model.isViewInteractive)) body
 
 
@@ -446,11 +447,23 @@ viewTitle title =
         []
 
 
-viewModel : (model -> String) -> History model msg -> Bool -> Html (Msg model msg)
-viewModel printModel history isModelVisible =
+viewModel : (model -> Encode.Value) -> History model msg -> Bool -> Html (Msg model msg)
+viewModel encodeModel history isModelVisible =
     if isModelVisible then
         Html.div []
-            [ Html.text (printModel (History.currentModel history))
+            [ History.currentModel history
+                |> encodeModel
+                |> JsonTree.parseValue
+                |> Result.map
+                    (\tree ->
+                        JsonTree.view tree
+                            { onSelect = Nothing
+                            , toMsg = always DoNothing
+                            , colors = JsonTree.defaultColors
+                            }
+                            JsonTree.defaultState
+                    )
+                |> Result.withDefault (Html.text "Failed to parse model. Check your encoder!")
             ]
 
     else

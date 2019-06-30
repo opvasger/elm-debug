@@ -10,7 +10,7 @@ import Url exposing (Url)
 
 
 type alias Config flags model msg =
-    { printModel : model -> String
+    { encodeModel : model -> Encode.Value
     , encodeMsg : msg -> Encode.Value
     , msgDecoder : Decoder msg
     , fromCache : flags -> Maybe String
@@ -37,7 +37,7 @@ sandbox { init, view, update, devTools } =
                     }
         , view =
             Main.toDocument
-                { printModel = devTools.printModel
+                { encodeModel = devTools.encodeModel
                 , encodeMsg = devTools.encodeMsg
                 , view = \model -> { title = "", body = [ view model ] }
                 , update = \msg model -> ( update msg model, Cmd.none )
@@ -78,7 +78,7 @@ element { init, view, update, subscriptions, devTools } =
                     }
         , view =
             Main.toHtml
-                { printModel = devTools.printModel
+                { encodeModel = devTools.encodeModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
                 , update = update
@@ -119,7 +119,7 @@ document { init, view, update, subscriptions, devTools } =
                     }
         , view =
             Main.toDocument
-                { printModel = devTools.printModel
+                { encodeModel = devTools.encodeModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
                 , update = update
@@ -162,7 +162,7 @@ application { init, view, update, subscriptions, onUrlRequest, onUrlChange, devT
                     }
         , view =
             Main.toDocument
-                { printModel = devTools.printModel
+                { encodeModel = devTools.encodeModel
                 , encodeMsg = devTools.encodeMsg
                 , view = view
                 , update = update
