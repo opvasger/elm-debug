@@ -11,10 +11,11 @@
     "format": "elm-format --yes src/",
     "test": "elm-test tests",
     "bench": "cd perf && elm reactor",
-    "docs": "npm run docs:serve & npm run docs:build",
-    "docs:win": "start npm run docs:serve && npm run docs:build",
+    "docs": "npm run docs:serve & npm run docs:watch",
+    "docs:win": "start npm run docs:serve && npm run docs:watch",
     "docs:serve": "live-server --no-css-inject --no-browser --watch=dist docs",
-    "docs:build": "nodemon --ext elm --exec \"cd docs && elm make src/Main.elm --output=dist/main.js\""
+    "docs:watch": "nodemon --ext elm --exec \"cd docs && elm make src/Main.elm --output=dist/main.js\"",
+    "docs:build": "cd docs && time (elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js && rm dist/main.temp.js)"
   },
   "repository": {
     "type": "git",

@@ -1,5 +1,3 @@
 node_modules
 elm-stuff
-dist
 .idea
-!docs/dist/main.js
