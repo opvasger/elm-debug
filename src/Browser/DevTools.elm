@@ -3,6 +3,7 @@ module Browser.DevTools exposing (application, document, element, sandbox)
 import Browser
 import Browser.DevTools.Main as Main exposing (Program)
 import Browser.Navigation
+import Help
 import Html exposing (Html)
 import Json.Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -30,9 +31,9 @@ sandbox { init, view, update, devTools } =
         { init =
             \flags ->
                 Main.toInit
-                    { update = \msg model -> ( update msg model, Cmd.none )
+                    { update = \msg model -> Help.withoutCmd (update msg model)
                     , msgDecoder = devTools.msgDecoder
-                    , init = ( init, Cmd.none )
+                    , init = Help.withoutCmd init
                     , fromCache = devTools.fromCache flags
                     }
         , view =
@@ -40,20 +41,20 @@ sandbox { init, view, update, devTools } =
                 { encodeModel = devTools.encodeModel
                 , encodeMsg = devTools.encodeMsg
                 , view = \model -> { title = "", body = [ view model ] }
-                , update = \msg model -> ( update msg model, Cmd.none )
+                , update = \msg model -> Help.withoutCmd (update msg model)
                 }
         , update =
             Main.toUpdate
                 { msgDecoder = devTools.msgDecoder
                 , encodeMsg = devTools.encodeMsg
                 , toCache = devTools.toCache
-                , update = \msg model -> ( update msg model, Cmd.none )
+                , update = \msg model -> Help.withoutCmd (update msg model)
                 }
         , subscriptions =
             Main.toSubscriptions
                 { subscriptions = always Sub.none
                 , msgDecoder = devTools.msgDecoder
-                , update = \msg model -> ( update msg model, Cmd.none )
+                , update = \msg model -> Help.withoutCmd (update msg model)
                 }
         }
 

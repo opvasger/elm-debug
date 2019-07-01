@@ -1,7 +1,6 @@
 module Mario exposing
     ( encodeModel
     , encodeMsg
-    , fromCache
     , init
     , msgDecoder
     , subscriptions
@@ -10,17 +9,13 @@ module Mario exposing
     )
 
 import Browser
-import Browser.Dom as Bd
-import Browser.Events as Be
-import Html as H exposing (Html)
-import Html.Attributes as Ha
-import Json.Decode as Jd
-import Json.Encode as Je
+import Browser.Dom
+import Browser.Events
+import Html exposing (Html)
+import Html.Attributes
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Task
-
-
-type alias Flags =
-    Jd.Value
 
 
 type alias Velocity =
@@ -80,20 +75,15 @@ type alias Model =
     }
 
 
-fromCache : Flags -> Maybe String
-fromCache =
-    Result.withDefault Nothing << Jd.decodeValue (Jd.field "devTools" (Jd.maybe Jd.string))
-
-
-init : Flags -> ( Model, Cmd Msg )
-init _ =
+init : ( Model, Cmd Msg )
+init =
     ( { face = Right
       , position = Position 0 0
       , velocity = Velocity 0 0
       , size = Size 0 0
       , controls = Controls False False False False
       }
-    , Task.perform fromViewport Bd.getViewport
+    , Task.perform fromViewport Browser.Dom.getViewport
     )
 
 
@@ -139,10 +129,10 @@ update msg model =
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ Be.onAnimationFrameDelta NextFrame
-        , Be.onResize WindowResize
-        , Be.onKeyDown (Jd.map Press (Jd.andThen toDirectionDecoder (Jd.field "key" Jd.string)))
-        , Be.onKeyUp (Jd.map Release (Jd.andThen toDirectionDecoder (Jd.field "key" Jd.string)))
+        [ Browser.Events.onAnimationFrameDelta NextFrame
+        , Browser.Events.onResize WindowResize
+        , Browser.Events.onKeyDown (Decode.map Press (Decode.andThen toDirectionDecoder (Decode.field "key" Decode.string)))
+        , Browser.Events.onKeyUp (Decode.map Release (Decode.andThen toDirectionDecoder (Decode.field "key" Decode.string)))
         ]
 
 
@@ -157,12 +147,12 @@ view model =
 
 viewMario : Model -> Html Msg
 viewMario { face, position, velocity, size } =
-    H.img
-        [ Ha.style "position" "absolute"
-        , Ha.style "left" (toPx position.left)
-        , Ha.style "top" (toPx (toFloat size.height - 35 - position.top))
-        , Ha.src (toImageSrc position velocity face)
-        , Ha.alt "Mario"
+    Html.img
+        [ Html.Attributes.style "position" "absolute"
+        , Html.Attributes.style "left" (toPx position.left)
+        , Html.Attributes.style "top" (toPx (toFloat size.height - 35 - position.top))
+        , Html.Attributes.src (toImageSrc position velocity face)
+        , Html.Attributes.alt "Mario"
         ]
         []
 
@@ -277,23 +267,23 @@ updateControls isPressed direction controls =
             { controls | right = isPressed }
 
 
-toDirectionDecoder : String -> Jd.Decoder Direction
+toDirectionDecoder : String -> Decode.Decoder Direction
 toDirectionDecoder text =
     case text of
         "ArrowUp" ->
-            Jd.succeed (Vertical Up)
+            Decode.succeed (Vertical Up)
 
         "ArrowDown" ->
-            Jd.succeed (Vertical Down)
+            Decode.succeed (Vertical Down)
 
         "ArrowLeft" ->
-            Jd.succeed (Horizontal Left)
+            Decode.succeed (Horizontal Left)
 
         "ArrowRight" ->
-            Jd.succeed (Horizontal Right)
+            Decode.succeed (Horizontal Right)
 
         _ ->
-            Jd.fail ("not a direction: " ++ text)
+            Decode.fail ("not a direction: " ++ text)
 
 
 directionToString : Direction -> String
@@ -317,89 +307,89 @@ toPx n =
     String.fromFloat n ++ "px"
 
 
-fromViewport : Bd.Viewport -> Msg
+fromViewport : Browser.Dom.Viewport -> Msg
 fromViewport { scene } =
     WindowResize (round scene.width) (round scene.height)
 
 
-msgDecoder : Jd.Decoder Msg
+msgDecoder : Decode.Decoder Msg
 msgDecoder =
-    Jd.oneOf
-        [ Jd.map NextFrame (Jd.field "Frame" Jd.float)
-        , Jd.map2 WindowResize
-            (Jd.at [ "Resize", "width" ] Jd.int)
-            (Jd.at [ "Resize", "height" ] Jd.int)
-        , Jd.map Press (Jd.field "Press" (Jd.andThen toDirectionDecoder Jd.string))
-        , Jd.map Release (Jd.field "Release" (Jd.andThen toDirectionDecoder Jd.string))
+    Decode.oneOf
+        [ Decode.map NextFrame (Decode.field "Frame" Decode.float)
+        , Decode.map2 WindowResize
+            (Decode.at [ "Resize", "width" ] Decode.int)
+            (Decode.at [ "Resize", "height" ] Decode.int)
+        , Decode.map Press (Decode.field "Press" (Decode.andThen toDirectionDecoder Decode.string))
+        , Decode.map Release (Decode.field "Release" (Decode.andThen toDirectionDecoder Decode.string))
         ]
 
 
-encodeMsg : Msg -> Je.Value
+encodeMsg : Msg -> Encode.Value
 encodeMsg msg =
     case msg of
         NextFrame latency ->
-            Je.object [ ( "Frame", Je.float latency ) ]
+            Encode.object [ ( "Frame", Encode.float latency ) ]
 
         WindowResize width height ->
-            Je.object
+            Encode.object
                 [ ( "Resize"
-                  , Je.object
-                        [ ( "width", Je.int width )
-                        , ( "height", Je.int height )
+                  , Encode.object
+                        [ ( "width", Encode.int width )
+                        , ( "height", Encode.int height )
                         ]
                   )
                 ]
 
         Press direction ->
-            Je.object
+            Encode.object
                 [ ( "Press"
-                  , Je.string (directionToString direction)
+                  , Encode.string (directionToString direction)
                   )
                 ]
 
         Release direction ->
-            Je.object
+            Encode.object
                 [ ( "Release"
-                  , Je.string (directionToString direction)
+                  , Encode.string (directionToString direction)
                   )
                 ]
 
 
-encodeModel : Model -> Je.Value
+encodeModel : Model -> Encode.Value
 encodeModel { face, position, velocity, size, controls } =
-    Je.object
+    Encode.object
         [ ( "face"
           , case face of
                 Left ->
-                    Je.string "Left"
+                    Encode.string "Left"
 
                 Right ->
-                    Je.string "Right"
+                    Encode.string "Right"
           )
         , ( "position"
-          , Je.object
-                [ ( "left", Je.float position.left )
-                , ( "top", Je.float position.top )
+          , Encode.object
+                [ ( "left", Encode.float position.left )
+                , ( "top", Encode.float position.top )
                 ]
           )
         , ( "velocity"
-          , Je.object
-                [ ( "vertical", Je.float velocity.vertical )
-                , ( "horizontal", Je.float velocity.horizontal )
+          , Encode.object
+                [ ( "vertical", Encode.float velocity.vertical )
+                , ( "horizontal", Encode.float velocity.horizontal )
                 ]
           )
         , ( "size"
-          , Je.object
-                [ ( "width", Je.int size.width )
-                , ( "height", Je.int size.height )
+          , Encode.object
+                [ ( "width", Encode.int size.width )
+                , ( "height", Encode.int size.height )
                 ]
           )
         , ( "controls"
-          , Je.object
-                [ ( "up", Je.bool controls.up )
-                , ( "down", Je.bool controls.down )
-                , ( "left", Je.bool controls.left )
-                , ( "right", Je.bool controls.right )
+          , Encode.object
+                [ ( "up", Encode.bool controls.up )
+                , ( "down", Encode.bool controls.down )
+                , ( "left", Encode.bool controls.left )
+                , ( "right", Encode.bool controls.right )
                 ]
           )
         ]
