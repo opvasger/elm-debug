@@ -17,7 +17,7 @@ import Help
 import History exposing (History)
 import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
 import Html exposing (Html)
-import Icon
+import Icon exposing (Icon)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Range
@@ -46,6 +46,7 @@ type Msg model msg
     | InputDescription String
     | WindowMsg Window.Msg
     | RangeMsg Range.Msg
+    | FocusIcon (Maybe Icon)
 
 
 type alias Model model msg =
@@ -59,6 +60,7 @@ type alias Model model msg =
     , description : String
     , window : Window.Model
     , range : Range.Model
+    , focus : Maybe Icon
     }
 
 
@@ -99,6 +101,7 @@ toInit config =
             , title = defaultTitle
             , window = Tuple.first Window.init
             , range = Range.init
+            , focus = Nothing
             }
     in
     config.fromCache
@@ -155,11 +158,7 @@ toUpdate config msg model =
 
         ResetApp ->
             Cmd.map (UpdateApp Init) model.initCmd
-                |> Tuple.pair
-                    { model
-                        | history = History.reset model.history
-                        , decodeError = Nothing
-                    }
+                |> Tuple.pair { model | history = History.reset model.history }
                 |> emitCacheSession config.toCache config.encodeMsg
 
         ReplayApp index ->
@@ -188,9 +187,14 @@ toUpdate config msg model =
                 |> Tuple.pair model
 
         SelectSession ->
-            DecodeSession
-                |> File.Select.file [ "application/json" ]
-                |> Tuple.pair model
+            if model.decodeError /= Nothing then
+                Help.withoutCmd
+                    { model | decodeError = Nothing }
+
+            else
+                DecodeSession
+                    |> File.Select.file [ "application/json" ]
+                    |> Tuple.pair model
 
         DecodeSession file ->
             let
@@ -251,6 +255,9 @@ toUpdate config msg model =
                 |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
+        FocusIcon maybeIcon ->
+            ( { model | focus = maybeIcon }, Cmd.none )
+
 
 toDocument :
     { encodeMsg : msg -> Encode.Value
@@ -296,44 +303,53 @@ view :
     -> List (Html (Msg model msg))
 view config model body =
     Window.view WindowMsg
-        { top =
+        { controls =
             [ Icon.viewJson
-                { onClick = ToggleModelVisibility
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = ToggleModelVisibility
                 , title = "toggle model"
+                , isModelVisible = model.isModelVisible
                 }
             , Icon.viewUpload
-                { onClick = SelectSession
-                , title = "load session"
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = SelectSession
+                , title =
+                    model.decodeError
+                        |> Maybe.map printDecodeError
+                        |> Maybe.withDefault "load session"
+                , isFailed = model.decodeError /= Nothing
                 }
             , Icon.viewDownload
-                { onClick = DownloadSessionWithDate
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = DownloadSessionWithDate
                 , title = "save session"
                 }
             ]
-        , mid =
+        , body =
             [ TextArea.view
                 { value = model.description
                 , onInput = InputDescription
                 , placeholder = "describe what you're doing here!"
                 }
             ]
-        , bot =
+        , navigation =
             [ Icon.viewReplay
-                { onClick = ResetApp
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = ResetApp
                 , title = "restart"
                 }
             , Html.map RangeMsg (Range.view model.range)
-            , if History.isReplay model.history then
-                Icon.viewPlay
-                    { onClick = ToggleAppReplay
-                    , title = "continue"
-                    }
-
-              else
-                Icon.viewPause
-                    { onClick = ToggleAppReplay
-                    , title = "pause"
-                    }
+            , Icon.viewPlay
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = ToggleAppReplay
+                , title = "continue"
+                , isPlay = not (History.isReplay model.history)
+                }
             ]
         }
         model.window
@@ -347,6 +363,16 @@ view config model body =
 type SessionSrc
     = Cache
     | Upload
+
+
+printDecodeError : ( SessionSrc, Decode.Error ) -> String
+printDecodeError ( src, err ) =
+    case src of
+        Cache ->
+            Decode.errorToString err
+
+        Upload ->
+            Decode.errorToString err
 
 
 defaultTitle : String
@@ -402,6 +428,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , description = description
             , window = window
             , range = range
+            , focus = Nothing
             }
         )
         (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder model))

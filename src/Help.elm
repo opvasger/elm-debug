@@ -1,13 +1,17 @@
 module Help exposing
-    ( backgroundColor
+    ( activeBlue
+    , backgroundColor
     , borderStyle
     , enumerate
+    , errorRed
+    , focusBlack
+    , isJust
     , monthNumber
+    , mutedGray
     , printUtcTime
     , px
     , replaceEmptyWith
     , resultToTask
-    , symbolColor
     , unwrapResult
     , updateModel
     , withoutCmd
@@ -37,9 +41,24 @@ borderStyle =
     "1px solid #cccccc"
 
 
-symbolColor : String
-symbolColor =
+mutedGray : String
+mutedGray =
     "#6e6e6e"
+
+
+focusBlack : String
+focusBlack =
+    "#000"
+
+
+activeBlue : String
+activeBlue =
+    "#89b3ee"
+
+
+errorRed : String
+errorRed =
+    "#d80000"
 
 
 zIndexMax : Int
@@ -121,6 +140,20 @@ monthNumber month =
 
         Time.Dec ->
             12
+
+
+
+-- Maybe
+
+
+isJust : a -> Maybe a -> Bool
+isJust a maybe =
+    case maybe of
+        Just b ->
+            a == b
+
+        Nothing ->
+            False
 
 
 

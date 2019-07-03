@@ -90,16 +90,18 @@ update msg model =
 view :
     (Msg -> msg)
     ->
-        { top : List (Html msg)
-        , mid : List (Html msg)
-        , bot : List (Html msg)
+        { controls : List (Html msg)
+        , body : List (Html msg)
+        , navigation : List (Html msg)
         }
     -> Model
     -> Html msg
 view msg children model =
     let
         clampedPosition =
-            clampPos ( 0, 0 ) (diffPos model.size model.viewport) model.position
+            clampPos ( 0, 0 )
+                (diffPos model.size model.viewport)
+                model.position
     in
     div
         [ style "display" "flex"
@@ -127,21 +129,21 @@ view msg children model =
                 )
             , on "mousedown" (Decode.map (msg << MoveTo) mouseEventPositionDecoder)
             ]
-            children.top
+            children.controls
         , div
             [ style "background-color" "white"
             , style "display" "flex"
             , style "flex-direction" "column"
             , style "flex-grow" "1"
             ]
-            children.mid
+            children.body
         , div
             [ style "display" "flex"
             , style "flex-direction" "row"
             , style "padding" "2px"
             , style "border-top" borderStyle
             ]
-            children.bot
+            children.navigation
         ]
 
 
