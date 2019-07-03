@@ -72,8 +72,9 @@ update msg model =
                 , position =
                     case model.movePosition of
                         Just movePosition ->
-                            diffPos (diffPos position movePosition)
-                                model.position
+                            model.position
+                                |> clampPos ( 0, 0 ) (diffPos model.size model.viewport)
+                                |> diffPos (diffPos position movePosition)
 
                         Nothing ->
                             model.position
