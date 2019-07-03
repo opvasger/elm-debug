@@ -10,7 +10,6 @@ module Browser.DevTools.Main exposing
     )
 
 import Browser
-import Browser.DevTools.Icon as Icon
 import File exposing (File)
 import File.Download
 import File.Select
@@ -18,6 +17,7 @@ import Help
 import History exposing (History)
 import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
 import Html exposing (Html)
+import Icon
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Range
@@ -102,7 +102,7 @@ toInit config =
             }
     in
     config.fromCache
-        |> Maybe.map (Help.withoutCmd << Help.unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
+        |> Maybe.map ((\m -> ( m, Cmd.map WindowMsg (Tuple.second Window.init) )) << Help.unwrapResult (toModel << Just) << Decode.decodeString decodeSession)
         |> Maybe.withDefault
             ( toModel Nothing
             , Cmd.batch
@@ -242,10 +242,8 @@ toUpdate config msg model =
                 |> emitCacheSession config.toCache config.encodeMsg
 
         WindowMsg windowMsg ->
-            Tuple.mapBoth
-                (\window -> { model | window = window })
-                (Cmd.map WindowMsg)
-                (Window.update windowMsg model.window)
+            { model | window = Window.update windowMsg model.window }
+                |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
         RangeMsg rangeMsg ->
@@ -299,25 +297,43 @@ view :
 view config model body =
     Window.view WindowMsg
         { top =
-            [ Icon.toggleModel ToggleModelVisibility
-            , Icon.loadSession SelectSession
-            , Icon.saveSession DownloadSessionWithDate
+            [ Icon.viewJson
+                { onClick = ToggleModelVisibility
+                , title = "toggle model"
+                }
+            , Icon.viewUpload
+                { onClick = SelectSession
+                , title = "load session"
+                }
+            , Icon.viewDownload
+                { onClick = DownloadSessionWithDate
+                , title = "save session"
+                }
             ]
         , mid =
             [ TextArea.view
-                { onInput = InputDescription
-                , placeholder = "Describe what you're doing here!"
-                , value = model.description
+                { value = model.description
+                , onInput = InputDescription
+                , placeholder = "describe what you're doing here!"
                 }
             ]
         , bot =
-            [ Icon.restartSession ResetApp
+            [ Icon.viewReplay
+                { onClick = ResetApp
+                , title = "restart"
+                }
             , Html.map RangeMsg (Range.view model.range)
             , if History.isReplay model.history then
-                Icon.resumeSession ToggleAppReplay
+                Icon.viewPlay
+                    { onClick = ToggleAppReplay
+                    , title = "continue"
+                    }
 
               else
-                Icon.pauseSession ToggleAppReplay
+                Icon.viewPause
+                    { onClick = ToggleAppReplay
+                    , title = "pause"
+                    }
             ]
         }
         model.window
