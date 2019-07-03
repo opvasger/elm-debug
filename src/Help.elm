@@ -1,16 +1,50 @@
 module Help exposing
-    ( enumerate
+    ( backgroundColor
+    , borderStyle
+    , enumerate
     , monthNumber
     , printUtcTime
+    , px
     , replaceEmptyWith
     , resultToTask
+    , symbolColor
     , unwrapResult
     , updateModel
     , withoutCmd
+    , zIndexMax
     )
 
 import Task exposing (Task)
 import Time
+
+
+
+-- Style
+
+
+px : Int -> String
+px n =
+    String.fromInt n ++ "px"
+
+
+backgroundColor : String
+backgroundColor =
+    "#f3f3f3"
+
+
+borderStyle : String
+borderStyle =
+    "1px solid #cccccc"
+
+
+symbolColor : String
+symbolColor =
+    "#6e6e6e"
+
+
+zIndexMax : Int
+zIndexMax =
+    2147483647
 
 
 
@@ -45,6 +79,7 @@ printUtcTime time =
         , "-"
         , Time.toDay Time.utc time
             |> String.fromInt
+            |> String.padLeft 2 '0'
         ]
 
 

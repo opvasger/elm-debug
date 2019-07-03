@@ -1,13 +1,17 @@
-module Browser.DevTools exposing (application, document, element, sandbox)
+module Browser.DevTools exposing (Program, application, document, element, sandbox)
 
 import Browser
-import Browser.DevTools.Main as Main exposing (Program)
+import Browser.DevTools.Main as Main
 import Browser.Navigation
 import Help
 import Html exposing (Html)
 import Json.Decode exposing (Decoder)
 import Json.Encode as Encode
 import Url exposing (Url)
+
+
+type alias Program flags model msg =
+    Platform.Program flags (Main.Model model msg) (Main.Msg model msg)
 
 
 type alias Config flags model msg =
