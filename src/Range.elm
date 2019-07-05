@@ -90,7 +90,7 @@ view { value, maxValue, inputMsg, updateMsg, model } =
                 [ style "width" (String.fromFloat pctFromLeft ++ "%")
                 , style "background-color" Help.activeBlue
                 , style "height" "2px"
-                , style "transition" "all 250ms ease-in-out"
+                , style "transition" "width .2s"
                 ]
                 []
             , div
@@ -99,7 +99,7 @@ view { value, maxValue, inputMsg, updateMsg, model } =
                 , style "border-radius" "15px"
                 , style "margin-left" ("calc(" ++ String.fromFloat pctFromLeft ++ "% - 7px)")
                 , style "margin-top" "-7px"
-                , style "transition" "all 250ms ease-in-out"
+                , style "transition" "background-color .2s, box-shadow .2s, margin-left .2s"
                 , title ("no. " ++ String.fromInt (value + 1) ++ " of " ++ String.fromInt (maxValue + 1) ++ " states")
                 , if model /= Inactive then
                     style "" ""
