@@ -10,7 +10,7 @@
     "xref": "elm-xref",
     "format": "elm-format --yes src/",
     "test": "elm-test tests",
-    "bench": "cd perf && elm reactor",
+    "bench": "cd perf && elm make --output benchmark.html Benchmark/Main.elm && live-server benchmark.html",
     "docs": "npm run docs:serve & npm run docs:watch",
     "docs:win": "start npm run docs:serve && npm run docs:watch",
     "docs:serve": "live-server --no-css-inject --no-browser --watch=dist docs",
