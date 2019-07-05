@@ -45,7 +45,7 @@ type Msg model msg
     | InputTitle String
     | InputDescription String
     | WindowMsg Window.Msg
-    | RangeMsg Range.Msg
+    | UpdateRange Range.Model
     | FocusIcon (Maybe Icon)
 
 
@@ -123,14 +123,22 @@ toSubscriptions :
     -> Model model msg
     -> Sub (Msg model msg)
 toSubscriptions config model =
-    Sub.batch
-        [ Sub.map WindowMsg (Window.subscriptions model.window)
-        , Sub.map RangeMsg (Range.subscriptions model.range)
-        , if History.isReplay model.history then
-            Sub.none
+    let
+        historySubscriptions =
+            if History.isReplay model.history then
+                Sub.none
 
-          else
-            Sub.map (UpdateApp Subs) (config.subscriptions (History.currentModel model.history))
+            else
+                model.history
+                    |> History.currentModel
+                    |> config.subscriptions
+                    |> Sub.map (UpdateApp Subs)
+    in
+    Sub.batch
+        [ historySubscriptions
+        , Sub.map WindowMsg (Window.subscriptions model.window)
+        , Range.subscriptions
+            (rangeConfig model.range model.history)
         ]
 
 
@@ -250,8 +258,8 @@ toUpdate config msg model =
                 |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
-        RangeMsg rangeMsg ->
-            { model | range = Range.update rangeMsg model.range }
+        UpdateRange range ->
+            { model | range = range }
                 |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
@@ -342,7 +350,7 @@ view config model body =
                 , onClick = ResetApp
                 , title = "restart"
                 }
-            , Html.map RangeMsg (Range.view model.range)
+            , Range.view (rangeConfig model.range model.history)
             , Icon.viewPlay
                 { focus = model.focus
                 , onFocus = FocusIcon
@@ -354,6 +362,20 @@ view config model body =
         }
         model.window
         :: List.map (Html.map (UpdateApp View)) body
+
+
+
+-- Range
+
+
+rangeConfig : Range.Model -> History model msg -> Range.Config (Msg model msg)
+rangeConfig range history =
+    { updateMsg = UpdateRange
+    , inputMsg = ReplayApp
+    , model = range
+    , value = History.currentIndex history
+    , maxValue = History.length history
+    }
 
 
 
@@ -404,7 +426,6 @@ encodeSession encodeMsg model =
             , ( "decodeStrategy", DecodeStrategy.encode model.decodeStrategy )
             , ( "title", Encode.string model.title )
             , ( "window", Window.encode model.window )
-            , ( "range", Range.encode model.range )
             , ( "description", Encode.string model.description )
             ]
 
@@ -416,8 +437,8 @@ sessionDecoder :
     -> ( model, Cmd msg )
     -> Decoder (Model model msg)
 sessionDecoder update msgDecoder strategy ( model, cmd ) =
-    Decode.map7
-        (\history decodeStrategy isModelVisible title window description range ->
+    Decode.map6
+        (\history decodeStrategy isModelVisible title window description ->
             { history = history
             , initCmd = cmd
             , decodeError = Nothing
@@ -427,7 +448,7 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , title = title
             , description = description
             , window = window
-            , range = range
+            , range = Range.init
             , focus = Nothing
             }
         )
@@ -437,7 +458,6 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
         (Decode.field "title" Decode.string)
         (Decode.field "window" Window.decoder)
         (Decode.field "description" Decode.string)
-        (Decode.field "range" Range.decoder)
 
 
 

@@ -35,7 +35,7 @@ toIcon : Config record msg -> Icon -> List (Svg msg) -> Html msg
 toIcon config icon =
     (::) (title [] [ text config.title ])
         >> svg
-            [ style "width:20px;height:20px;cursor:pointer;"
+            [ style "width:20px;height:20px;cursor:pointer;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
             , viewBox "0 0 24 24"
             , onClick config.onClick
             , onMouseOver (config.onFocus (Just icon))

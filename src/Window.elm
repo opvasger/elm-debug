@@ -108,7 +108,7 @@ view msg children model =
         , style "flex-direction" "column"
         , style "position" "fixed"
         , style "border" borderStyle
-        , style "background-color" backgroundColor
+        , style "background-color" backgroundGray
         , style "z-index" (String.fromInt zIndexMax)
         , style "left" (px (Tuple.first clampedPosition))
         , style "top" (px (Tuple.second clampedPosition))

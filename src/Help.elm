@@ -1,6 +1,6 @@
 module Help exposing
     ( activeBlue
-    , backgroundColor
+    , backgroundGray
     , borderStyle
     , enumerate
     , errorRed
@@ -31,8 +31,8 @@ px n =
     String.fromInt n ++ "px"
 
 
-backgroundColor : String
-backgroundColor =
+backgroundGray : String
+backgroundGray =
     "#f3f3f3"
 
 
