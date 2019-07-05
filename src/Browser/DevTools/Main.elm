@@ -10,6 +10,7 @@ module Browser.DevTools.Main exposing
     )
 
 import Browser
+import Browser.Events
 import File exposing (File)
 import File.Download
 import File.Select
@@ -126,7 +127,11 @@ toSubscriptions config model =
     let
         historySubscriptions =
             if History.isReplay model.history then
-                Sub.none
+                Browser.Events.onKeyDown
+                    (Decode.andThen
+                        (replayWithKeyDecoder model.history)
+                        (Decode.field "keyCode" Decode.int)
+                    )
 
             else
                 model.history
@@ -300,6 +305,10 @@ toHtml config model =
         |> Html.div []
 
 
+
+-- View
+
+
 view :
     { config
         | encodeMsg : msg -> Encode.Value
@@ -325,7 +334,7 @@ view config model body =
                 , onClick = SelectSession
                 , title =
                     model.decodeError
-                        |> Maybe.map printDecodeError
+                        |> Maybe.map printSessionDecodeError
                         |> Maybe.withDefault "load session"
                 , isFailed = model.decodeError /= Nothing
                 }
@@ -387,19 +396,19 @@ type SessionSrc
     | Upload
 
 
-printDecodeError : ( SessionSrc, Decode.Error ) -> String
-printDecodeError ( src, err ) =
+defaultTitle : String
+defaultTitle =
+    "devtools-session"
+
+
+printSessionDecodeError : ( SessionSrc, Decode.Error ) -> String
+printSessionDecodeError ( src, err ) =
     case src of
         Cache ->
             Decode.errorToString err
 
         Upload ->
             Decode.errorToString err
-
-
-defaultTitle : String
-defaultTitle =
-    "devtools-session"
 
 
 emitCacheSession :
@@ -485,3 +494,26 @@ recordFromSrc src =
 
         _ ->
             History.record
+
+
+
+-- Msg
+
+
+replayWithKeyDecoder : History model msg -> Int -> Decoder (Msg model msg)
+replayWithKeyDecoder history keyCode =
+    case keyCode of
+        37 ->
+            History.currentIndex history
+                - 1
+                |> ReplayApp
+                |> Decode.succeed
+
+        39 ->
+            History.currentIndex history
+                + 1
+                |> ReplayApp
+                |> Decode.succeed
+
+        _ ->
+            Decode.fail ""
