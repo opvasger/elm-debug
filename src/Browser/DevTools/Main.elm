@@ -439,7 +439,7 @@ descriptionPlaceholder =
        you want to report?
 
  ⌗   What Git-branch/commit
-       were you using?
+       is this session for?
 """
 
 
