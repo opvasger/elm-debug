@@ -3,7 +3,9 @@ port module Main exposing (main)
 import Browser
 import Browser.DevTools
 import Browser.Navigation as Navigation
-import Element exposing (Element)
+import Element exposing (..)
+import Element.Background as Background
+import Element.Font as Font
 import Element.Input as Input
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -18,7 +20,6 @@ type alias Flags =
 
 type alias Model =
     { key : Navigation.Key
-    , page : Page
     }
 
 
@@ -50,9 +51,8 @@ main =
 
 
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init _ url key =
+init _ _ key =
     ( { key = key
-      , page = route url
       }
     , Cmd.none
     )
@@ -73,103 +73,106 @@ update msg model =
             ( model, Navigation.load url )
 
         ChangeUrl url ->
-            ( { model | page = route url }, Cmd.none )
+            ( model, Cmd.none )
 
 
 view : Model -> Browser.Document Msg
 view model =
     { title = "Elm DevTools"
     , body =
-        [ Element.layout []
-            (Element.row []
-                [ viewNavigation model.page
-                , viewPage model.page
+        [ layout
+            [ Font.family
+                [ Font.typeface "Helvetica"
+                , Font.sansSerif
+                ]
+            ]
+            (column [ width fill ]
+                [ viewHead
+                , viewDemo
+                , viewFeatures
                 ]
             )
         ]
     }
 
 
-viewNavigation : Page -> Element Msg
-viewNavigation page =
-    Element.column []
-        [ Element.link []
-            { url = "#home"
-            , label = Element.text "Elm DevTools"
-            }
-        , Element.link []
-            { url = "#design"
-            , label = Element.text "Design"
-            }
+viewHead : Element Msg
+viewHead =
+    row
+        [ width fill
+        , height (px 150)
+        , Background.color lightBlue
+        ]
+        [ column [ width fill, spacing 10 ]
+            [ el
+                [ centerX
+                , Font.bold
+                , Font.size 50
+                , Font.color white
+                ]
+                (text "Elm DevTools")
+            , el
+                [ centerX
+                , Font.color darkBlue
+                ]
+                (text "Tools for developing Elm programs!")
+            ]
         ]
 
 
-viewPage : Page -> Element Msg
-viewPage page =
-    case page of
-        Home ->
-            viewHome
-
-        Design ->
-            viewDesign
-
-
-viewHome : Element Msg
-viewHome =
-    Element.text "Home Page"
+viewDemo : Element Msg
+viewDemo =
+    row
+        [ width fill
+        ]
+        [ text "TODO Demo"
+        ]
 
 
-viewDesign : Element Msg
-viewDesign =
-    Element.text "Design Page"
+viewFeatures : Element Msg
+viewFeatures =
+    row
+        [ width fill
+        ]
+        [ text "TODO Features" ]
 
 
 
--- Page
+-- Colors
 
 
-type Page
-    = Home
-    | Design
+lightBlue : Color
+lightBlue =
+    rgba255 96 181 204 1
 
 
-route : Url -> Page
-route =
-    Route.parse (Route.fragment pageFromFragment)
-        >> Maybe.withDefault Home
+darkBlue : Color
+darkBlue =
+    rgba255 52 73 94 1
 
 
-pageFromFragment : Maybe String -> Page
-pageFromFragment maybe =
-    case maybe of
-        Just "design" ->
-            Design
-
-        _ ->
-            Home
+white : Color
+white =
+    rgba255 255 255 255 1
 
 
 
--- Url
+-- Json
+
+
+encodeUrl : Url -> Encode.Value
+encodeUrl =
+    Encode.string << Url.toString
 
 
 urlDecoder : Decoder Url
 urlDecoder =
     Decode.andThen
-        (Maybe.withDefault (Decode.fail "failed to parse Url")
+        (Maybe.withDefault (Decode.fail "invalid URL")
             << Maybe.map Decode.succeed
             << Url.fromString
         )
         Decode.string
-
-
-encodeUrl : Url -> Encode.Value
-encodeUrl url =
-    Encode.string (Url.toString url)
-
-
-
--- Model
 
 
 encodeModel : Model -> Encode.Value
@@ -177,10 +180,6 @@ encodeModel _ =
     Encode.object
         [ ( "key", Encode.null )
         ]
-
-
-
--- Msg
 
 
 encodeMsg : Msg -> Encode.Value
