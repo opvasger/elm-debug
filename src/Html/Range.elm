@@ -94,10 +94,10 @@ view { value, maxValue, inputMsg, updateMsg, model } =
                 ]
                 []
             , div
-                [ style "height" "14px"
-                , style "width" "14px"
-                , style "margin-left" ("calc(" ++ String.fromFloat pctFromLeft ++ "% - 8px)")
-                , style "margin-top" "-8px"
+                [ style "height" "10px"
+                , style "width" "10px"
+                , style "margin-left" ("calc(" ++ String.fromFloat pctFromLeft ++ "% - 6px)")
+                , style "margin-top" "-6px"
                 , style "border-radius" "15px"
                 , style "transition" "background-color .2s, box-shadow .2s, margin-left .2s"
                 , title ("no. " ++ String.fromInt (value + 1) ++ " of " ++ String.fromInt (maxValue + 1) ++ " states")

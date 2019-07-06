@@ -76,7 +76,7 @@ viewReplay : Config record msg -> Html msg
 viewReplay config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
-        , viewBox "0 0 24 24"
+        , viewBox "0 0 24 26"
         , onMouseOver (config.onFocus (Just Replay))
         , onMouseOut (config.onFocus Nothing)
         , case config.onClick of
