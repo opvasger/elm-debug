@@ -19,11 +19,11 @@ import History exposing (History)
 import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
 import Html exposing (Html)
 import Icon exposing (Icon)
+import Input.Range as Range
+import Input.Text as Text
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Range
 import Task
-import TextArea
 import Throttle
 import Time
 import Window
@@ -328,6 +328,12 @@ view config model body =
                 , title = "toggle model"
                 , isModelVisible = model.isModelVisible
                 }
+            , Icon.viewDownload
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = DownloadSessionWithDate
+                , title = "save session"
+                }
             , Icon.viewUpload
                 { focus = model.focus
                 , onFocus = FocusIcon
@@ -338,15 +344,22 @@ view config model body =
                         |> Maybe.withDefault "load session"
                 , isFailed = model.decodeError /= Nothing
                 }
-            , Icon.viewDownload
+            , Icon.viewUpdate
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = DownloadSessionWithDate
-                , title = "save session"
+                , onClick = ToggleDecodeStrategy
+                , title = ""
+                , strategy = model.decodeStrategy
                 }
+            , Text.view
+                { value = model.title
+                , onInput = InputTitle
+                , placeholder = defaultTitle
+                }
+            , Icon.viewDrag
             ]
         , body =
-            [ TextArea.view
+            [ Text.viewArea
                 { value = model.description
                 , onInput = InputDescription
                 , placeholder = "describe what you're doing here!"
@@ -366,6 +379,7 @@ view config model body =
                 , onClick = ToggleAppReplay
                 , title = "continue"
                 , isPlay = not (History.isReplay model.history)
+                , isPartial = History.currentIndex model.history /= History.length model.history
                 }
             ]
         }

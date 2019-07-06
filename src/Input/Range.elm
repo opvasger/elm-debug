@@ -1,4 +1,4 @@
-module Range exposing
+module Input.Range exposing
     ( Config
     , Model
     , init
@@ -58,8 +58,7 @@ view { value, maxValue, inputMsg, updateMsg, model } =
             Basics.max 0 (toFloat value * 100 / toFloat maxValue)
     in
     div
-        [ style "width" "80%"
-        , style "display" "flex"
+        [ style "display" "flex"
         , style "align-items" "center"
         , style "justify-content" "center"
         , if model /= Inactive then
@@ -77,8 +76,9 @@ view { value, maxValue, inputMsg, updateMsg, model } =
             style "" ""
         ]
         [ div
-            [ style "flex-grow" ".85"
-            , style "background-color" Help.mutedGray
+            [ style "background-color" Help.mutedGray
+            , style "width" "140px"
+            , style "margin" "0 7px"
             , style "height" "2px"
             , if model /= Inactive then
                 style "pointer-events" "none"
