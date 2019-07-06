@@ -326,8 +326,13 @@ view config model body =
                 { focus = model.focus
                 , onFocus = FocusIcon
                 , onClick = Just ToggleModelVisibility
-                , title = "toggle model"
                 , isModelVisible = model.isModelVisible
+                , title =
+                    if model.isModelVisible then
+                        "Hide model"
+
+                    else
+                        "Show model"
                 }
             , Icon.viewUpdate
                 { focus = model.focus
@@ -340,7 +345,7 @@ view config model body =
                 { focus = model.focus
                 , onFocus = FocusIcon
                 , onClick = Just DownloadSessionWithDate
-                , title = "save session"
+                , title = "Save session to a file"
                 }
             , Icon.viewUpload
                 { focus = model.focus
@@ -349,7 +354,7 @@ view config model body =
                 , title =
                     model.decodeError
                         |> Maybe.map printSessionDecodeError
-                        |> Maybe.withDefault "load session"
+                        |> Maybe.withDefault "Load session from a file"
                 , isFailed = model.decodeError /= Nothing
                 }
             , Text.view
@@ -377,14 +382,19 @@ view config model body =
                 { focus = model.focus
                 , onFocus = FocusIcon
                 , onClick = Just ResetApp
-                , title = "restart"
+                , title = "Restart the application"
                 }
             , Range.view (rangeConfig model.range model.history)
             , Icon.viewPlay
                 { focus = model.focus
                 , onFocus = FocusIcon
                 , onClick = Just ToggleAppReplay
-                , title = "continue"
+                , title =
+                    if History.isReplay model.history then
+                        "Continue the application"
+
+                    else
+                        "Pause the application"
                 , isPlay = not (History.isReplay model.history)
                 , isPartial = History.currentIndex model.history /= History.length model.history
                 }
