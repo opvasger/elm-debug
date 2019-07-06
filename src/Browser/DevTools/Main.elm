@@ -369,7 +369,7 @@ view config model body =
             [ Text.viewArea
                 { value = model.description
                 , onInput = InputDescription
-                , placeholder = "describe what you're doing here!"
+                , placeholder = descriptionPlaceholder
                 }
             ]
         , navigation =
@@ -426,6 +426,21 @@ type SessionSrc
 defaultTitle : String
 defaultTitle =
     "devtools-session"
+
+
+descriptionPlaceholder : String
+descriptionPlaceholder =
+    """Take a moment to describe what you're doing!
+
+ 💭 What were you doing the last
+       time you were here?
+
+ 🐞 Did you encounter a bug
+       you want to report?
+
+ ⌗   What Git-branch/commit
+       were you using?
+"""
 
 
 printSessionDecodeError : ( SessionSrc, Decode.Error ) -> String

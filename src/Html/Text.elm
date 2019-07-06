@@ -17,18 +17,19 @@ view config =
         [ style "width" "95px"
         , style "border" "none"
         , style "margin" "0 2px"
+        , style "outline" "none"
+        , type_ "text"
+        , style "background-color" "rgba(0,0,0,0)"
+        , style "color" Help.mutedGray
+        , spellcheck False
+        , placeholder config.placeholder
+        , value config.value
+        , onInput config.onInput
         , if config.value /= "" then
             style "font-weight" "500"
 
           else
             style "" ""
-        , style "color" Help.mutedGray
-        , style "background-color" "rgba(0,0,0,0)"
-        , style "outline" "none"
-        , type_ "text"
-        , placeholder config.placeholder
-        , value config.value
-        , onInput config.onInput
         ]
         []
 
