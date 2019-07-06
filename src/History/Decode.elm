@@ -1,12 +1,12 @@
-module History.DecodeStrategy exposing
-    ( DecodeStrategy(..)
-    , all
-    , decoder
-    , encode
+module History.Decode exposing
+    ( Strategy(..)
+    , encodeStrategy
     , fromString
-    , loop
-    , toHistoryDecoder
-    , toString
+    , loopStrategy
+    , strategies
+    , strategyDecoder
+    , strategyToHistoryDecoder
+    , strategyToString
     )
 
 import Help
@@ -15,19 +15,19 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 
 
-type DecodeStrategy
+type Strategy
     = NoErrors
     | UntilError
     | SkipErrors
 
 
-encode : DecodeStrategy -> Encode.Value
-encode =
-    toString >> Encode.string
+encodeStrategy : Strategy -> Encode.Value
+encodeStrategy =
+    strategyToString >> Encode.string
 
 
-toString : DecodeStrategy -> String
-toString strategy =
+strategyToString : Strategy -> String
+strategyToString strategy =
     case strategy of
         NoErrors ->
             "NoErrors"
@@ -39,7 +39,7 @@ toString strategy =
             "SkipErrors"
 
 
-fromString : String -> Result String DecodeStrategy
+fromString : String -> Result String Strategy
 fromString text =
     case text of
         "NoErrors" ->
@@ -52,28 +52,28 @@ fromString text =
             Ok SkipErrors
 
         _ ->
-            all
-                |> List.map toString
+            strategies
+                |> List.map strategyToString
                 |> List.intersperse "', '"
                 |> List.foldl (++) ""
                 |> (++) ("Expected '" ++ text ++ "' to be one of '")
                 |> Err
 
 
-decoder : Decoder DecodeStrategy
-decoder =
+strategyDecoder : Decoder Strategy
+strategyDecoder =
     Decode.andThen
         (fromString >> Result.map Decode.succeed >> Help.unwrapResult Decode.fail)
         Decode.string
 
 
-all : List DecodeStrategy
-all =
-    Help.enumerate loop NoErrors
+strategies : List Strategy
+strategies =
+    Help.enumerate loopStrategy NoErrors
 
 
-loop : DecodeStrategy -> DecodeStrategy
-loop strategy =
+loopStrategy : Strategy -> Strategy
+loopStrategy strategy =
     case strategy of
         NoErrors ->
             UntilError
@@ -85,13 +85,13 @@ loop strategy =
             NoErrors
 
 
-toHistoryDecoder :
-    DecodeStrategy
+strategyToHistoryDecoder :
+    Strategy
     -> (msg -> model -> model)
     -> Decoder msg
     -> model
     -> Decoder (History model msg)
-toHistoryDecoder strategy =
+strategyToHistoryDecoder strategy =
     case strategy of
         NoErrors ->
             History.noErrorsDecoder

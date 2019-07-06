@@ -16,7 +16,7 @@ import File.Download
 import File.Select
 import Help
 import History exposing (History)
-import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
+import History.Decode
 import Html exposing (Html)
 import Icon exposing (Icon)
 import Input.Range as Range
@@ -54,7 +54,7 @@ type alias Model model msg =
     { history : History model msg
     , initCmd : Cmd msg
     , isModelVisible : Bool
-    , decodeStrategy : DecodeStrategy
+    , decodeStrategy : History.Decode.Strategy
     , decodeError : Maybe ( SessionSrc, Decode.Error )
     , cacheThrottle : Throttle.Model
     , title : String
@@ -81,9 +81,9 @@ toInit config =
     let
         decodeStrategy =
             config.fromCache
-                |> Maybe.map (Decode.decodeString (Decode.field "decodeStrategy" DecodeStrategy.decoder))
-                |> Maybe.map (Result.withDefault DecodeStrategy.NoErrors)
-                |> Maybe.withDefault DecodeStrategy.NoErrors
+                |> Maybe.map (Decode.decodeString (Decode.field "decodeStrategy" History.Decode.strategyDecoder))
+                |> Maybe.map (Result.withDefault History.Decode.NoErrors)
+                |> Maybe.withDefault History.Decode.NoErrors
 
         decodeSession =
             config.init
@@ -95,7 +95,7 @@ toInit config =
             { history = History.init (Tuple.first config.init)
             , initCmd = Tuple.second config.init
             , decodeError = Maybe.map (Tuple.pair Cache) decodeError
-            , decodeStrategy = DecodeStrategy.UntilError
+            , decodeStrategy = History.Decode.UntilError
             , isModelVisible = False
             , cacheThrottle = Throttle.init
             , description = ""
@@ -214,7 +214,7 @@ toUpdate config msg model =
                 decodeSession =
                     model.initCmd
                         |> Tuple.pair (History.initialModel model.history)
-                        |> sessionDecoder (Help.updateModel config.update) config.msgDecoder DecodeStrategy.NoErrors
+                        |> sessionDecoder (Help.updateModel config.update) config.msgDecoder History.Decode.NoErrors
             in
             File.toString file
                 |> Task.map (Decode.decodeString decodeSession)
@@ -232,7 +232,7 @@ toUpdate config msg model =
                     Help.withoutCmd { model | decodeError = Just ( Upload, error ) }
 
         ToggleDecodeStrategy ->
-            { model | decodeStrategy = DecodeStrategy.loop model.decodeStrategy }
+            { model | decodeStrategy = History.Decode.loopStrategy model.decodeStrategy }
                 |> Help.withoutCmd
                 |> emitCacheSession config.toCache config.encodeMsg
 
@@ -446,7 +446,7 @@ encodeSession encodeMsg model =
         Encode.object
             [ ( "history", History.encode encodeMsg model.history )
             , ( "isModelVisible", Encode.bool model.isModelVisible )
-            , ( "decodeStrategy", DecodeStrategy.encode model.decodeStrategy )
+            , ( "decodeStrategy", History.Decode.encodeStrategy model.decodeStrategy )
             , ( "title", Encode.string model.title )
             , ( "window", Window.encode model.window )
             , ( "description", Encode.string model.description )
@@ -456,7 +456,7 @@ encodeSession encodeMsg model =
 sessionDecoder :
     (msg -> model -> model)
     -> Decoder msg
-    -> DecodeStrategy
+    -> History.Decode.Strategy
     -> ( model, Cmd msg )
     -> Decoder (Model model msg)
 sessionDecoder update msgDecoder strategy ( model, cmd ) =
@@ -475,8 +475,8 @@ sessionDecoder update msgDecoder strategy ( model, cmd ) =
             , focus = Nothing
             }
         )
-        (Decode.field "history" (DecodeStrategy.toHistoryDecoder strategy update msgDecoder model))
-        (Decode.field "decodeStrategy" DecodeStrategy.decoder)
+        (Decode.field "history" (History.Decode.strategyToHistoryDecoder strategy update msgDecoder model))
+        (Decode.field "decodeStrategy" History.Decode.strategyDecoder)
         (Decode.field "isModelVisible" Decode.bool)
         (Decode.field "title" Decode.string)
         (Decode.field "window" Window.decoder)

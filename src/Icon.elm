@@ -10,7 +10,7 @@ module Icon exposing
     )
 
 import Help
-import History.DecodeStrategy as DecodeStrategy exposing (DecodeStrategy)
+import History.Decode
 import Html exposing (Html)
 import Svg exposing (Svg, path, svg, text, title)
 import Svg.Attributes exposing (d, fill, style, viewBox)
@@ -154,12 +154,12 @@ viewUpload config =
         ]
 
 
-viewUpdate : Config { strategy : DecodeStrategy } msg -> Html msg
+viewUpdate : Config { strategy : History.Decode.Strategy } msg -> Html msg
 viewUpdate config =
     let
         ( color, title ) =
             case config.strategy of
-                DecodeStrategy.NoErrors ->
+                History.Decode.NoErrors ->
                     ( if Help.isJust Update config.focus then
                         Help.focusBlack
 
@@ -168,12 +168,12 @@ viewUpdate config =
                     , "This session reloads state if no messages were changed or removed."
                     )
 
-                DecodeStrategy.UntilError ->
+                History.Decode.UntilError ->
                     ( Help.activeBlue
                     , "This session reloads state until the first unknown message."
                     )
 
-                DecodeStrategy.SkipErrors ->
+                History.Decode.SkipErrors ->
                     ( Help.errorRed
                     , "This session reloads state and skips unknown messages."
                     )
