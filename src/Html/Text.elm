@@ -1,4 +1,4 @@
-module Input.Text exposing (view, viewArea)
+module Html.Text exposing (view, viewArea)
 
 import Help
 import Html exposing (..)
@@ -17,7 +17,11 @@ view config =
         [ style "width" "95px"
         , style "border" "none"
         , style "margin" "0 2px"
-        , style "font-weight" "500"
+        , if config.value /= "" then
+            style "font-weight" "500"
+
+          else
+            style "" ""
         , style "color" Help.mutedGray
         , style "background-color" "rgba(0,0,0,0)"
         , style "outline" "none"

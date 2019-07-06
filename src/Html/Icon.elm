@@ -1,8 +1,8 @@
-module Icon exposing
+module Html.Icon exposing
     ( Icon(..)
     , viewDownload
-    , viewDrag
     , viewJson
+    , viewMove
     , viewPlay
     , viewReplay
     , viewUpdate
@@ -24,12 +24,13 @@ type Icon
     | Download
     | Upload
     | Update
+    | Move
 
 
 type alias Config record msg =
     { record
-        | onClick : msg
-        , onFocus : Maybe Icon -> msg
+        | onFocus : Maybe Icon -> msg
+        , onClick : Maybe msg
         , title : String
         , focus : Maybe Icon
     }
@@ -41,20 +42,30 @@ toIcon config icon =
         >> svg
             [ style "width:20px;height:20px;cursor:pointer;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
             , viewBox "0 0 24 24"
-            , onClick config.onClick
             , onMouseOver (config.onFocus (Just icon))
             , onMouseOut (config.onFocus Nothing)
+            , case config.onClick of
+                Just msg ->
+                    onClick msg
+
+                Nothing ->
+                    style ""
             ]
 
 
-viewDrag : Html msg
-viewDrag =
+viewMove : Config { isMoving : Bool } msg -> Html msg
+viewMove config =
     svg
         [ style "width:20px;height:20px;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
         , viewBox "0 0 24 24"
         ]
         [ path
-            [ fill Help.mutedGray
+            [ style "transition:fill .5s;"
+            , if config.isMoving then
+                fill Help.activeBlue
+
+              else
+                fill Help.mutedGray
             , d "M7,19V17H9V19H7M11,19V17H13V19H11M15,19V17H17V19H15M7,15V13H9V15H7M11,15V13H13V15H11M15,15V13H17V15H15M7,11V9H9V11H7M11,11V9H13V11H11M15,11V9H17V11H15M7,7V5H9V7H7M11,7V5H13V7H11M15,7V5H17V7H15Z"
             ]
             []
@@ -63,9 +74,20 @@ viewDrag =
 
 viewReplay : Config record msg -> Html msg
 viewReplay config =
-    toIcon config
-        Replay
-        [ path
+    svg
+        [ style "width:20px;height:20px;cursor:pointer;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
+        , viewBox "0 0 24 24"
+        , onMouseOver (config.onFocus (Just Replay))
+        , onMouseOut (config.onFocus Nothing)
+        , case config.onClick of
+            Just msg ->
+                onClick msg
+
+            Nothing ->
+                style ""
+        ]
+        [ title [] [ text config.title ]
+        , path
             [ if Help.isJust Replay config.focus then
                 fill Help.focusBlack
 
@@ -102,9 +124,20 @@ viewPlay config =
 
 viewJson : Config { isModelVisible : Bool } msg -> Html msg
 viewJson config =
-    toIcon config
-        Json
-        [ path
+    svg
+        [ style "width:20px;height:20px;cursor:pointer;-ms-user-select:none;-webkit-user-select:none;-moz-user-select:none;user-select:none;"
+        , viewBox "0 0 26 24"
+        , onMouseOver (config.onFocus (Just Json))
+        , onMouseOut (config.onFocus Nothing)
+        , case config.onClick of
+            Just msg ->
+                onClick msg
+
+            Nothing ->
+                style ""
+        ]
+        [ title [] [ text config.title ]
+        , path
             [ if config.isModelVisible then
                 fill Help.activeBlue
 
@@ -113,6 +146,7 @@ viewJson config =
 
               else
                 fill Help.mutedGray
+            , viewBox "0 0 0 0"
             , d "M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z"
             ]
             []

@@ -18,15 +18,16 @@ import Help
 import History exposing (History)
 import History.Decode
 import Html exposing (Html)
-import Icon exposing (Icon)
-import Input.Range as Range
-import Input.Text as Text
+import Html.Icon as Icon exposing (Icon)
+import Html.Json as Json
+import Html.Range as Range
+import Html.Text as Text
+import Html.Window as Window
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task
 import Throttle
 import Time
-import Window
 
 
 type Msg model msg
@@ -324,39 +325,45 @@ view config model body =
             [ Icon.viewJson
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = ToggleModelVisibility
+                , onClick = Just ToggleModelVisibility
                 , title = "toggle model"
                 , isModelVisible = model.isModelVisible
+                }
+            , Icon.viewUpdate
+                { focus = model.focus
+                , onFocus = FocusIcon
+                , onClick = Just ToggleDecodeStrategy
+                , title = ""
+                , strategy = model.decodeStrategy
                 }
             , Icon.viewDownload
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = DownloadSessionWithDate
+                , onClick = Just DownloadSessionWithDate
                 , title = "save session"
                 }
             , Icon.viewUpload
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = SelectSession
+                , onClick = Just SelectSession
                 , title =
                     model.decodeError
                         |> Maybe.map printSessionDecodeError
                         |> Maybe.withDefault "load session"
                 , isFailed = model.decodeError /= Nothing
                 }
-            , Icon.viewUpdate
-                { focus = model.focus
-                , onFocus = FocusIcon
-                , onClick = ToggleDecodeStrategy
-                , title = ""
-                , strategy = model.decodeStrategy
-                }
             , Text.view
                 { value = model.title
                 , onInput = InputTitle
                 , placeholder = defaultTitle
                 }
-            , Icon.viewDrag
+            , Icon.viewMove
+                { isMoving = Window.isMoving model.window
+                , onClick = Nothing
+                , title = ""
+                , onFocus = FocusIcon
+                , focus = model.focus
+                }
             ]
         , body =
             [ Text.viewArea
@@ -369,14 +376,14 @@ view config model body =
             [ Icon.viewReplay
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = ResetApp
+                , onClick = Just ResetApp
                 , title = "restart"
                 }
             , Range.view (rangeConfig model.range model.history)
             , Icon.viewPlay
                 { focus = model.focus
                 , onFocus = FocusIcon
-                , onClick = ToggleAppReplay
+                , onClick = Just ToggleAppReplay
                 , title = "continue"
                 , isPlay = not (History.isReplay model.history)
                 , isPartial = History.currentIndex model.history /= History.length model.history
@@ -384,6 +391,12 @@ view config model body =
             ]
         }
         model.window
+        :: Json.view
+            { isVisible = model.isModelVisible
+            , value = History.currentModel model.history
+            , encodeValue = config.encodeModel
+            , noMsg = DoNothing
+            }
         :: List.map (Html.map (UpdateApp View)) body
 
 

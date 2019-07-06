@@ -1,9 +1,10 @@
-module Window exposing
+module Html.Window exposing
     ( Model
     , Msg
     , decoder
     , encode
     , init
+    , isMoving
     , subscriptions
     , update
     , view
@@ -11,7 +12,7 @@ module Window exposing
 
 import Browser.Dom
 import Browser.Events
-import Help exposing (..)
+import Help exposing (px)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -32,6 +33,11 @@ type Msg
     = MoveTo ( Int, Int )
     | StopMove
     | ResizeViewport ( Int, Int )
+
+
+isMoving : Model -> Bool
+isMoving { movePosition } =
+    movePosition /= Nothing
 
 
 init : ( Model, Cmd Msg )
@@ -107,9 +113,9 @@ view msg children model =
         [ style "display" "flex"
         , style "flex-direction" "column"
         , style "position" "fixed"
-        , style "border" borderStyle
-        , style "background-color" backgroundGray
-        , style "z-index" (String.fromInt zIndexMax)
+        , style "border" Help.borderStyle
+        , style "background-color" Help.backgroundGray
+        , style "z-index" (String.fromInt Help.zIndexMax)
         , style "left" (px (Tuple.first clampedPosition))
         , style "top" (px (Tuple.second clampedPosition))
         , style "width" (px (Tuple.first model.size))
@@ -119,7 +125,7 @@ view msg children model =
             [ style "display" "flex"
             , style "flex-direction" "row"
             , style "padding" "2px"
-            , style "border-bottom" borderStyle
+            , style "border-bottom" Help.borderStyle
             , style "cursor"
                 (if model.movePosition /= Nothing then
                     "grabbing"
@@ -141,7 +147,7 @@ view msg children model =
             [ style "display" "flex"
             , style "flex-direction" "row"
             , style "padding" "2px"
-            , style "border-top" borderStyle
+            , style "border-top" Help.borderStyle
             ]
             children.navigation
         ]
