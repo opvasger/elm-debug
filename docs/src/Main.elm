@@ -86,10 +86,11 @@ view model =
                 , Font.sansSerif
                 ]
             ]
-            (column [ width fill ]
+            (column [ width fill, spacing 10 ]
                 [ viewHead
                 , viewDemo
                 , viewFeatures
+                , viewLinks
                 ]
             )
         ]
@@ -125,7 +126,7 @@ viewDemo =
     row
         [ width fill
         ]
-        [ text "TODO Demo"
+        [ text "Demo"
         ]
 
 
@@ -134,7 +135,36 @@ viewFeatures =
     row
         [ width fill
         ]
-        [ text "TODO Features" ]
+        [ text "Features" ]
+
+
+viewLinks : Element Msg
+viewLinks =
+    column
+        [ width fill
+        , Font.underline
+        ]
+        [ newTabLink []
+            { label = text "Github Repo"
+            , url = "https://github.com/opvasger/elm-devtools"
+            }
+        , newTabLink []
+            { label = text "Elm Package"
+            , url = "https://package.elm-lang.org/packages/opvasger/devtools/latest"
+            }
+        , newTabLink []
+            { label = text "NPM Package"
+            , url = "https://www.npmjs.com/package/elm-devtools"
+            }
+        , newTabLink []
+            { label = text "Official Elm Guide"
+            , url = "https://guide.elm-lang.org"
+            }
+        , newTabLink []
+            { label = text "Official Elm Website"
+            , url = "https://elm-lang.org"
+            }
+        ]
 
 
 
