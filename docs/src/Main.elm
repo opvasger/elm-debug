@@ -8,7 +8,6 @@ import Browser.Navigation as Navigation
 import Element exposing (..)
 import Element.Background as Background
 import Element.Font as Font
-import Element.Input as Input
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Mario
@@ -92,7 +91,7 @@ update msg model =
             , Navigation.load url
             )
 
-        ChangeUrl url ->
+        ChangeUrl _ ->
             ( model
             , Cmd.none
             )
@@ -121,11 +120,10 @@ view model =
                 , Font.sansSerif
                 ]
             ]
-            (column [ width fill ]
+            (column [ width fill, height fill ]
                 [ viewHead
                 , viewDemo model.mario
-                , viewFeatures
-                , viewLinks
+                , viewFoot
                 ]
             )
         ]
@@ -158,62 +156,86 @@ viewHead =
 
 viewDemo : Mario.Model -> Element Msg
 viewDemo mario =
-    row
+    el
         [ width fill
         , height (px demoHeight)
         , Background.color white
         ]
-        [ Element.map MarioMsg (html (Mario.view mario))
-        ]
+        (Element.map MarioMsg (html (Mario.view mario)))
 
 
 demoHeight : Int
 demoHeight =
-    200
+    500
 
 
-viewFeatures : Element Msg
-viewFeatures =
+viewFoot : Element Msg
+viewFoot =
     column
-        [ width fill
+        [ Background.color darkBlue
+        , Font.size 15
+        , width fill
         ]
-        [ text "Features"
-        , column [ padding 10 ]
-            [ text "Automatic message-replay"
-            , text "Predictable live-coding"
-            , text "Reasonable performance"
-            , text "State à la carte"
+        [ row
+            [ width fill
+            , height (px 150)
+            , Font.color white
+            , spacing 40
             ]
-        ]
-
-
-viewLinks : Element Msg
-viewLinks =
-    column
-        [ width fill
-        ]
-        [ text "Links"
-        , column [ padding 10, Font.underline ]
-            [ newTabLink []
-                { label = text "Github Repo"
-                , url = "https://github.com/opvasger/elm-devtools"
+            [ column [ spacing 10, centerX ]
+                [ el [ Font.bold, Font.color lightBlue ] (text "This Project")
+                , newTabLink [ Font.underline ]
+                    { url = "https://github.com/opvasger/elm-devtools"
+                    , label = text "github repository"
+                    }
+                , newTabLink [ Font.underline ]
+                    { url = "https://www.npmjs.com/package/elm-devtools"
+                    , label = text "node.js module"
+                    }
+                , newTabLink [ Font.underline ]
+                    { url = "#"
+                    , label = text "elm package"
+                    }
+                ]
+            , column [ spacing 10, centerX ]
+                [ el [ Font.bold, Font.color lightBlue ] (text "The Elm Language")
+                , newTabLink [ Font.underline ]
+                    { url = "https://elm-lang.org"
+                    , label = text "language website"
+                    }
+                , newTabLink [ Font.underline ]
+                    { url = "https://guide.elm-lang.org"
+                    , label = text "official guide"
+                    }
+                , newTabLink [ Font.underline ]
+                    { url = "https://discourse.elm-lang.org"
+                    , label = text "discourse"
+                    }
+                ]
+            , column [ spacing 10, centerX ]
+                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired From")
+                , newTabLink [ Font.underline ]
+                    { url = "https://elm-lang.org/blog/the-perfect-bug-report"
+                    , label = text "0.18 debugger"
+                    }
+                , newTabLink [ Font.underline ]
+                    { url = "https://www.youtube.com/watch?v=PUv66718DII"
+                    , label = text "bret's principle"
+                    }
+                , el [ height (px 15) ] none
+                ]
+            ]
+        , row
+            [ Font.color (rgba255 0 0 0 1)
+            , padding 10
+            , centerX
+            ]
+            [ text "This website is open-source "
+            , newTabLink [ Font.underline ]
+                { url = "https://github.com/opvasger/elm-devtools/tree/master/docs"
+                , label = text "here"
                 }
-            , newTabLink []
-                { label = text "Elm Package"
-                , url = "https://package.elm-lang.org/packages/opvasger/devtools/latest"
-                }
-            , newTabLink []
-                { label = text "NPM Package"
-                , url = "https://www.npmjs.com/package/elm-devtools"
-                }
-            , newTabLink []
-                { label = text "Official Elm Guide"
-                , url = "https://guide.elm-lang.org"
-                }
-            , newTabLink []
-                { label = text "Official Elm Website"
-                , url = "https://elm-lang.org"
-                }
+            , text " © 2019, Asger Nielsen"
             ]
         ]
 

@@ -11,14 +11,11 @@ module Mario exposing
     , view
     )
 
-import Browser
-import Browser.Dom
 import Browser.Events
 import Html exposing (Html)
 import Html.Attributes
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Task
 
 
 type alias Velocity =
@@ -222,10 +219,10 @@ updateHorizontalVelocity { left, right } velocity =
     { velocity
         | horizontal =
             if left then
-                -1
+                -2
 
             else if right then
-                1
+                2
 
             else
                 0
