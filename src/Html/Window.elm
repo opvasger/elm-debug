@@ -13,9 +13,9 @@ module Html.Window exposing
 import Browser.Dom
 import Browser.Events
 import Help exposing (px)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html, div)
+import Html.Attributes exposing (style)
+import Html.Events exposing (on)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Task

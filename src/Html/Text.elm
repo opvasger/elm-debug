@@ -1,9 +1,9 @@
 module Html.Text exposing (view, viewArea)
 
 import Help
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html, input, textarea)
+import Html.Attributes exposing (placeholder, spellcheck, style, type_, value)
+import Html.Events exposing (onInput)
 
 
 view :

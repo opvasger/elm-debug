@@ -8,11 +8,10 @@ module Html.Range exposing
 
 import Browser.Events
 import Help
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html, div)
+import Html.Attributes exposing (style, title)
+import Html.Events exposing (on)
 import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
 
 
 type Model
@@ -40,13 +39,13 @@ subscriptions config =
         Inactive ->
             Sub.none
 
-        MovingThumb fromX ->
+        MovingThumb _ ->
             Sub.batch
                 [ Browser.Events.onMouseUp
                     (Decode.succeed (config.updateMsg Inactive))
                 , Browser.Events.onMouseMove
                     (Decode.map config.inputMsg
-                        (moveEventDecoder fromX config.value config.maxValue)
+                        (moveEventDecoder config.value config.maxValue)
                     )
                 ]
 
@@ -143,8 +142,8 @@ clickEventDecoder maxValue =
         (Decode.field "offsetX" Decode.int)
 
 
-moveEventDecoder : Int -> Int -> Int -> Decoder Int
-moveEventDecoder initX value maxValue =
+moveEventDecoder : Int -> Int -> Decoder Int
+moveEventDecoder value maxValue =
     Decode.andThen
         (\nextValue ->
             if nextValue == value then

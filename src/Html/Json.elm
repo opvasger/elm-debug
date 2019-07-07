@@ -1,9 +1,8 @@
 module Html.Json exposing (view)
 
 import Help
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+import Html exposing (Html, div, text)
+import Html.Attributes exposing (style)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import JsonTree
