@@ -24,7 +24,6 @@ type Icon
     | Download
     | Upload
     | Update
-    | Move
 
 
 type alias Config record msg =

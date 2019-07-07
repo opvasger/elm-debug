@@ -2,6 +2,8 @@ port module Main exposing (main)
 
 import Browser
 import Browser.DevTools
+import Browser.Dom
+import Browser.Events
 import Browser.Navigation as Navigation
 import Element exposing (..)
 import Element.Background as Background
@@ -9,23 +11,30 @@ import Element.Font as Font
 import Element.Input as Input
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import Mario
+import Task
 import Url exposing (Url)
-import Url.Parser as Route
 
 
 type alias Flags =
     { devTools : Maybe String
+    , viewportHeight : Int
+    , viewportWidth : Int
     }
 
 
 type alias Model =
     { key : Navigation.Key
+    , mario : Mario.Model
+    , viewport : ( Int, Int )
     }
 
 
 type Msg
     = RequestUrl Browser.UrlRequest
     | ChangeUrl Url
+    | ResizeViewport Int Int
+    | MarioMsg Mario.Msg
 
 
 port toCache : String -> Cmd msg
@@ -51,29 +60,55 @@ main =
 
 
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
-init _ _ key =
+init flags _ key =
     ( { key = key
+      , mario = Mario.init flags.viewportWidth demoHeight
+      , viewport = ( flags.viewportWidth, flags.viewportHeight )
       }
-    , Cmd.none
+    , Task.perform (\{ viewport } -> ResizeViewport (round viewport.width) (round viewport.height))
+        Browser.Dom.getViewport
     )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    Sub.batch
+        [ Browser.Events.onResize ResizeViewport
+        , Sub.map MarioMsg (Mario.subscriptions model.mario)
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         RequestUrl (Browser.Internal url) ->
-            ( model, Navigation.pushUrl model.key (Url.toString url) )
+            ( model
+            , Navigation.pushUrl model.key
+                (Url.toString url)
+            )
 
         RequestUrl (Browser.External url) ->
-            ( model, Navigation.load url )
+            ( model
+            , Navigation.load url
+            )
 
         ChangeUrl url ->
-            ( model, Cmd.none )
+            ( model
+            , Cmd.none
+            )
+
+        ResizeViewport x y ->
+            ( { model
+                | viewport = ( x, y )
+                , mario = Mario.resize { width = x, height = model.mario.size.height } model.mario
+              }
+            , Cmd.none
+            )
+
+        MarioMsg marioMsg ->
+            ( { model | mario = Mario.update marioMsg model.mario }
+            , Cmd.none
+            )
 
 
 view : Model -> Browser.Document Msg
@@ -86,9 +121,9 @@ view model =
                 , Font.sansSerif
                 ]
             ]
-            (column [ width fill, spacing 10 ]
+            (column [ width fill ]
                 [ viewHead
-                , viewDemo
+                , viewDemo model.mario
                 , viewFeatures
                 , viewLinks
                 ]
@@ -121,49 +156,65 @@ viewHead =
         ]
 
 
-viewDemo : Element Msg
-viewDemo =
+viewDemo : Mario.Model -> Element Msg
+viewDemo mario =
     row
         [ width fill
+        , height (px demoHeight)
+        , Background.color white
         ]
-        [ text "Demo"
+        [ Element.map MarioMsg (html (Mario.view mario))
         ]
+
+
+demoHeight : Int
+demoHeight =
+    200
 
 
 viewFeatures : Element Msg
 viewFeatures =
-    row
+    column
         [ width fill
         ]
-        [ text "Features" ]
+        [ text "Features"
+        , column [ padding 10 ]
+            [ text "Automatic message-replay"
+            , text "Predictable live-coding"
+            , text "Reasonable performance"
+            , text "State à la carte"
+            ]
+        ]
 
 
 viewLinks : Element Msg
 viewLinks =
     column
         [ width fill
-        , Font.underline
         ]
-        [ newTabLink []
-            { label = text "Github Repo"
-            , url = "https://github.com/opvasger/elm-devtools"
-            }
-        , newTabLink []
-            { label = text "Elm Package"
-            , url = "https://package.elm-lang.org/packages/opvasger/devtools/latest"
-            }
-        , newTabLink []
-            { label = text "NPM Package"
-            , url = "https://www.npmjs.com/package/elm-devtools"
-            }
-        , newTabLink []
-            { label = text "Official Elm Guide"
-            , url = "https://guide.elm-lang.org"
-            }
-        , newTabLink []
-            { label = text "Official Elm Website"
-            , url = "https://elm-lang.org"
-            }
+        [ text "Links"
+        , column [ padding 10, Font.underline ]
+            [ newTabLink []
+                { label = text "Github Repo"
+                , url = "https://github.com/opvasger/elm-devtools"
+                }
+            , newTabLink []
+                { label = text "Elm Package"
+                , url = "https://package.elm-lang.org/packages/opvasger/devtools/latest"
+                }
+            , newTabLink []
+                { label = text "NPM Package"
+                , url = "https://www.npmjs.com/package/elm-devtools"
+                }
+            , newTabLink []
+                { label = text "Official Elm Guide"
+                , url = "https://guide.elm-lang.org"
+                }
+            , newTabLink []
+                { label = text "Official Elm Website"
+                , url = "https://elm-lang.org"
+                }
+            ]
         ]
 
 
@@ -206,9 +257,10 @@ urlDecoder =
 
 
 encodeModel : Model -> Encode.Value
-encodeModel _ =
+encodeModel model =
     Encode.object
         [ ( "key", Encode.null )
+        , ( "mario", Mario.encodeModel model.mario )
         ]
 
 
@@ -224,6 +276,12 @@ encodeMsg msg =
         ChangeUrl url ->
             Encode.object [ ( "ChangeUrl", Encode.string (Url.toString url) ) ]
 
+        ResizeViewport x y ->
+            Encode.object [ ( "x", Encode.int x ), ( "y", Encode.int y ) ]
+
+        MarioMsg marioMsg ->
+            Mario.encodeMsg marioMsg
+
 
 msgDecoder : Decoder Msg
 msgDecoder =
@@ -231,4 +289,6 @@ msgDecoder =
         [ Decode.field "RequestInternalUrl" (Decode.map (RequestUrl << Browser.Internal) urlDecoder)
         , Decode.field "RequestExternalUrl" (Decode.map (RequestUrl << Browser.External) Decode.string)
         , Decode.field "ChangeUrl" (Decode.map ChangeUrl urlDecoder)
+        , Decode.map2 ResizeViewport (Decode.field "x" Decode.int) (Decode.field "y" Decode.int)
+        , Decode.map MarioMsg Mario.msgDecoder
         ]
