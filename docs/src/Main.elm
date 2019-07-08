@@ -26,6 +26,7 @@ type alias Model =
     { key : Navigation.Key
     , mario : Mario.Model
     , viewport : ( Int, Int )
+    , page : Page
     }
 
 
@@ -61,8 +62,9 @@ main =
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init flags _ key =
     ( { key = key
-      , mario = Mario.init flags.viewportWidth demoHeight
+      , mario = Mario.init flags.viewportWidth marioHeight
       , viewport = ( flags.viewportWidth, flags.viewportHeight )
+      , page = Splash
       }
     , Task.perform (\{ viewport } -> ResizeViewport (round viewport.width) (round viewport.height))
         Browser.Dom.getViewport
@@ -73,7 +75,11 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Browser.Events.onResize ResizeViewport
-        , Sub.map MarioMsg (Mario.subscriptions model.mario)
+        , if model.page == Mario then
+            Sub.map MarioMsg (Mario.subscriptions model.mario)
+
+          else
+            Sub.none
         ]
 
 
@@ -91,8 +97,8 @@ update msg model =
             , Navigation.load url
             )
 
-        ChangeUrl _ ->
-            ( model
+        ChangeUrl url ->
+            ( { model | page = pageFromUrl url }
             , Cmd.none
             )
 
@@ -112,7 +118,7 @@ update msg model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "Elm DevTools"
+    { title = "Elm DevTools - Tools for developing Elm programs!"
     , body =
         [ layout
             [ Font.family
@@ -122,7 +128,12 @@ view model =
             ]
             (column [ width fill, height fill ]
                 [ viewHead
-                , viewDemo model.mario
+                , viewNavigation model.page
+                , el
+                    [ height fill
+                    , paddingXY 30 0
+                    ]
+                    (viewPage model)
                 , viewFoot
                 ]
             )
@@ -134,39 +145,118 @@ viewHead : Element Msg
 viewHead =
     row
         [ width fill
-        , height (px 150)
+        , height (px 125)
         , Background.color lightBlue
         ]
-        [ column [ width fill, spacing 10 ]
-            [ el
-                [ centerX
-                , Font.bold
-                , Font.size 50
-                , Font.color white
-                ]
-                (text "Elm DevTools")
-            , el
-                [ centerX
-                , Font.color darkBlue
-                ]
-                (text "Tools for developing Elm programs!")
-            ]
+        [ link
+            [ width fill ]
+            { url = "/"
+            , label =
+                column [ width fill, spacing 5 ]
+                    [ el
+                        [ centerX
+                        , Font.bold
+                        , Font.size 50
+                        , Font.color white
+                        ]
+                        (text "Elm DevTools")
+                    , el
+                        [ centerX
+                        , Font.color darkBlue
+                        ]
+                        (text "Tools for developing Elm programs!")
+                    ]
+            }
         ]
 
 
-viewDemo : Mario.Model -> Element Msg
-viewDemo mario =
-    el
+viewNavigation : Page -> Element Msg
+viewNavigation page =
+    row
         [ width fill
-        , height (px demoHeight)
-        , Background.color white
+        , Font.size 18
+        , spacing 30
+        , padding 20
         ]
-        (Element.map MarioMsg (html (Mario.view mario)))
+        [ if page == Start then
+            el [ centerX, Font.color lightBlue ] (text "get started")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#start"
+                , label = text "get started"
+                }
+        , if page == Features then
+            el [ centerX, Font.color lightBlue ] (text "features")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#features"
+                , label = text "features"
+                }
+        , if page == Goals then
+            el [ centerX, Font.color lightBlue ] (text "goals")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#goals"
+                , label = text "goals"
+                }
+        , if page == Mario then
+            el [ centerX, Font.color lightBlue ] (text "mario")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#mario"
+                , label = text "mario"
+                }
+        ]
 
 
-demoHeight : Int
-demoHeight =
-    500
+viewPage : Model -> Element Msg
+viewPage model =
+    case model.page of
+        Splash ->
+            viewSplash
+
+        Start ->
+            viewStart
+
+        Features ->
+            viewFeatures
+
+        Goals ->
+            viewGoals
+
+        Mario ->
+            Mario.view model.mario
+                |> html
+                |> map MarioMsg
+
+
+marioHeight : Int
+marioHeight =
+    425
+
+
+viewSplash : Element Msg
+viewSplash =
+    none
+
+
+viewStart : Element Msg
+viewStart =
+    none
+
+
+viewFeatures : Element Msg
+viewFeatures =
+    none
+
+
+viewGoals : Element Msg
+viewGoals =
+    none
 
 
 viewFoot : Element Msg
@@ -193,12 +283,12 @@ viewFoot =
                     , label = text "node.js module"
                     }
                 , newTabLink [ Font.underline ]
-                    { url = "#"
+                    { url = "https://package.elm-lang.org/packages/opvasger/devtools/latest/"
                     , label = text "elm package"
                     }
                 ]
             , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "The Elm Language")
+                [ el [ Font.bold, Font.color lightBlue ] (text "Elm")
                 , newTabLink [ Font.underline ]
                     { url = "https://elm-lang.org"
                     , label = text "language website"
@@ -213,7 +303,7 @@ viewFoot =
                     }
                 ]
             , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired From")
+                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired By")
                 , newTabLink [ Font.underline ]
                     { url = "https://elm-lang.org/blog/the-perfect-bug-report"
                     , label = text "0.18 debugger"
@@ -238,6 +328,56 @@ viewFoot =
             , text " © 2019, Asger Nielsen"
             ]
         ]
+
+
+
+-- Page
+
+
+type Page
+    = Splash
+    | Start
+    | Features
+    | Goals
+    | Mario
+
+
+pageFromUrl : Url -> Page
+pageFromUrl url =
+    case url.fragment of
+        Just "start" ->
+            Start
+
+        Just "features" ->
+            Features
+
+        Just "goals" ->
+            Goals
+
+        Just "mario" ->
+            Mario
+
+        _ ->
+            Splash
+
+
+pageToString : Page -> Maybe String
+pageToString page =
+    case page of
+        Start ->
+            Just "start"
+
+        Features ->
+            Just "features"
+
+        Goals ->
+            Just "goals"
+
+        Mario ->
+            Just "mario"
+
+        Splash ->
+            Nothing
 
 
 
@@ -283,6 +423,12 @@ encodeModel model =
     Encode.object
         [ ( "key", Encode.null )
         , ( "mario", Mario.encodeModel model.mario )
+        , ( "page"
+          , Maybe.withDefault Encode.null
+                (Maybe.map Encode.string
+                    (pageToString model.page)
+                )
+          )
         ]
 
 
