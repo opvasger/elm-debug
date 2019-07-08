@@ -10,7 +10,6 @@ import Element.Background as Background
 import Element.Font as Font
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Mario
 import Task
 import Url exposing (Url)
 
@@ -24,8 +23,8 @@ type alias Flags =
 
 type alias Model =
     { key : Navigation.Key
-    , mario : Mario.Model
     , viewport : ( Int, Int )
+    , page : Page
     }
 
 
@@ -33,7 +32,6 @@ type Msg
     = RequestUrl Browser.UrlRequest
     | ChangeUrl Url
     | ResizeViewport Int Int
-    | MarioMsg Mario.Msg
 
 
 port toCache : String -> Cmd msg
@@ -61,8 +59,8 @@ main =
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )
 init flags _ key =
     ( { key = key
-      , mario = Mario.init flags.viewportWidth demoHeight
       , viewport = ( flags.viewportWidth, flags.viewportHeight )
+      , page = Splash
       }
     , Task.perform (\{ viewport } -> ResizeViewport (round viewport.width) (round viewport.height))
         Browser.Dom.getViewport
@@ -70,10 +68,9 @@ init flags _ key =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.batch
         [ Browser.Events.onResize ResizeViewport
-        , Sub.map MarioMsg (Mario.subscriptions model.mario)
         ]
 
 
@@ -91,21 +88,13 @@ update msg model =
             , Navigation.load url
             )
 
-        ChangeUrl _ ->
-            ( model
+        ChangeUrl url ->
+            ( { model | page = pageFromUrl url }
             , Cmd.none
             )
 
         ResizeViewport x y ->
-            ( { model
-                | viewport = ( x, y )
-                , mario = Mario.resize { width = x, height = model.mario.size.height } model.mario
-              }
-            , Cmd.none
-            )
-
-        MarioMsg marioMsg ->
-            ( { model | mario = Mario.update marioMsg model.mario }
+            ( { model | viewport = ( x, y ) }
             , Cmd.none
             )
 
@@ -122,7 +111,12 @@ view model =
             ]
             (column [ width fill, height fill ]
                 [ viewHead
-                , viewDemo model.mario
+                , viewNavigation model.page
+                , el
+                    [ height fill
+                    , paddingXY 30 0
+                    ]
+                    (viewPage model)
                 , viewFoot
                 ]
             )
@@ -134,39 +128,99 @@ viewHead : Element Msg
 viewHead =
     row
         [ width fill
-        , height (px 150)
+        , height (px 125)
         , Background.color lightBlue
         ]
-        [ column [ width fill, spacing 10 ]
-            [ el
-                [ centerX
-                , Font.bold
-                , Font.size 50
-                , Font.color white
-                ]
-                (text "Elm DevTools")
-            , el
-                [ centerX
-                , Font.color darkBlue
-                ]
-                (text "Tools for developing Elm programs!")
-            ]
+        [ link
+            [ width fill ]
+            { url = "/"
+            , label =
+                column [ width fill, spacing 5 ]
+                    [ el
+                        [ centerX
+                        , Font.bold
+                        , Font.size 50
+                        , Font.color white
+                        ]
+                        (text "Elm DevTools")
+                    , el
+                        [ centerX
+                        , Font.color darkBlue
+                        ]
+                        (text "Tools for developing Elm programs!")
+                    ]
+            }
         ]
 
 
-viewDemo : Mario.Model -> Element Msg
-viewDemo mario =
-    el
+viewNavigation : Page -> Element Msg
+viewNavigation page =
+    row
         [ width fill
-        , height (px demoHeight)
-        , Background.color white
+        , spacing 40
+        , padding 10
         ]
-        (Element.map MarioMsg (html (Mario.view mario)))
+        [ if page == Start then
+            el [ centerX, Font.color white ] (text "get started")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#start"
+                , label = text "get started"
+                }
+        , if page == Features then
+            el [ centerX, Font.color white ] (text "features")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#features"
+                , label = text "features"
+                }
+        , if page == Goals then
+            el [ centerX, Font.color white ] (text "goals")
+
+          else
+            link [ centerX, Font.underline ]
+                { url = "#goals"
+                , label = text "goals"
+                }
+        ]
 
 
-demoHeight : Int
-demoHeight =
-    500
+viewPage : Model -> Element Msg
+viewPage model =
+    case model.page of
+        Splash ->
+            viewSplash
+
+        Start ->
+            viewStart
+
+        Features ->
+            viewFeatures
+
+        Goals ->
+            viewGoals
+
+
+viewSplash : Element Msg
+viewSplash =
+    none
+
+
+viewStart : Element Msg
+viewStart =
+    el [ Font.bold, Font.size 30 ] (text "Get Started")
+
+
+viewFeatures : Element Msg
+viewFeatures =
+    el [ Font.bold, Font.size 30 ] (text "Features")
+
+
+viewGoals : Element Msg
+viewGoals =
+    el [ Font.bold, Font.size 30 ] (text "Goals")
 
 
 viewFoot : Element Msg
@@ -193,12 +247,12 @@ viewFoot =
                     , label = text "node.js module"
                     }
                 , newTabLink [ Font.underline ]
-                    { url = "#"
+                    { url = "https://package.elm-lang.org/packages/opvasger/devtools/latest/"
                     , label = text "elm package"
                     }
                 ]
             , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "The Elm Language")
+                [ el [ Font.bold, Font.color lightBlue ] (text "Elm")
                 , newTabLink [ Font.underline ]
                     { url = "https://elm-lang.org"
                     , label = text "language website"
@@ -213,7 +267,7 @@ viewFoot =
                     }
                 ]
             , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired From")
+                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired By")
                 , newTabLink [ Font.underline ]
                     { url = "https://elm-lang.org/blog/the-perfect-bug-report"
                     , label = text "0.18 debugger"
@@ -238,6 +292,49 @@ viewFoot =
             , text " © 2019, Asger Nielsen"
             ]
         ]
+
+
+
+-- Page
+
+
+type Page
+    = Splash
+    | Start
+    | Features
+    | Goals
+
+
+pageFromUrl : Url -> Page
+pageFromUrl url =
+    case url.fragment of
+        Just "start" ->
+            Start
+
+        Just "features" ->
+            Features
+
+        Just "goals" ->
+            Goals
+
+        _ ->
+            Splash
+
+
+pageToString : Page -> Maybe String
+pageToString page =
+    case page of
+        Start ->
+            Just "start"
+
+        Features ->
+            Just "features"
+
+        Goals ->
+            Just "goals"
+
+        Splash ->
+            Nothing
 
 
 
@@ -282,7 +379,12 @@ encodeModel : Model -> Encode.Value
 encodeModel model =
     Encode.object
         [ ( "key", Encode.null )
-        , ( "mario", Mario.encodeModel model.mario )
+        , ( "page"
+          , Maybe.withDefault Encode.null
+                (Maybe.map Encode.string
+                    (pageToString model.page)
+                )
+          )
         ]
 
 
@@ -301,9 +403,6 @@ encodeMsg msg =
         ResizeViewport x y ->
             Encode.object [ ( "x", Encode.int x ), ( "y", Encode.int y ) ]
 
-        MarioMsg marioMsg ->
-            Mario.encodeMsg marioMsg
-
 
 msgDecoder : Decoder Msg
 msgDecoder =
@@ -312,5 +411,4 @@ msgDecoder =
         , Decode.field "RequestExternalUrl" (Decode.map (RequestUrl << Browser.External) Decode.string)
         , Decode.field "ChangeUrl" (Decode.map ChangeUrl urlDecoder)
         , Decode.map2 ResizeViewport (Decode.field "x" Decode.int) (Decode.field "y" Decode.int)
-        , Decode.map MarioMsg Mario.msgDecoder
         ]
