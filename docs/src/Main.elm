@@ -104,7 +104,15 @@ update msg model =
             )
 
         ResizeViewport x y ->
-            ( { model | viewport = ( x, y ) }
+            ( { model
+                | viewport = ( x, y )
+                , mario =
+                    Mario.resize
+                        { width = x
+                        , height = model.mario.size.height
+                        }
+                        model.mario
+              }
             , Cmd.none
             )
 
@@ -308,7 +316,7 @@ viewMario mario =
             , Font.color muted
             , Font.size 15
             , paddingEach
-                { top = 20
+                { top = 40
                 , bottom = 0
                 , left = 0
                 , right = 0
@@ -380,7 +388,7 @@ viewFoot =
                 ]
             ]
         , row
-            [ Font.color (rgba255 0 0 0 1)
+            [ Font.color muted
             , padding 10
             , centerX
             ]
