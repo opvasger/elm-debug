@@ -169,7 +169,12 @@ viewNavigation page =
         [ width fill
         , Font.size 18
         , spacing 30
-        , padding 20
+        , paddingEach
+            { top = 20
+            , bottom = 0
+            , left = 20
+            , right = 20
+            }
         ]
         [ if page == Start then
             el [ centerX, Font.color lightBlue ] (text "get started")
@@ -252,7 +257,44 @@ viewFeatures =
 
 viewGoals : Element Msg
 viewGoals =
-    none
+    textColumn
+        [ Font.size 15
+        , paddingXY 40 40
+        , spacing 15
+        , centerX
+        ]
+        [ p "The overarching goal is to close the loop between writing Elm code and interacting with it."
+        , p "This concretely means:"
+        , column
+            [ width fill
+            , Font.bold
+            , spacing 10
+            ]
+            [ row [ spacing 10 ]
+                [ column [ height fill, width fill, padding 20, Background.color gray ]
+                    [ p "Code changes should be reflected immediately in a running instance of its application."
+                    ]
+                , column [ height fill, width fill, padding 20, Background.color gray ]
+                    [ p "Code changes should only break application-state if necessary, and if enabled, only partially."
+                    ]
+                ]
+            , row [ spacing 10 ]
+                [ column [ height fill, width fill, padding 20, Background.color gray ]
+                    [ p "Application-states should be effortless to inspect, navigate, persist and share."
+                    ]
+                , column [ height fill, width fill, padding 20, Background.color gray ]
+                    [ p "Guidance from the compiler should be right in front of you when you make mistakes."
+                    ]
+                ]
+            ]
+        , p "The boilerplate necessary to enable the first four goals should be minimal, and if needed be, incremental."
+        , p "I strongly believe that the optimal design and implementation of these goals will transform how we build our applications. Going through the loop of compiling code, reloading browser windows and getting the application into the right state costs seconds, but those seconds are spent at such a frequency that writing interactive applications is incredibly time-consuming."
+        ]
+
+
+p : String -> Element Msg
+p content =
+    paragraph [] [ text content ]
 
 
 viewMario : Mario.Model -> Element Msg
@@ -405,6 +447,11 @@ darkBlue =
 white : Color
 white =
     rgba255 255 255 255 1
+
+
+gray : Color
+gray =
+    rgba255 238 238 238 1
 
 
 
