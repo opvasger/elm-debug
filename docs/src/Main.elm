@@ -24,8 +24,8 @@ type alias Flags =
 
 type alias Model =
     { key : Navigation.Key
-    , mario : Mario.Model
     , viewport : ( Int, Int )
+    , mario : Mario.Model
     , page : Page
     }
 
@@ -103,10 +103,7 @@ update msg model =
             )
 
         ResizeViewport x y ->
-            ( { model
-                | viewport = ( x, y )
-                , mario = Mario.resize { width = x, height = model.mario.size.height } model.mario
-              }
+            ( { model | viewport = ( x, y ) }
             , Cmd.none
             )
 
