@@ -126,11 +126,7 @@ view model =
             (column [ width fill, height fill ]
                 [ viewHead
                 , viewNavigation model.page
-                , el
-                    [ height fill
-                    , paddingXY 30 0
-                    ]
-                    (viewPage model)
+                , viewPage model
                 , viewFoot
                 ]
             )
@@ -212,28 +208,31 @@ viewNavigation page =
 
 viewPage : Model -> Element Msg
 viewPage model =
-    case model.page of
-        Splash ->
-            viewSplash
+    el
+        [ height fill
+        , width fill
+        ]
+        (case model.page of
+            Splash ->
+                viewSplash
 
-        Start ->
-            viewStart
+            Start ->
+                viewStart
 
-        Features ->
-            viewFeatures
+            Features ->
+                viewFeatures
 
-        Goals ->
-            viewGoals
+            Goals ->
+                viewGoals
 
-        Mario ->
-            Mario.view model.mario
-                |> html
-                |> map MarioMsg
+            Mario ->
+                viewMario model.mario
+        )
 
 
 marioHeight : Int
 marioHeight =
-    425
+    205
 
 
 viewSplash : Element Msg
@@ -254,6 +253,18 @@ viewFeatures =
 viewGoals : Element Msg
 viewGoals =
     none
+
+
+viewMario : Mario.Model -> Element Msg
+viewMario mario =
+    column [ height fill ]
+        [ el [ height fill ] none
+        , el [ height (px marioHeight) ]
+            (Mario.view mario
+                |> html
+                |> map MarioMsg
+            )
+        ]
 
 
 viewFoot : Element Msg
