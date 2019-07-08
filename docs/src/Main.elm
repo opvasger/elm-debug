@@ -7,6 +7,7 @@ import Browser.Events
 import Browser.Navigation as Navigation
 import Element exposing (..)
 import Element.Background as Background
+import Element.Border as Border
 import Element.Font as Font
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -242,17 +243,17 @@ marioHeight =
 
 viewSplash : Element Msg
 viewSplash =
-    none
+    el [ centerX, centerY ] (text "Splash Page")
 
 
 viewStart : Element Msg
 viewStart =
-    none
+    el [ centerX, centerY ] (text "Start Page")
 
 
 viewFeatures : Element Msg
 viewFeatures =
-    none
+    el [ centerX, centerY ] (text "Features Page")
 
 
 viewGoals : Element Msg
@@ -271,24 +272,25 @@ viewGoals =
             , spacing 10
             ]
             [ row [ spacing 10 ]
-                [ column [ height fill, width fill, padding 20, Background.color gray ]
+                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
                     [ p "Code changes should be reflected immediately in a running instance of its application."
                     ]
-                , column [ height fill, width fill, padding 20, Background.color gray ]
+                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
                     [ p "Code changes should only break application-state if necessary, and if enabled, only partially."
                     ]
                 ]
             , row [ spacing 10 ]
-                [ column [ height fill, width fill, padding 20, Background.color gray ]
+                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
                     [ p "Application-states should be effortless to inspect, navigate, persist and share."
                     ]
-                , column [ height fill, width fill, padding 20, Background.color gray ]
+                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
                     [ p "Guidance from the compiler should be right in front of you when you make mistakes."
                     ]
                 ]
             ]
         , p "The boilerplate necessary to enable the first four goals should be minimal, and if needed be, incremental."
-        , p "I strongly believe that the optimal design and implementation of these goals will transform how we build our applications. Going through the loop of compiling code, reloading browser windows and getting the application into the right state costs seconds, but those seconds are spent at such a frequency that writing interactive applications is incredibly time-consuming."
+        , p "Going through the loop of compiling code, reloading browser windows and getting the application into the right state costs seconds, but those seconds are spent at such a frequency that writing interactive applications is time-consuming."
+        , p "I strongly believe that the optimal design and implementation of these goals will transform how we build our applications."
         ]
 
 
@@ -299,8 +301,20 @@ p content =
 
 viewMario : Mario.Model -> Element Msg
 viewMario mario =
-    column [ height fill ]
-        [ el [ height fill ] none
+    column [ height fill, width fill ]
+        [ el
+            [ centerX
+            , height fill
+            , Font.color muted
+            , Font.size 15
+            , paddingEach
+                { top = 20
+                , bottom = 0
+                , left = 0
+                , right = 0
+                }
+            ]
+            (text "use arrow-keys")
         , el [ height (px marioHeight) ]
             (Mario.view mario
                 |> html
@@ -449,9 +463,14 @@ white =
     rgba255 255 255 255 1
 
 
-gray : Color
-gray =
+lightGray : Color
+lightGray =
     rgba255 238 238 238 1
+
+
+muted : Color
+muted =
+    rgba255 0 0 0 0.5
 
 
 
