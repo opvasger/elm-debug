@@ -202,7 +202,7 @@ viewNavigation currentPage =
             }
         ]
         [ viewNavigationLink Page.Start currentPage
-        , viewNavigationLink Page.Features currentPage
+        , viewNavigationLink Page.Design currentPage
         , viewNavigationLink Page.Goals currentPage
         , viewNavigationLink Page.Mario currentPage
         ]

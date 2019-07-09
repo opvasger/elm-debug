@@ -7,7 +7,7 @@ module Page exposing
     , toString
     , toUrl
     , view
-    , viewFeatures
+    , viewDesign
     , viewGoals
     , viewMario
     , viewSplash
@@ -26,7 +26,7 @@ import Url exposing (Url)
 type Page
     = Splash
     | Start
-    | Features
+    | Design
     | Goals
     | Mario
 
@@ -65,8 +65,8 @@ fromString text =
         "start" ->
             Just Start
 
-        "features" ->
-            Just Features
+        "design" ->
+            Just Design
 
         "goals" ->
             Just Goals
@@ -84,8 +84,8 @@ toString page =
         Start ->
             Just "start"
 
-        Features ->
-            Just "features"
+        Design ->
+            Just "design"
 
         Goals ->
             Just "goals"
@@ -120,8 +120,8 @@ view model =
             Start ->
                 viewStart
 
-            Features ->
-                viewFeatures
+            Design ->
+                viewDesign
 
             Goals ->
                 viewGoals
@@ -190,8 +190,8 @@ viewGoals =
         ]
 
 
-viewFeatures : Element msg
-viewFeatures =
+viewDesign : Element msg
+viewDesign =
     textColumn
         [ Font.size 15
         , padding 40
