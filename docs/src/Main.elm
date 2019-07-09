@@ -7,11 +7,12 @@ import Browser.Events
 import Browser.Navigation as Navigation
 import Element exposing (..)
 import Element.Background as Background
-import Element.Border as Border
 import Element.Font as Font
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Mario
+import Page exposing (Page)
+import Style
 import Task
 import Url exposing (Url)
 
@@ -65,7 +66,7 @@ init flags _ key =
     ( { key = key
       , mario = Mario.init flags.viewportWidth marioHeight
       , viewport = ( flags.viewportWidth, flags.viewportHeight )
-      , page = Splash
+      , page = Page.Splash
       }
     , Task.perform (\{ viewport } -> ResizeViewport (round viewport.width) (round viewport.height))
         Browser.Dom.getViewport
@@ -76,7 +77,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Browser.Events.onResize ResizeViewport
-        , if model.page == Mario then
+        , if model.page == Page.Mario then
             Sub.map MarioMsg (Mario.subscriptions model.mario)
 
           else
@@ -99,7 +100,7 @@ update msg model =
             )
 
         ChangeUrl url ->
-            ( { model | page = pageFromUrl url }
+            ( { model | page = Page.fromUrl url }
             , Cmd.none
             )
 
@@ -122,6 +123,15 @@ update msg model =
             )
 
 
+marioHeight : Int
+marioHeight =
+    205
+
+
+
+-- View
+
+
 view : Model -> Browser.Document Msg
 view model =
     { title = "Elm DevTools - Tools for developing Elm programs!"
@@ -135,7 +145,13 @@ view model =
             (column [ width fill, height fill ]
                 [ viewHead
                 , viewNavigation model.page
-                , viewPage model
+                , map MarioMsg
+                    (Page.view
+                        { page = model.page
+                        , mario = model.mario
+                        , marioHeight = marioHeight
+                        }
+                    )
                 , viewFoot
                 ]
             )
@@ -148,7 +164,7 @@ viewHead =
     row
         [ width fill
         , height (px 125)
-        , Background.color lightBlue
+        , Background.color Style.lightBlue
         ]
         [ link
             [ width fill ]
@@ -159,12 +175,12 @@ viewHead =
                         [ centerX
                         , Font.bold
                         , Font.size 50
-                        , Font.color white
+                        , Font.color Style.white
                         ]
                         (text "Elm DevTools")
                     , el
                         [ centerX
-                        , Font.color darkBlue
+                        , Font.color Style.darkBlue
                         ]
                         (text "Tools for developing Elm programs!")
                     ]
@@ -173,7 +189,7 @@ viewHead =
 
 
 viewNavigation : Page -> Element Msg
-viewNavigation page =
+viewNavigation currentPage =
     row
         [ width fill
         , Font.size 18
@@ -185,300 +201,94 @@ viewNavigation page =
             , right = 20
             }
         ]
-        [ if page == Start then
-            el [ centerX, Font.color lightBlue ] (text "get started")
-
-          else
-            link [ centerX, Font.underline ]
-                { url = "#start"
-                , label = text "get started"
-                }
-        , if page == Features then
-            el [ centerX, Font.color lightBlue ] (text "features")
-
-          else
-            link [ centerX, Font.underline ]
-                { url = "#features"
-                , label = text "features"
-                }
-        , if page == Goals then
-            el [ centerX, Font.color lightBlue ] (text "goals")
-
-          else
-            link [ centerX, Font.underline ]
-                { url = "#goals"
-                , label = text "goals"
-                }
-        , if page == Mario then
-            el [ centerX, Font.color lightBlue ] (text "mario")
-
-          else
-            link [ centerX, Font.underline ]
-                { url = "#mario"
-                , label = text "mario"
-                }
+        [ viewNavigationLink Page.Start currentPage
+        , viewNavigationLink Page.Features currentPage
+        , viewNavigationLink Page.Goals currentPage
+        , viewNavigationLink Page.Mario currentPage
         ]
 
 
-viewPage : Model -> Element Msg
-viewPage model =
-    el
-        [ height fill
-        , width fill
-        ]
-        (case model.page of
-            Splash ->
-                viewSplash
+viewNavigationLink : Page -> Page -> Element Msg
+viewNavigationLink linkPage currentPage =
+    let
+        title =
+            Page.title linkPage
+    in
+    if currentPage == linkPage then
+        el [ centerX, Font.color Style.lightBlue ] (text title)
 
-            Start ->
-                viewStart
-
-            Features ->
-                viewFeatures
-
-            Goals ->
-                viewGoals
-
-            Mario ->
-                viewMario model.mario
-        )
-
-
-marioHeight : Int
-marioHeight =
-    205
-
-
-viewSplash : Element Msg
-viewSplash =
-    el [ centerX, centerY ] (text "Splash Page")
-
-
-viewStart : Element Msg
-viewStart =
-    el [ centerX, centerY ] (text "Start Page")
-
-
-viewFeatures : Element Msg
-viewFeatures =
-    el [ centerX, centerY ] (text "Features Page")
-
-
-viewGoals : Element Msg
-viewGoals =
-    textColumn
-        [ Font.size 15
-        , paddingXY 40 40
-        , spacing 15
-        , centerX
-        ]
-        [ p "The overarching goal is to close the loop between writing Elm code and interacting with it."
-        , p "This concretely means:"
-        , column
-            [ width fill
-            , Font.bold
-            , spacing 10
-            ]
-            [ row [ spacing 10 ]
-                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
-                    [ p "Code changes should be reflected immediately in a running instance of its application."
-                    ]
-                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
-                    [ p "Code changes should only break application-state if necessary, and if enabled, only partially."
-                    ]
-                ]
-            , row [ spacing 10 ]
-                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
-                    [ p "Application-states should be effortless to inspect, navigate, persist and share."
-                    ]
-                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color lightGray ]
-                    [ p "Guidance from the compiler should be right in front of you when you make mistakes."
-                    ]
-                ]
-            ]
-        , p "The boilerplate necessary to enable the first four goals should be minimal, and if needed be, incremental."
-        , p "Going through the loop of compiling code, reloading browser windows and getting the application into the right state costs seconds, but those seconds are spent at such a frequency that writing interactive applications is time-consuming."
-        , p "I strongly believe that the optimal design and implementation of these goals will transform how we build our applications."
-        ]
-
-
-p : String -> Element Msg
-p content =
-    paragraph [] [ text content ]
-
-
-viewMario : Mario.Model -> Element Msg
-viewMario mario =
-    column [ height fill, width fill ]
-        [ el
-            [ centerX
-            , height fill
-            , Font.color muted
-            , Font.size 15
-            , paddingEach
-                { top = 40
-                , bottom = 0
-                , left = 0
-                , right = 0
-                }
-            ]
-            (text "use arrow-keys")
-        , el [ height (px marioHeight) ]
-            (Mario.view mario
-                |> html
-                |> map MarioMsg
-            )
-        ]
+    else
+        link [ centerX, Font.underline ]
+            { url = Page.toUrl linkPage
+            , label = text title
+            }
 
 
 viewFoot : Element Msg
 viewFoot =
     column
-        [ Background.color darkBlue
+        [ Background.color Style.darkBlue
         , Font.size 15
         , width fill
         ]
         [ row
             [ width fill
             , height (px 150)
-            , Font.color white
+            , Font.color Style.white
             , spacing 40
             ]
-            [ column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "This Project")
-                , newTabLink [ Font.underline ]
-                    { url = "https://github.com/opvasger/elm-devtools"
-                    , label = text "github repository"
-                    }
-                , newTabLink [ Font.underline ]
-                    { url = "https://www.npmjs.com/package/elm-devtools"
-                    , label = text "node.js module"
-                    }
-                , newTabLink [ Font.underline ]
-                    { url = "https://package.elm-lang.org/packages/opvasger/devtools/latest/"
-                    , label = text "elm package"
-                    }
+            [ viewFootColumn "This Project"
+                [ ( "github", "https://github.com/opvasger/elm-devtools" )
+                , ( "node.js module", "https://www.npmjs.com/package/elm-devtools" )
+                , ( "elm package", "https://package.elm-lang.org/packages/opvasger/devtools/latest/" )
                 ]
-            , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "Elm")
-                , newTabLink [ Font.underline ]
-                    { url = "https://elm-lang.org"
-                    , label = text "language website"
-                    }
-                , newTabLink [ Font.underline ]
-                    { url = "https://guide.elm-lang.org"
-                    , label = text "official guide"
-                    }
-                , newTabLink [ Font.underline ]
-                    { url = "https://discourse.elm-lang.org"
-                    , label = text "discourse"
-                    }
+            , viewFootColumn "Elm"
+                [ ( "language website", "https://elm-lang.org" )
+                , ( "official guide", "https://guide.elm-lang.org" )
+                , ( "discourse", "https://discourse.elm-lang.org" )
                 ]
-            , column [ spacing 10, centerX ]
-                [ el [ Font.bold, Font.color lightBlue ] (text "Inspired By")
-                , newTabLink [ Font.underline ]
-                    { url = "https://elm-lang.org/blog/the-perfect-bug-report"
-                    , label = text "0.18 debugger"
-                    }
-                , newTabLink [ Font.underline ]
-                    { url = "https://www.youtube.com/watch?v=PUv66718DII"
-                    , label = text "bret's principle"
-                    }
-                , el [ height (px 15) ] none
+            , el
+                [ centerX
+                , height fill
+                , paddingXY 0 30
                 ]
+                (viewFootColumn "Inspired By"
+                    [ ( "0.18 debugger", "https://elm-lang.org/blog/the-perfect-bug-report" )
+                    , ( "bret's principle", "https://www.youtube.com/watch?v=PUv66718DII" )
+                    ]
+                )
             ]
-        , row
-            [ Font.color muted
-            , padding 10
-            , centerX
-            ]
-            [ text "This website is open-source "
-            , newTabLink [ Font.underline ]
-                { url = "https://github.com/opvasger/elm-devtools/tree/master/docs"
-                , label = text "here"
-                }
-            , text " © 2019, Asger Nielsen"
-            ]
+        , viewCopyright
         ]
 
 
-
--- Page
-
-
-type Page
-    = Splash
-    | Start
-    | Features
-    | Goals
-    | Mario
+viewFootColumn : String -> List ( String, String ) -> Element Msg
+viewFootColumn title links =
+    column [ spacing 10, centerX ]
+        (el [ Font.bold, Font.color Style.lightBlue ] (text title)
+            :: List.map viewLink links
+        )
 
 
-pageFromUrl : Url -> Page
-pageFromUrl url =
-    case url.fragment of
-        Just "start" ->
-            Start
-
-        Just "features" ->
-            Features
-
-        Just "goals" ->
-            Goals
-
-        Just "mario" ->
-            Mario
-
-        _ ->
-            Splash
+viewLink : ( String, String ) -> Element Msg
+viewLink ( title, url ) =
+    newTabLink [ Font.underline ]
+        { url = url
+        , label = text title
+        }
 
 
-pageToString : Page -> Maybe String
-pageToString page =
-    case page of
-        Start ->
-            Just "start"
-
-        Features ->
-            Just "features"
-
-        Goals ->
-            Just "goals"
-
-        Mario ->
-            Just "mario"
-
-        Splash ->
-            Nothing
-
-
-
--- Colors
-
-
-lightBlue : Color
-lightBlue =
-    rgba255 96 181 204 1
-
-
-darkBlue : Color
-darkBlue =
-    rgba255 52 73 94 1
-
-
-white : Color
-white =
-    rgba255 255 255 255 1
-
-
-lightGray : Color
-lightGray =
-    rgba255 238 238 238 1
-
-
-muted : Color
-muted =
-    rgba255 0 0 0 0.5
+viewCopyright : Element Msg
+viewCopyright =
+    row
+        [ Font.color Style.muted
+        , padding 10
+        , centerX
+        ]
+        [ text "This website is open-source "
+        , viewLink ( "here", "https://github.com/opvasger/elm-devtools/tree/master/docs" )
+        , text " © 2019, Asger Nielsen"
+        ]
 
 
 
@@ -508,7 +318,7 @@ encodeModel model =
         , ( "page"
           , Maybe.withDefault Encode.null
                 (Maybe.map Encode.string
-                    (pageToString model.page)
+                    (Page.toString model.page)
                 )
           )
         ]
