@@ -16,7 +16,6 @@ module Page exposing
 
 import Element exposing (..)
 import Element.Background as Background
-import Element.Border as Border
 import Element.Font as Font
 import Mario
 import Style
@@ -168,18 +167,18 @@ viewGoals =
             , spacing 10
             ]
             [ row [ spacing 10 ]
-                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color Style.lightGray ]
+                [ column [ height fill, width fill, padding 20, Background.color Style.lightGray ]
                     [ p "Code changes should be reflected immediately in a running instance of its application."
                     ]
-                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color Style.lightGray ]
+                , column [ height fill, width fill, padding 20, Background.color Style.lightGray ]
                     [ p "Code changes should only break application-state if necessary, and if enabled, only partially."
                     ]
                 ]
             , row [ spacing 10 ]
-                [ column [ Border.rounded 5, height fill, width fill, padding 20, Background.color Style.lightGray ]
+                [ column [ height fill, width fill, padding 20, Background.color Style.lightGray ]
                     [ p "Application-states should be effortless to inspect, navigate, persist and share."
                     ]
-                , column [ Border.rounded 5, height fill, width fill, padding 20, Background.color Style.lightGray ]
+                , column [ height fill, width fill, padding 20, Background.color Style.lightGray ]
                     [ p "Guidance from the compiler should be right in front of you when you make mistakes."
                     ]
                 ]
@@ -237,15 +236,55 @@ viewDesign =
 
 viewStart : Element msg
 viewStart =
-    el [ centerX, centerY ] (text "Start Page")
+    textColumn
+        [ Font.size 15
+        , padding 40
+        , spacing 15
+        , centerX
+        ]
+        [ paragraph []
+            [ text "The Elm package exposes a module for web-apps where you can get started quickly - "
+            , el [ Font.bold ] (text "no configuration required.")
+            ]
+        , newTabLink [ Font.underline ]
+            { label = text "install the Elm package"
+            , url = "https://package.elm-lang.org/packages/opvasger/devtools/latest/"
+            }
+        , p "Unlocking features relies heavily on user-defined functions, some of which can be really tedious to write out by hand. There's work being done to automate this, but it's not done yet."
+        ]
 
 
 viewSplash : Element msg
 viewSplash =
-    image [ centerX, centerY, paddingXY 0 40, width (px 450) ]
-        { description = "Demo"
-        , src = "https://raw.githubusercontent.com/opvasger/elm-devtools/0.1.0/example/example.gif"
-        }
+    column [ centerX, centerY ]
+        [ image [ centerX, centerY, width (px 450), paddingXY 0 20 ]
+            { description = "Demo"
+            , src = "https://raw.githubusercontent.com/opvasger/elm-devtools/0.1.0/example/example.gif"
+            }
+        , row
+            [ centerX
+            , spacing 20
+            , paddingEach
+                { top = 0
+                , left = 0
+                , right = 0
+                , bottom = 20
+                }
+            ]
+            [ image []
+                { description = "Build Status"
+                , src = "https://api.travis-ci.org/opvasger/elm-devtools.svg?branch=master"
+                }
+            , image []
+                { description = "Elm Package Version"
+                , src = "https://img.shields.io/elm-package/v/opvasger/devtools.svg"
+                }
+            , image []
+                { description = "NPM Package Version"
+                , src = "https://img.shields.io/npm/v/elm-devtools.svg"
+                }
+            ]
+        ]
 
 
 p : String -> Element msg

@@ -191,14 +191,14 @@ viewHead =
 viewNavigation : Page -> Element Msg
 viewNavigation currentPage =
     row
-        [ width fill
-        , Font.size 18
+        [ Font.size 18
+        , centerX
         , spacing 30
         , paddingEach
             { top = 20
             , bottom = 0
-            , left = 20
-            , right = 20
+            , left = 0
+            , right = 0
             }
         ]
         [ viewNavigationLink Page.Start currentPage
