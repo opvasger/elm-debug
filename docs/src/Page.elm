@@ -235,14 +235,17 @@ viewDesign =
         ]
 
 
-viewSplash : Element msg
-viewSplash =
-    el [ centerX, centerY ] (text "Splash Page")
-
-
 viewStart : Element msg
 viewStart =
     el [ centerX, centerY ] (text "Start Page")
+
+
+viewSplash : Element msg
+viewSplash =
+    image [ centerX, centerY, paddingXY 0 40, width (px 450) ]
+        { description = "Demo"
+        , src = "https://raw.githubusercontent.com/opvasger/elm-devtools/0.1.0/example/example.gif"
+        }
 
 
 p : String -> Element msg
