@@ -217,9 +217,9 @@ application settings app =
 
 
 type Config flags model msg
-    = ModelView (model -> Encode.Value)
-    | MsgListView (msg -> Encode.Value)
-    | BugReports
+    = ViewModel (model -> Encode.Value)
+    | ViewMsgs (msg -> Encode.Value)
+    | ReportBugs
         { encodeMsg : msg -> Encode.Value
         , msgDecoder : Decoder msg
         }
@@ -256,13 +256,13 @@ recordConfig :
     -> ConfigRecord flags model msg
 recordConfig config record =
     case config of
-        ModelView fn ->
+        ViewModel fn ->
             { record | encodeModel = Just fn }
 
-        MsgListView fn ->
+        ViewMsgs fn ->
             { record | encodeMsg = Just fn }
 
-        BugReports { encodeMsg, msgDecoder } ->
+        ReportBugs { encodeMsg, msgDecoder } ->
             { record
                 | encodeMsg = Just encodeMsg
                 , msgDecoder = Just msgDecoder

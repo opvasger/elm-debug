@@ -44,16 +44,7 @@ port toCache : String -> Cmd msg
 
 main : DevTools.Program Flags Model Msg
 main =
-    DevTools.application
-        [ DevTools.AutoReplayMsgs
-            { encodeMsg = encodeMsg
-            , msgDecoder = msgDecoder
-            , fromCache = .devTools
-            , toCache = toCache
-            }
-        , DevTools.InspectMsgs encodeMsg
-        , DevTools.InspectModel encodeModel
-        ]
+    DevTools.application devToolsConfig
         { init = init
         , update = update
         , view = view
@@ -61,6 +52,23 @@ main =
         , onUrlRequest = RequestUrl
         , onUrlChange = ChangeUrl
         }
+
+
+devToolsConfig : List (DevTools.Config Flags Model Msg)
+devToolsConfig =
+    [ DevTools.AutoReplayMsgs
+        { encodeMsg = encodeMsg
+        , msgDecoder = msgDecoder
+        , fromCache = .devTools
+        , toCache = toCache
+        }
+    , DevTools.ReportBugs
+        { encodeMsg = encodeMsg
+        , msgDecoder = msgDecoder
+        }
+    , DevTools.ViewMsgs encodeMsg
+    , DevTools.ViewModel encodeModel
+    ]
 
 
 init : Flags -> Url -> Navigation.Key -> ( Model, Cmd Msg )

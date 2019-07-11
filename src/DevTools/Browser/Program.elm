@@ -14,6 +14,7 @@ import Browser
 import File exposing (File)
 import History exposing (History)
 import History.Decode
+import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Throttle
@@ -146,9 +147,28 @@ view :
     -> Model model msg
     -> Browser.Document (Msg model msg)
 view config model =
-    { title = ""
-    , body = []
+    let
+        { title, body } =
+            config.view
+                (History.currentModel model.history)
+    in
+    { title = title
+    , body =
+        viewDevTools
+            :: viewModel
+            :: List.map (Html.map (UpdateApp FromView))
+                body
     }
+
+
+viewDevTools : Html (Msg model msg)
+viewDevTools =
+    Html.text ""
+
+
+viewModel : Html (Msg model msg)
+viewModel =
+    Html.text ""
 
 
 
