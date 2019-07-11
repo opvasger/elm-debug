@@ -11,7 +11,7 @@ module History exposing
     , record
     , recordForever
     , replay
-    , reset
+    , restart
     , skipErrorsDecoder
     , toggleReplay
     , untilErrorDecoder
@@ -64,8 +64,8 @@ initialModel =
         >> State.toInitialModel
 
 
-reset : History model msg -> History model msg
-reset =
+restart : History model msg -> History model msg
+restart =
     toState
         >> State.toInitialModel
         >> init

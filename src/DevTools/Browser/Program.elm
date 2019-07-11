@@ -1,8 +1,6 @@
 module DevTools.Browser.Program exposing
     ( Model
-    , Msg(..)
-    , MsgSource(..)
-    , SessionDecodeError(..)
+    , Msg
     , init
     , subscriptions
     , update
@@ -134,6 +132,51 @@ update :
     -> ( Model model msg, Cmd (Msg model msg) )
 update config msg model =
     case msg of
+        DoNothing ->
+            ( model, Cmd.none )
+
+        UpdateApp src appMsg ->
+            History.currentModel model.history
+                |> config.update appMsg
+                |> Tuple.second
+                |> Cmd.map (UpdateApp FromUpdate)
+                |> Tuple.pair
+                    { model
+                        | history =
+                            recordMsg src
+                                (dropCmd config.update)
+                                appMsg
+                                model.history
+                    }
+
+        RestartApp ->
+            Cmd.map (UpdateApp FromInit) model.initCmd
+                |> Tuple.pair
+                    { model
+                        | history =
+                            History.restart model.history
+                    }
+
+        ReplayApp index ->
+            ( { model
+                | history =
+                    History.replay (dropCmd config.update)
+                        index
+                        model.history
+              }
+            , Cmd.none
+            )
+
+        ToggleAppReplay ->
+            ( { model
+                | history =
+                    History.toggleReplay
+                        (dropCmd config.update)
+                        model.history
+              }
+            , Cmd.none
+            )
+
         _ ->
             ( model, Cmd.none )
 
@@ -191,3 +234,31 @@ type MsgSource
     | FromSubs
     | FromView
     | FromUrl
+
+
+recordMsg :
+    MsgSource
+    -> (msg -> model -> model)
+    -> msg
+    -> History model msg
+    -> History model msg
+recordMsg src =
+    case src of
+        FromInit ->
+            History.recordForever
+
+        _ ->
+            History.record
+
+
+
+--
+
+
+dropCmd :
+    (msg -> model -> ( model, Cmd msg ))
+    -> msg
+    -> model
+    -> model
+dropCmd fn msg =
+    Tuple.first << fn msg
