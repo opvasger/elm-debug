@@ -1,10 +1,10 @@
 port module Main exposing (main)
 
 import Browser
-import Browser.DevTools
 import Browser.Dom
 import Browser.Events
 import Browser.Navigation as Navigation
+import DevTools.Browser as DevTools
 import Element exposing (..)
 import Element.Background as Background
 import Element.Font as Font
@@ -42,22 +42,24 @@ type Msg
 port toCache : String -> Cmd msg
 
 
-main : Browser.DevTools.Program Flags Model Msg
+main : DevTools.Program Flags Model Msg
 main =
-    Browser.DevTools.application
+    DevTools.application
+        [ DevTools.AutoReplayMsgs
+            { encodeMsg = encodeMsg
+            , msgDecoder = msgDecoder
+            , fromCache = .devTools
+            , toCache = toCache
+            }
+        , DevTools.InspectMsgs encodeMsg
+        , DevTools.InspectModel encodeModel
+        ]
         { init = init
         , update = update
         , view = view
         , subscriptions = subscriptions
         , onUrlRequest = RequestUrl
         , onUrlChange = ChangeUrl
-        , devTools =
-            { encodeModel = encodeModel
-            , encodeMsg = encodeMsg
-            , msgDecoder = msgDecoder
-            , fromCache = .devTools
-            , toCache = toCache
-            }
         }
 
 
