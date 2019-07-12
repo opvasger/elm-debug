@@ -1,9 +1,9 @@
 module History.Decode exposing
     ( Strategy(..)
     , encodeStrategy
+    , fromStrategy
     , strategies
     , strategyDecoder
-    , strategyToHistoryDecoder
     )
 
 import History exposing (History)
@@ -61,13 +61,13 @@ strategyDecoder =
         Decode.string
 
 
-strategyToHistoryDecoder :
+fromStrategy :
     Strategy
     -> (msg -> model -> model)
     -> Decoder msg
     -> model
     -> Decoder (History model msg)
-strategyToHistoryDecoder strategy =
+fromStrategy strategy =
     case strategy of
         NoErrors ->
             History.noErrorsDecoder

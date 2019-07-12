@@ -44,7 +44,7 @@ port toCache : String -> Cmd msg
 
 main : DevTools.Program Flags Model Msg
 main =
-    DevTools.application devToolsConfig
+    DevTools.application devToolFeatures
         { init = init
         , update = update
         , view = view
@@ -54,20 +54,18 @@ main =
         }
 
 
-devToolsConfig : List (DevTools.Config Flags Model Msg)
-devToolsConfig =
-    [ DevTools.AutoReplayMsgs
+devToolFeatures : List (DevTools.Feature Flags Model Msg)
+devToolFeatures =
+    [ DevTools.ViewMsgs encodeMsg
+    , DevTools.ViewModel encodeModel
+    , DevTools.ImportSession msgDecoder
+    , DevTools.ExportSession encodeMsg
+    , DevTools.CacheSession
         { encodeMsg = encodeMsg
         , msgDecoder = msgDecoder
         , fromCache = .devTools
         , toCache = toCache
         }
-    , DevTools.ReportBugs
-        { encodeMsg = encodeMsg
-        , msgDecoder = msgDecoder
-        }
-    , DevTools.ViewMsgs encodeMsg
-    , DevTools.ViewModel encodeModel
     ]
 
 

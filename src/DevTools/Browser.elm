@@ -1,5 +1,5 @@
 module DevTools.Browser exposing
-    ( Config(..)
+    ( Feature(..)
     , Program
     , application
     , document
@@ -21,17 +21,17 @@ type alias Program flags model msg =
 
 
 sandbox :
-    List (Config flags model msg)
+    List (Feature flags model msg)
     ->
         { init : model
         , view : model -> Html msg
         , update : msg -> model -> model
         }
     -> Program flags model msg
-sandbox settings app =
+sandbox features app =
     let
         config =
-            List.foldl recordConfig noConfig settings
+            List.foldl enableFeature noFeatures features
     in
     Browser.document
         { init =
@@ -66,7 +66,7 @@ sandbox settings app =
 
 
 element :
-    List (Config flags model msg)
+    List (Feature flags model msg)
     ->
         { init : flags -> ( model, Cmd msg )
         , view : model -> Html msg
@@ -74,10 +74,10 @@ element :
         , subscriptions : model -> Sub msg
         }
     -> Program flags model msg
-element settings app =
+element features app =
     let
         config =
-            List.foldl recordConfig noConfig settings
+            List.foldl enableFeature noFeatures features
     in
     Browser.element
         { init =
@@ -115,7 +115,7 @@ element settings app =
 
 
 document :
-    List (Config flags model msg)
+    List (Feature flags model msg)
     ->
         { init : flags -> ( model, Cmd msg )
         , view : model -> Browser.Document msg
@@ -123,10 +123,10 @@ document :
         , subscriptions : model -> Sub msg
         }
     -> Program flags model msg
-document settings app =
+document features app =
     let
         config =
-            List.foldl recordConfig noConfig settings
+            List.foldl enableFeature noFeatures features
     in
     Browser.document
         { init =
@@ -161,7 +161,7 @@ document settings app =
 
 
 application :
-    List (Config flags model msg)
+    List (Feature flags model msg)
     ->
         { init : flags -> Url -> Browser.Navigation.Key -> ( model, Cmd msg )
         , view : model -> Browser.Document msg
@@ -171,10 +171,10 @@ application :
         , onUrlChange : Url -> msg
         }
     -> Program flags model msg
-application settings app =
+application features app =
     let
         config =
-            List.foldl recordConfig noConfig settings
+            List.foldl enableFeature noFeatures features
     in
     Browser.application
         { init =
@@ -213,17 +213,15 @@ application settings app =
 
 
 
--- Config
+-- Feature
 
 
-type Config flags model msg
+type Feature flags model msg
     = ViewModel (model -> Encode.Value)
     | ViewMsgs (msg -> Encode.Value)
-    | ReportBugs
-        { encodeMsg : msg -> Encode.Value
-        , msgDecoder : Decoder msg
-        }
-    | AutoReplayMsgs
+    | ExportSession (msg -> Encode.Value)
+    | ImportSession (Decoder msg)
+    | CacheSession
         { encodeMsg : msg -> Encode.Value
         , msgDecoder : Decoder msg
         , fromCache : flags -> Maybe String
@@ -231,7 +229,7 @@ type Config flags model msg
         }
 
 
-type alias ConfigRecord flags model msg =
+type alias Config flags model msg =
     { encodeModel : Maybe (model -> Encode.Value)
     , encodeMsg : Maybe (msg -> Encode.Value)
     , msgDecoder : Maybe (Decoder msg)
@@ -240,8 +238,8 @@ type alias ConfigRecord flags model msg =
     }
 
 
-noConfig : ConfigRecord flags model msg
-noConfig =
+noFeatures : Config flags model msg
+noFeatures =
     { encodeModel = Nothing
     , encodeMsg = Nothing
     , msgDecoder = Nothing
@@ -250,26 +248,26 @@ noConfig =
     }
 
 
-recordConfig :
-    Config flags model msg
-    -> ConfigRecord flags model msg
-    -> ConfigRecord flags model msg
-recordConfig config record =
-    case config of
+enableFeature :
+    Feature flags model msg
+    -> Config flags model msg
+    -> Config flags model msg
+enableFeature feature config =
+    case feature of
         ViewModel fn ->
-            { record | encodeModel = Just fn }
+            { config | encodeModel = Just fn }
 
         ViewMsgs fn ->
-            { record | encodeMsg = Just fn }
+            { config | encodeMsg = Just fn }
 
-        ReportBugs { encodeMsg, msgDecoder } ->
-            { record
-                | encodeMsg = Just encodeMsg
-                , msgDecoder = Just msgDecoder
-            }
+        ImportSession fn ->
+            { config | msgDecoder = Just fn }
 
-        AutoReplayMsgs { encodeMsg, msgDecoder, toCache, fromCache } ->
-            { record
+        ExportSession fn ->
+            { config | encodeMsg = Just fn }
+
+        CacheSession { encodeMsg, msgDecoder, toCache, fromCache } ->
+            { config
                 | encodeMsg = Just encodeMsg
                 , msgDecoder = Just msgDecoder
                 , toCache = Just toCache

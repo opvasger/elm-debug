@@ -10,11 +10,14 @@ module DevTools.Browser.Program exposing
 
 import Browser
 import File exposing (File)
+import File.Download
+import File.Select
 import History exposing (History)
 import History.Decode
 import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import Task exposing (Task)
 import Throttle
 import Time
 
@@ -99,7 +102,7 @@ init :
 init config =
     ( { history = History.init (Tuple.first config.init)
       , initCmd = Tuple.second config.init
-      , decodeError = NoDecodeError
+      , decodeError = NoError
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
       , isModelVisible = False
@@ -136,26 +139,26 @@ update config msg model =
             ( model, Cmd.none )
 
         UpdateApp src appMsg ->
-            History.currentModel model.history
+            ( { model
+                | history =
+                    recordMsg src
+                        (dropCmd config.update)
+                        appMsg
+                        model.history
+              }
+            , History.currentModel model.history
                 |> config.update appMsg
                 |> Tuple.second
                 |> Cmd.map (UpdateApp FromUpdate)
-                |> Tuple.pair
-                    { model
-                        | history =
-                            recordMsg src
-                                (dropCmd config.update)
-                                appMsg
-                                model.history
-                    }
+            )
 
         RestartApp ->
-            Cmd.map (UpdateApp FromInit) model.initCmd
-                |> Tuple.pair
-                    { model
-                        | history =
-                            History.restart model.history
-                    }
+            ( { model
+                | history =
+                    History.restart model.history
+              }
+            , Cmd.map (UpdateApp FromInit) model.initCmd
+            )
 
         ReplayApp index ->
             ( { model
@@ -177,8 +180,160 @@ update config msg model =
             , Cmd.none
             )
 
-        _ ->
-            ( model, Cmd.none )
+        UseDecodeStrategy strategy ->
+            ( { model | decodeStrategy = strategy }
+            , Cmd.none
+            )
+
+        DownloadSessionWithDate ->
+            Debug.todo "..."
+
+        DownloadSession time ->
+            case config.encodeMsg of
+                Just encodeMsg ->
+                    ( model
+                    , File.Download.string
+                        (case model.title of
+                            "" ->
+                                defaultTitle
+
+                            title ->
+                                title
+                        )
+                        "application/json"
+                        (encodeSession encodeMsg model)
+                    )
+
+                _ ->
+                    Debug.todo "..."
+
+        SelectSessionFile ->
+            if model.decodeError /= NoError then
+                ( { model | decodeError = NoError }
+                , Cmd.none
+                )
+
+            else
+                ( model
+                , File.Select.file
+                    [ "application/json" ]
+                    DecodeSession
+                )
+
+        DecodeSession file ->
+            case config.msgDecoder of
+                Just msgDecoder ->
+                    let
+                        decodeSession =
+                            Decode.decodeString <|
+                                sessionDecoder (dropCmd config.update)
+                                    msgDecoder
+                                    History.Decode.NoErrors
+                                    ( History.initialModel model.history
+                                    , model.initCmd
+                                    )
+                    in
+                    ( model
+                    , File.toString file
+                        |> Task.map decodeSession
+                        |> Task.andThen resultToTask
+                        |> Task.attempt SessionDecoded
+                    )
+
+                _ ->
+                    Debug.todo "..."
+
+        SessionDecoded result ->
+            case ( config.toCache, config.encodeMsg ) of
+                ( Just toCache, Just encodeMsg ) ->
+                    case result of
+                        Ok sessionModel ->
+                            ( sessionModel
+                            , Cmd.none
+                            )
+
+                        Err error ->
+                            ( { model | decodeError = ImportError error }
+                            , Cmd.none
+                            )
+
+                _ ->
+                    Debug.todo "..."
+
+        UpdateCacheThrottle ->
+            case ( config.toCache, config.encodeMsg ) of
+                ( Just toCache, Just encodeMsg ) ->
+                    Tuple.mapFirst
+                        (\throttle -> { model | cacheThrottle = throttle })
+                        (Throttle.update
+                            (toCache << encodeSession encodeMsg)
+                            UpdateCacheThrottle
+                            model.cacheThrottle
+                            model
+                        )
+
+                _ ->
+                    Debug.todo "..."
+
+        ToggleModelVisible ->
+            ( { model | isModelVisible = not model.isModelVisible }
+            , Cmd.none
+            )
+
+        InputTitle text ->
+            ( { model | title = text }
+            , Cmd.none
+            )
+
+        InputDescription text ->
+            ( { model | description = text }
+            , Cmd.none
+            )
+
+
+encodeSession : (msg -> Encode.Value) -> Model model msg -> String
+encodeSession encodeMsg model =
+    Encode.encode 0 <|
+        Encode.object
+            [ ( "history", History.encode encodeMsg model.history )
+            , ( "isModelVisible", Encode.bool model.isModelVisible )
+            , ( "decodeStrategy", History.Decode.encodeStrategy model.decodeStrategy )
+            , ( "title", Encode.string model.title )
+            , ( "description", Encode.string model.description )
+            ]
+
+
+sessionDecoder :
+    (msg -> model -> model)
+    -> Decoder msg
+    -> History.Decode.Strategy
+    -> ( model, Cmd msg )
+    -> Decoder (Model model msg)
+sessionDecoder updateApp msgDecoder strategy ( model, cmd ) =
+    Decode.map5
+        (\history decodeStrategy isModelVisible title description ->
+            { history = history
+            , initCmd = cmd
+            , decodeError = NoError
+            , decodeStrategy = decodeStrategy
+            , isModelVisible = isModelVisible
+            , cacheThrottle = Throttle.init
+            , title = title
+            , description = description
+            }
+        )
+        (Decode.field "history"
+            (History.Decode.fromStrategy
+                strategy
+                updateApp
+                msgDecoder
+                model
+            )
+        )
+        (Decode.field "decodeStrategy" History.Decode.strategyDecoder)
+        (Decode.field "isModelVisible" Decode.bool)
+        (Decode.field "title" Decode.string)
+        (Decode.field "description" Decode.string)
 
 
 view :
@@ -206,12 +361,12 @@ view config model =
 
 viewDevTools : Html (Msg model msg)
 viewDevTools =
-    Html.text ""
+    Html.text "DevTools TODO"
 
 
 viewModel : Html (Msg model msg)
 viewModel =
-    Html.text ""
+    Html.text "Model TODO"
 
 
 
@@ -219,9 +374,9 @@ viewModel =
 
 
 type SessionDecodeError
-    = NoDecodeError
-    | CacheDecodeError Decode.Error
-    | ImportDecodeError Decode.Error
+    = NoError
+    | CacheError Decode.Error
+    | ImportError Decode.Error
 
 
 
@@ -262,3 +417,13 @@ dropCmd :
     -> model
 dropCmd fn msg =
     Tuple.first << fn msg
+
+
+resultToTask : Result e a -> Task e a
+resultToTask result =
+    case result of
+        Ok value ->
+            Task.succeed value
+
+        Err error ->
+            Task.fail error
