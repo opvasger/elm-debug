@@ -245,22 +245,22 @@ viewFoot =
             , Font.color Style.white
             , spacing 40
             ]
-            [ viewFootColumn "This Project"
-                [ ( "github", "https://github.com/opvasger/elm-devtools" )
-                , ( "node.js module", "https://www.npmjs.com/package/elm-devtools" )
-                , ( "elm package", "https://package.elm-lang.org/packages/opvasger/devtools/latest/" )
-                ]
-            , viewFootColumn "Elm"
+            [ viewFootColumn "Elm"
                 [ ( "language website", "https://elm-lang.org" )
-                , ( "official guide", "https://guide.elm-lang.org" )
+                , ( "evan's guide", "https://guide.elm-lang.org" )
                 , ( "discourse", "https://discourse.elm-lang.org" )
+                ]
+            , viewFootColumn "DevTools"
+                [ ( "node.js module", "https://www.npmjs.com/package/elm-devtools" )
+                , ( "elm package", "https://package.elm-lang.org/packages/opvasger/devtools/latest/" )
+                , ( "github", "https://github.com/opvasger/elm-devtools" )
                 ]
             , el
                 [ centerX
                 , height fill
                 , paddingXY 0 30
                 ]
-                (viewFootColumn "Inspired By"
+                (viewFootColumn "..."
                     [ ( "0.18 debugger", "https://elm-lang.org/blog/the-perfect-bug-report" )
                     , ( "bret's principle", "https://www.youtube.com/watch?v=PUv66718DII" )
                     ]
