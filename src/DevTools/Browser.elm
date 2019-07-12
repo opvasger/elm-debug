@@ -9,7 +9,7 @@ module DevTools.Browser exposing
 
 import Browser
 import Browser.Navigation
-import DevTools.Browser.Program as Program
+import DevTools.Browser.Main as Main
 import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
@@ -17,7 +17,7 @@ import Url exposing (Url)
 
 
 type alias Program flags model msg =
-    Platform.Program flags (Program.Model model msg) (Program.Msg model msg)
+    Platform.Program flags (Main.Model model msg) (Main.Msg model msg)
 
 
 sandbox :
@@ -36,28 +36,30 @@ sandbox features app =
     Browser.document
         { init =
             \flags ->
-                Program.init
+                Main.init
                     { update = \msg model -> ( app.update msg model, Cmd.none )
                     , msgDecoder = config.msgDecoder
                     , init = ( app.init, Cmd.none )
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
                     }
         , view =
-            Program.view
+            Main.view
                 { encodeModel = config.encodeModel
                 , encodeMsg = config.encodeMsg
                 , view = \model -> { title = "", body = [ app.view model ] }
                 , update = \msg model -> ( app.update msg model, Cmd.none )
+                , isCacheEnabled = config.toCache /= Nothing
+                , isImportEnabled = config.msgDecoder /= Nothing
                 }
         , update =
-            Program.update
+            Main.update
                 { msgDecoder = config.msgDecoder
                 , encodeMsg = config.encodeMsg
                 , toCache = config.toCache
                 , update = \msg model -> ( app.update msg model, Cmd.none )
                 }
         , subscriptions =
-            Program.subscriptions
+            Main.subscriptions
                 { subscriptions = always Sub.none
                 , msgDecoder = config.msgDecoder
                 , update = \msg model -> ( app.update msg model, Cmd.none )
@@ -82,31 +84,33 @@ element features app =
     Browser.element
         { init =
             \flags ->
-                Program.init
+                Main.init
                     { update = app.update
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
                     }
         , view =
-            Program.view
+            Main.view
                 { encodeModel = config.encodeModel
                 , encodeMsg = config.encodeMsg
                 , view = app.view >> (\html -> { title = "", body = [ html ] })
                 , update = app.update
+                , isCacheEnabled = config.toCache /= Nothing
+                , isImportEnabled = config.msgDecoder /= Nothing
                 }
                 >> .body
                 >> List.head
                 >> Maybe.withDefault (Html.text "")
         , update =
-            Program.update
+            Main.update
                 { msgDecoder = config.msgDecoder
                 , encodeMsg = config.encodeMsg
                 , toCache = config.toCache
                 , update = app.update
                 }
         , subscriptions =
-            Program.subscriptions
+            Main.subscriptions
                 { msgDecoder = config.msgDecoder
                 , subscriptions = app.subscriptions
                 , update = app.update
@@ -131,28 +135,30 @@ document features app =
     Browser.document
         { init =
             \flags ->
-                Program.init
+                Main.init
                     { update = app.update
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
                     }
         , view =
-            Program.view
+            Main.view
                 { encodeModel = config.encodeModel
                 , encodeMsg = config.encodeMsg
                 , view = app.view
                 , update = app.update
+                , isCacheEnabled = config.toCache /= Nothing
+                , isImportEnabled = config.msgDecoder /= Nothing
                 }
         , update =
-            Program.update
+            Main.update
                 { msgDecoder = config.msgDecoder
                 , encodeMsg = config.encodeMsg
                 , update = app.update
                 , toCache = config.toCache
                 }
         , subscriptions =
-            Program.subscriptions
+            Main.subscriptions
                 { msgDecoder = config.msgDecoder
                 , subscriptions = app.subscriptions
                 , update = app.update
@@ -179,36 +185,38 @@ application features app =
     Browser.application
         { init =
             \flags url key ->
-                Program.init
+                Main.init
                     { update = app.update
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags url key
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
                     }
         , view =
-            Program.view
+            Main.view
                 { encodeModel = config.encodeModel
                 , encodeMsg = config.encodeMsg
                 , view = app.view
                 , update = app.update
+                , isCacheEnabled = config.toCache /= Nothing
+                , isImportEnabled = config.msgDecoder /= Nothing
                 }
         , update =
-            Program.update
+            Main.update
                 { msgDecoder = config.msgDecoder
                 , encodeMsg = config.encodeMsg
                 , update = app.update
                 , toCache = config.toCache
                 }
         , subscriptions =
-            Program.subscriptions
+            Main.subscriptions
                 { msgDecoder = config.msgDecoder
                 , subscriptions = app.subscriptions
                 , update = app.update
                 }
         , onUrlChange =
-            app.onUrlChange >> Program.urlUpdate
+            app.onUrlChange >> Main.urlUpdate
         , onUrlRequest =
-            app.onUrlRequest >> Program.urlUpdate
+            app.onUrlRequest >> Main.urlUpdate
         }
 
 
@@ -225,7 +233,7 @@ type Feature flags model msg
         { encodeMsg : msg -> Encode.Value
         , msgDecoder : Decoder msg
         , fromCache : flags -> Maybe String
-        , toCache : String -> Cmd (Program.Msg model msg)
+        , toCache : String -> Cmd (Main.Msg model msg)
         }
 
 
@@ -234,7 +242,7 @@ type alias Config flags model msg =
     , encodeMsg : Maybe (msg -> Encode.Value)
     , msgDecoder : Maybe (Decoder msg)
     , fromCache : Maybe (flags -> Maybe String)
-    , toCache : Maybe (String -> Cmd (Program.Msg model msg))
+    , toCache : Maybe (String -> Cmd (Main.Msg model msg))
     }
 
 

@@ -1,4 +1,4 @@
-module DevTools.Browser.Program exposing
+module DevTools.Browser.Main exposing
     ( Model
     , Msg
     , init
@@ -10,6 +10,9 @@ module DevTools.Browser.Program exposing
 
 import Browser
 import Browser.Events
+import DevTools.Browser.Element as Element
+import DevTools.Browser.Element.Icon as Icon exposing (Icon)
+import DevTools.Browser.Window as Window
 import File exposing (File)
 import File.Download
 import File.Select
@@ -37,12 +40,14 @@ type alias Model model msg =
     , decodeError : SessionDecodeError
     , cacheThrottle : Throttle.Model
 
-    -- Layout
-    , isModelVisible : Bool
-
     -- Report
     , title : String
     , description : String
+
+    -- Layout
+    , isModelVisible : Bool
+    , window : Window.Model
+    , focus : Maybe Icon
     }
 
 
@@ -61,11 +66,13 @@ type Msg model msg
     | DecodeSession File
     | SessionDecoded (Result Decode.Error (Model model msg))
     | UpdateCacheThrottle
-      -- Layout
-    | ToggleModelVisible
       -- Report
     | InputTitle String
     | InputDescription String
+      -- Layout
+    | ToggleModelVisible
+    | UpdateWindow Window.Msg
+    | UpdateFocus (Maybe Icon)
 
 
 defaultTitle : String
@@ -147,8 +154,12 @@ initWith decodeError ( model, cmd ) =
       , isModelVisible = False
       , description = ""
       , title = ""
+      , window = Tuple.first (Window.init True)
+      , focus = Nothing
       }
-    , Cmd.map (UpdateApp FromInit) cmd
+    , Cmd.batch
+        [ Cmd.map (UpdateApp FromInit) cmd
+        ]
     )
 
 
@@ -161,15 +172,19 @@ subscriptions :
     -> Model model msg
     -> Sub (Msg model msg)
 subscriptions config model =
-    if History.isReplay model.history then
-        Browser.Events.onKeyDown
-            (replayKeyDecoder model.history)
+    Sub.batch
+        [ Sub.map UpdateWindow
+            (Window.subscriptions model.window)
+        , if History.isReplay model.history then
+            Browser.Events.onKeyDown
+                (replayKeyDecoder model.history)
 
-    else
-        Sub.map (UpdateApp FromSubs)
-            (config.subscriptions
-                (History.currentModel model.history)
-            )
+          else
+            Sub.map (UpdateApp FromSubs)
+                (config.subscriptions
+                    (History.currentModel model.history)
+                )
+        ]
 
 
 update :
@@ -270,7 +285,7 @@ update config msg model =
                         )
 
                 _ ->
-                    Debug.todo "..."
+                    ( model, Cmd.none )
 
         SelectSessionFile ->
             if model.decodeError /= NoError then
@@ -306,7 +321,7 @@ update config msg model =
                     )
 
                 _ ->
-                    Debug.todo "..."
+                    ( model, Cmd.none )
 
         SessionDecoded result ->
             case ( config.toCache, config.encodeMsg ) of
@@ -324,7 +339,7 @@ update config msg model =
                             )
 
                 _ ->
-                    Debug.todo "..."
+                    ( model, Cmd.none )
 
         UpdateCacheThrottle ->
             case ( config.toCache, config.encodeMsg ) of
@@ -339,13 +354,7 @@ update config msg model =
                         )
 
                 _ ->
-                    Debug.todo "..."
-
-        ToggleModelVisible ->
-            cache
-                ( { model | isModelVisible = not model.isModelVisible }
-                , Cmd.none
-                )
+                    ( model, Cmd.none )
 
         InputTitle text ->
             cache
@@ -359,6 +368,23 @@ update config msg model =
                 , Cmd.none
                 )
 
+        ToggleModelVisible ->
+            cache
+                ( { model | isModelVisible = not model.isModelVisible }
+                , Cmd.none
+                )
+
+        UpdateWindow windowMsg ->
+            cache
+                ( { model | window = Window.update windowMsg model.window }
+                , Cmd.none
+                )
+
+        UpdateFocus maybeIcon ->
+            ( { model | focus = maybeIcon }
+            , Cmd.none
+            )
+
 
 view :
     { config
@@ -366,6 +392,8 @@ view :
         , update : msg -> model -> ( model, Cmd msg )
         , encodeMsg : Maybe (msg -> Encode.Value)
         , encodeModel : Maybe (model -> Encode.Value)
+        , isImportEnabled : Bool
+        , isCacheEnabled : Bool
     }
     -> Model model msg
     -> Browser.Document (Msg model msg)
@@ -377,21 +405,72 @@ view config model =
     in
     { title = app.title
     , body =
-        viewDevTools
-            :: viewModel
-            :: List.map (Html.map (UpdateApp FromView))
+        viewDevTools config model
+            :: Window.ignoreSelectOnMove model.window (viewModel config model)
+            :: List.map (Window.ignoreSelectOnMove model.window << Html.map (UpdateApp FromView))
                 app.body
     }
 
 
-viewDevTools : Html (Msg model msg)
-viewDevTools =
-    Html.text "DevTools TODO"
+viewDevTools :
+    { config
+        | encodeMsg : Maybe (msg -> Encode.Value)
+        , encodeModel : Maybe (model -> Encode.Value)
+        , isImportEnabled : Bool
+        , isCacheEnabled : Bool
+    }
+    -> Model model msg
+    -> Html (Msg model msg)
+viewDevTools config model =
+    Window.view UpdateWindow
+        model.window
+        { collapsed =
+            \expandMsg ->
+                [ Icon.viewExpand
+                    { focus = model.focus
+                    , onFocus = UpdateFocus
+                    , onClick = UpdateWindow expandMsg
+                    , title = "Expand the window"
+                    }
+                ]
+        , expanded =
+            { head =
+                \collapseMsg ->
+                    [ Icon.viewCollapse
+                        { focus = model.focus
+                        , onFocus = UpdateFocus
+                        , onClick = UpdateWindow collapseMsg
+                        , title = "Collapse the window"
+                        }
+                    ]
+            , body =
+                [ Html.text "body"
+                ]
+            , foot =
+                [ Html.text "foot"
+                ]
+            }
+        }
 
 
-viewModel : Html (Msg model msg)
-viewModel =
-    Html.text "Model TODO"
+viewModel :
+    { config
+        | encodeModel : Maybe (model -> Encode.Value)
+    }
+    -> Model model msg
+    -> Html (Msg model msg)
+viewModel config model =
+    case config.encodeModel of
+        Just encodeModel ->
+            Element.viewJson
+                { isVisible = model.isModelVisible
+                , value = History.currentModel model.history
+                , encodeValue = encodeModel
+                , noMsg = DoNothing
+                }
+
+        Nothing ->
+            Element.viewNothing
 
 
 
@@ -407,6 +486,7 @@ encodeSession encodeMsg model =
             , ( "decodeStrategy", History.Decode.encodeStrategy model.decodeStrategy )
             , ( "title", Encode.string model.title )
             , ( "description", Encode.string model.description )
+            , ( "window", Window.encode model.window )
             ]
 
 
@@ -417,8 +497,8 @@ sessionDecoder :
     -> History.Decode.Strategy
     -> Decoder (Model model msg)
 sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
-    Decode.map5
-        (\history decodeStrategy isModelVisible title description ->
+    Decode.map6
+        (\history decodeStrategy isModelVisible title description window ->
             { history = history
             , initCmd = cmd
             , decodeError = NoError
@@ -427,6 +507,8 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , cacheThrottle = Throttle.init
             , title = title
             , description = description
+            , window = window
+            , focus = Nothing
             }
         )
         (Decode.field "history"
@@ -441,6 +523,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
         (Decode.field "isModelVisible" Decode.bool)
         (Decode.field "title" Decode.string)
         (Decode.field "description" Decode.string)
+        (Decode.field "window" Window.decoder)
 
 
 sessionStrategyDecoder : Decoder History.Decode.Strategy
