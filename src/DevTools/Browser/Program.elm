@@ -9,6 +9,7 @@ module DevTools.Browser.Program exposing
     )
 
 import Browser
+import Browser.Events
 import File exposing (File)
 import File.Download
 import File.Select
@@ -93,116 +94,180 @@ urlUpdate =
 
 
 init :
-    { init : ( model, Cmd msg )
-    , update : msg -> model -> ( model, Cmd msg )
-    , msgDecoder : Maybe (Decoder msg)
-    , fromCache : Maybe String
+    { config
+        | init : ( model, Cmd msg )
+        , update : msg -> model -> ( model, Cmd msg )
+        , msgDecoder : Maybe (Decoder msg)
+        , fromCache : Maybe String
     }
     -> ( Model model msg, Cmd (Msg model msg) )
 init config =
-    ( { history = History.init (Tuple.first config.init)
-      , initCmd = Tuple.second config.init
-      , decodeError = NoError
+    case ( config.msgDecoder, config.fromCache ) of
+        ( Just msgDecoder, Just fromCache ) ->
+            initSession config.update msgDecoder fromCache config.init
+
+        _ ->
+            initWith NoError config.init
+
+
+initSession :
+    (msg -> model -> ( model, Cmd msg ))
+    -> Decoder msg
+    -> String
+    -> ( model, Cmd msg )
+    -> ( Model model msg, Cmd (Msg model msg) )
+initSession updateApp msgDecoder fromCache initApp =
+    let
+        strategy =
+            fromCache
+                |> Decode.decodeString sessionStrategyDecoder
+                |> Result.withDefault History.Decode.NoErrors
+
+        decoder =
+            sessionDecoder (dropCmd updateApp) msgDecoder initApp strategy
+    in
+    case Decode.decodeString decoder fromCache of
+        Ok model ->
+            ( model, Cmd.none )
+
+        Err decodeError ->
+            initWith (CacheError decodeError) initApp
+
+
+initWith :
+    SessionDecodeError
+    -> ( model, Cmd msg )
+    -> ( Model model msg, Cmd (Msg model msg) )
+initWith decodeError ( model, cmd ) =
+    ( { history = History.init model
+      , initCmd = cmd
+      , decodeError = decodeError
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
       , isModelVisible = False
       , description = ""
       , title = ""
       }
-    , Cmd.none
+    , Cmd.map (UpdateApp FromInit) cmd
     )
 
 
 subscriptions :
-    { update : msg -> model -> ( model, Cmd msg )
-    , subscriptions : model -> Sub msg
-    , msgDecoder : Maybe (Decoder msg)
+    { config
+        | update : msg -> model -> ( model, Cmd msg )
+        , subscriptions : model -> Sub msg
+        , msgDecoder : Maybe (Decoder msg)
     }
     -> Model model msg
     -> Sub (Msg model msg)
 subscriptions config model =
-    Sub.none
+    if History.isReplay model.history then
+        Browser.Events.onKeyDown
+            (replayKeyDecoder model.history)
+
+    else
+        Sub.map (UpdateApp FromSubs)
+            (config.subscriptions
+                (History.currentModel model.history)
+            )
 
 
 update :
-    { update : msg -> model -> ( model, Cmd msg )
-    , toCache : Maybe (String -> Cmd (Msg model msg))
-    , encodeMsg : Maybe (msg -> Encode.Value)
-    , msgDecoder : Maybe (Decoder msg)
+    { config
+        | update : msg -> model -> ( model, Cmd msg )
+        , toCache : Maybe (String -> Cmd (Msg model msg))
+        , encodeMsg : Maybe (msg -> Encode.Value)
+        , msgDecoder : Maybe (Decoder msg)
     }
     -> Msg model msg
     -> Model model msg
     -> ( Model model msg, Cmd (Msg model msg) )
 update config msg model =
+    let
+        cache =
+            cacheSession
+                { encodeMsg = config.encodeMsg
+                , toCache = config.toCache
+                }
+    in
     case msg of
         DoNothing ->
             ( model, Cmd.none )
 
         UpdateApp src appMsg ->
-            ( { model
-                | history =
-                    recordMsg src
-                        (dropCmd config.update)
-                        appMsg
-                        model.history
-              }
-            , History.currentModel model.history
-                |> config.update appMsg
-                |> Tuple.second
-                |> Cmd.map (UpdateApp FromUpdate)
-            )
+            cache
+                ( { model
+                    | history =
+                        recordMsg src
+                            (dropCmd config.update)
+                            appMsg
+                            model.history
+                  }
+                , History.currentModel model.history
+                    |> config.update appMsg
+                    |> Tuple.second
+                    |> Cmd.map (UpdateApp FromUpdate)
+                )
 
         RestartApp ->
-            ( { model
-                | history =
-                    History.restart model.history
-              }
-            , Cmd.map (UpdateApp FromInit) model.initCmd
-            )
+            cache
+                ( { model
+                    | history =
+                        History.restart model.history
+                  }
+                , Cmd.map (UpdateApp FromInit) model.initCmd
+                )
 
         ReplayApp index ->
-            ( { model
-                | history =
-                    History.replay (dropCmd config.update)
-                        index
-                        model.history
-              }
-            , Cmd.none
-            )
+            cache
+                ( { model
+                    | history =
+                        History.replay (dropCmd config.update)
+                            index
+                            model.history
+                  }
+                , Cmd.none
+                )
 
         ToggleAppReplay ->
-            ( { model
-                | history =
-                    History.toggleReplay
-                        (dropCmd config.update)
-                        model.history
-              }
-            , Cmd.none
-            )
+            cache
+                ( { model
+                    | history =
+                        History.toggleReplay
+                            (dropCmd config.update)
+                            model.history
+                  }
+                , Cmd.none
+                )
 
         UseDecodeStrategy strategy ->
-            ( { model | decodeStrategy = strategy }
-            , Cmd.none
-            )
+            cache
+                ( { model | decodeStrategy = strategy }
+                , Cmd.none
+                )
 
         DownloadSessionWithDate ->
-            Debug.todo "..."
+            cache
+                ( model
+                , Task.perform DownloadSession Time.now
+                )
 
         DownloadSession time ->
             case config.encodeMsg of
                 Just encodeMsg ->
-                    ( model
-                    , File.Download.string
-                        (case model.title of
-                            "" ->
-                                defaultTitle
+                    cache
+                        ( model
+                        , File.Download.string
+                            (case model.title of
+                                "" ->
+                                    defaultTitle
 
-                            title ->
-                                title
+                                title ->
+                                    title
+                            )
+                            "application/json"
+                            (encodeSession encodeMsg model)
                         )
-                        "application/json"
-                        (encodeSession encodeMsg model)
-                    )
 
                 _ ->
                     Debug.todo "..."
@@ -228,10 +293,10 @@ update config msg model =
                             Decode.decodeString <|
                                 sessionDecoder (dropCmd config.update)
                                     msgDecoder
-                                    History.Decode.NoErrors
                                     ( History.initialModel model.history
                                     , model.initCmd
                                     )
+                                    History.Decode.NoErrors
                     in
                     ( model
                     , File.toString file
@@ -248,9 +313,10 @@ update config msg model =
                 ( Just toCache, Just encodeMsg ) ->
                     case result of
                         Ok sessionModel ->
-                            ( sessionModel
-                            , Cmd.none
-                            )
+                            cache
+                                ( sessionModel
+                                , Cmd.none
+                                )
 
                         Err error ->
                             ( { model | decodeError = ImportError error }
@@ -276,19 +342,60 @@ update config msg model =
                     Debug.todo "..."
 
         ToggleModelVisible ->
-            ( { model | isModelVisible = not model.isModelVisible }
-            , Cmd.none
-            )
+            cache
+                ( { model | isModelVisible = not model.isModelVisible }
+                , Cmd.none
+                )
 
         InputTitle text ->
-            ( { model | title = text }
-            , Cmd.none
-            )
+            cache
+                ( { model | title = text }
+                , Cmd.none
+                )
 
         InputDescription text ->
-            ( { model | description = text }
-            , Cmd.none
-            )
+            cache
+                ( { model | description = text }
+                , Cmd.none
+                )
+
+
+view :
+    { config
+        | view : model -> Browser.Document msg
+        , update : msg -> model -> ( model, Cmd msg )
+        , encodeMsg : Maybe (msg -> Encode.Value)
+        , encodeModel : Maybe (model -> Encode.Value)
+    }
+    -> Model model msg
+    -> Browser.Document (Msg model msg)
+view config model =
+    let
+        app =
+            config.view
+                (History.currentModel model.history)
+    in
+    { title = app.title
+    , body =
+        viewDevTools
+            :: viewModel
+            :: List.map (Html.map (UpdateApp FromView))
+                app.body
+    }
+
+
+viewDevTools : Html (Msg model msg)
+viewDevTools =
+    Html.text "DevTools TODO"
+
+
+viewModel : Html (Msg model msg)
+viewModel =
+    Html.text "Model TODO"
+
+
+
+-- Session
 
 
 encodeSession : (msg -> Encode.Value) -> Model model msg -> String
@@ -306,10 +413,10 @@ encodeSession encodeMsg model =
 sessionDecoder :
     (msg -> model -> model)
     -> Decoder msg
-    -> History.Decode.Strategy
     -> ( model, Cmd msg )
+    -> History.Decode.Strategy
     -> Decoder (Model model msg)
-sessionDecoder updateApp msgDecoder strategy ( model, cmd ) =
+sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
     Decode.map5
         (\history decodeStrategy isModelVisible title description ->
             { history = history
@@ -330,43 +437,37 @@ sessionDecoder updateApp msgDecoder strategy ( model, cmd ) =
                 model
             )
         )
-        (Decode.field "decodeStrategy" History.Decode.strategyDecoder)
+        sessionStrategyDecoder
         (Decode.field "isModelVisible" Decode.bool)
         (Decode.field "title" Decode.string)
         (Decode.field "description" Decode.string)
 
 
-view :
-    { view : model -> Browser.Document msg
-    , update : msg -> model -> ( model, Cmd msg )
+sessionStrategyDecoder : Decoder History.Decode.Strategy
+sessionStrategyDecoder =
+    Decode.field "decodeStrategy" History.Decode.strategyDecoder
+
+
+cacheSession :
+    { toCache : Maybe (String -> Cmd (Msg model msg))
     , encodeMsg : Maybe (msg -> Encode.Value)
-    , encodeModel : Maybe (model -> Encode.Value)
     }
-    -> Model model msg
-    -> Browser.Document (Msg model msg)
-view config model =
-    let
-        { title, body } =
-            config.view
-                (History.currentModel model.history)
-    in
-    { title = title
-    , body =
-        viewDevTools
-            :: viewModel
-            :: List.map (Html.map (UpdateApp FromView))
-                body
-    }
+    -> ( Model model msg, Cmd (Msg model msg) )
+    -> ( Model model msg, Cmd (Msg model msg) )
+cacheSession config ( model, cmd ) =
+    case ( config.toCache, config.encodeMsg ) of
+        ( Just toCache, Just encodeMsg ) ->
+            Tuple.mapBoth
+                (\throttle -> { model | cacheThrottle = throttle })
+                (\cacheCmd -> Cmd.batch [ cacheCmd, cmd ])
+                (Throttle.emit (toCache << encodeSession encodeMsg)
+                    UpdateCacheThrottle
+                    model.cacheThrottle
+                    model
+                )
 
-
-viewDevTools : Html (Msg model msg)
-viewDevTools =
-    Html.text "DevTools TODO"
-
-
-viewModel : Html (Msg model msg)
-viewModel =
-    Html.text "Model TODO"
+        _ ->
+            ( model, cmd )
 
 
 
@@ -377,6 +478,19 @@ type SessionDecodeError
     = NoError
     | CacheError Decode.Error
     | ImportError Decode.Error
+
+
+printSessionDecodeError : SessionDecodeError -> String
+printSessionDecodeError error =
+    case error of
+        NoError ->
+            ""
+
+        CacheError decodeError ->
+            Decode.errorToString decodeError
+
+        ImportError decodeError ->
+            Decode.errorToString decodeError
 
 
 
@@ -408,6 +522,27 @@ recordMsg src =
 
 
 --
+
+
+replayKeyDecoder : History model msg -> Decoder (Msg model msg)
+replayKeyDecoder history =
+    let
+        replayBy diff =
+            ReplayApp (History.currentIndex history + diff)
+
+        toReplayMsg keyCode =
+            case keyCode of
+                37 ->
+                    Decode.succeed (replayBy -1)
+
+                39 ->
+                    Decode.succeed (replayBy 1)
+
+                _ ->
+                    Decode.fail ""
+    in
+    Decode.andThen toReplayMsg
+        (Decode.field "keyCode" Decode.int)
 
 
 dropCmd :
