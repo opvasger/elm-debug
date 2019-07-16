@@ -422,11 +422,32 @@ viewDevTools :
     -> Model model msg
     -> Html (Msg model msg)
 viewDevTools config model =
+    let
+        viewModelButton =
+            case config.encodeModel of
+                Just encodeModel ->
+                    Icon.viewModel
+                        { focus = model.focus
+                        , onFocus = UpdateFocus
+                        , onClick = ToggleModelVisible
+                        , title =
+                            if model.isModelVisible then
+                                "Hide model"
+
+                            else
+                                "View model"
+                        , isEnabled = model.isModelVisible
+                        }
+
+                Nothing ->
+                    Element.viewNothing
+    in
     Window.view UpdateWindow
         model.window
         { collapsed =
             \expandMsg ->
-                [ Icon.viewExpand
+                [ viewModelButton
+                , Icon.viewExpand
                     { focus = model.focus
                     , onFocus = UpdateFocus
                     , onClick = UpdateWindow expandMsg
@@ -436,7 +457,8 @@ viewDevTools config model =
         , expanded =
             { head =
                 \collapseMsg ->
-                    [ Icon.viewCollapse
+                    [ viewModelButton
+                    , Icon.viewCollapse
                         { focus = model.focus
                         , onFocus = UpdateFocus
                         , onClick = UpdateWindow collapseMsg
