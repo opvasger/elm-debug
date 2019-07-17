@@ -1,6 +1,8 @@
 module DevTools.Browser.Element exposing
-    ( viewJson
+    ( viewDivider
+    , viewJson
     , viewNothing
+    , viewRow
     , viewText
     , viewTextArea
     )
@@ -16,6 +18,15 @@ import JsonTree
 viewNothing : Html msg
 viewNothing =
     text ""
+
+
+viewRow : List (Html msg) -> Html msg
+viewRow =
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "row"
+        , style "flex-grow" "1"
+        ]
 
 
 viewJson :
@@ -54,7 +65,7 @@ viewJson config =
             ]
 
     else
-        text ""
+        viewNothing
 
 
 viewText :
@@ -95,5 +106,16 @@ viewTextArea config =
         , placeholder config.placeholder
         , value config.value
         , onInput config.onInput
+        ]
+        []
+
+
+viewDivider : Html msg
+viewDivider =
+    div
+        [ style "height" "15px"
+        , style "width" "1px"
+        , style "background-color" "#cccccc"
+        , style "margin" "0 3.5px"
         ]
         []

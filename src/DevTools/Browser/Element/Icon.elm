@@ -67,7 +67,7 @@ viewExpand :
 viewExpand config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 24 24"
+        , viewBox "0 0 26 26"
         , onMouseOver (config.onFocus (Just Expand))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -96,7 +96,7 @@ viewModel :
 viewModel config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 25 25"
+        , viewBox "-6 -1 30 28"
         , onMouseOver (config.onFocus (Just ViewModel))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -211,7 +211,7 @@ viewRestart :
 viewRestart config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 24 24"
+        , viewBox "-1 -1 26 26"
         , onMouseOver (config.onFocus (Just Restart))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -239,7 +239,7 @@ viewPlay :
 viewPlay config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 24 24"
+        , viewBox "2 2 22 22"
         , onMouseOver (config.onFocus (Just Play))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick

@@ -12,6 +12,7 @@ import Browser
 import Browser.Events
 import DevTools.Browser.Element as Element
 import DevTools.Browser.Element.Icon as Icon exposing (Icon)
+import DevTools.Browser.Element.Range as Range
 import DevTools.Browser.Window as Window
 import File exposing (File)
 import File.Download
@@ -47,6 +48,7 @@ type alias Model model msg =
 
     -- Layout
     , modelView : JsonTree.State
+    , rangeInput : Range.Model
     , isModelVisible : Bool
     , window : Window.Model
     , focus : Maybe Icon
@@ -76,6 +78,7 @@ type Msg model msg
     | ToggleModelVisible
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
+    | UpdateRange Range.Msg
 
 
 defaultTitle : String
@@ -162,6 +165,7 @@ initWith decodeError ( model, cmd ) =
       , window = Tuple.first (Window.init True)
       , focus = Nothing
       , modelView = JsonTree.defaultState
+      , rangeInput = Range.init
       }
     , Cmd.batch
         [ Cmd.map (UpdateApp FromInit) cmd
@@ -183,8 +187,11 @@ subscriptions config model =
         [ Sub.map UpdateWindow
             (Window.subscriptions model.window)
         , if History.isReplay model.history then
-            Browser.Events.onKeyDown
-                (replayKeyDecoder model.history)
+            Range.subscriptions
+                { onMove = ReplayApp
+                , value = History.currentIndex model.history
+                , max = History.length model.history
+                }
 
           else
             Sub.map (UpdateApp FromSubs)
@@ -391,6 +398,11 @@ update config msg model =
             , Cmd.none
             )
 
+        UpdateRange rangeMsg ->
+            ( { model | rangeInput = Range.update rangeMsg model.rangeInput }
+            , Cmd.none
+            )
+
 
 view :
     { config
@@ -432,21 +444,25 @@ viewDevTools config model =
         model.window
         { collapsed =
             \expandMsg ->
-                [ viewModelButton config.encodeModel model.isModelVisible model.focus
-                , viewRestartButton model.focus
-                , viewToggleReplayButton model.history model.focus
-                , viewDownloadButton config.encodeMsg model.focus
-                , viewUploadButton config.isImportEnabled model.focus
-                , viewExpandButton expandMsg model.focus
+                [ viewModelButton config.encodeModel model
+                , Element.viewDivider
+                , viewRestartButton model
+                , viewReplayRange model
+                , viewToggleReplayButton model
+                , Element.viewDivider
+                , viewExpandButton expandMsg model
                 ]
         , expanded =
             { head =
                 \collapseMsg dismissMsg ->
-                    [ viewModelButton config.encodeModel model.isModelVisible model.focus
-                    , viewDownloadButton config.encodeMsg model.focus
-                    , viewUploadButton config.isImportEnabled model.focus
-                    , viewDismissButton dismissMsg model.focus
-                    , viewCollapseButton collapseMsg model.focus
+                    [ viewModelButton config.encodeModel model
+                    , viewDownloadButton config.encodeMsg model
+                    , viewUploadButton config.isImportEnabled model
+                    , Element.viewDivider
+                    , Element.viewRow []
+                    , Element.viewDivider
+                    , viewDismissButton dismissMsg model
+                    , viewCollapseButton collapseMsg model
                     ]
             , body =
                 [ Element.viewText
@@ -461,18 +477,39 @@ viewDevTools config model =
                     }
                 ]
             , foot =
-                [ viewRestartButton model.focus
-                , viewToggleReplayButton model.history model.focus
+                [ viewRestartButton model
+                , viewReplayRange model
+                , viewToggleReplayButton model
                 ]
             }
         }
 
 
-viewToggleReplayButton : History model msg -> Maybe Icon -> Html (Msg model msg)
-viewToggleReplayButton history focus =
-    if History.isReplay history then
+viewReplayRange :
+    { config
+        | rangeInput : Range.Model
+        , history : History model msg
+    }
+    -> Html (Msg model msg)
+viewReplayRange model =
+    Range.view model.rangeInput
+        { onUpdate = UpdateRange
+        , onMove = ReplayApp
+        , max = History.length model.history
+        , value = History.currentIndex model.history
+        }
+
+
+viewToggleReplayButton :
+    { config
+        | history : History model msg
+        , focus : Maybe Icon
+    }
+    -> Html (Msg model msg)
+viewToggleReplayButton model =
+    if History.isReplay model.history then
         Icon.viewPlay
-            { focus = focus
+            { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleAppReplay
             , title = "Start the application"
@@ -480,58 +517,72 @@ viewToggleReplayButton history focus =
 
     else
         Icon.viewPause
-            { focus = focus
+            { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleAppReplay
             , title = "Pause the application"
             }
 
 
-viewRestartButton : Maybe Icon -> Html (Msg model msg)
-viewRestartButton focus =
+viewRestartButton :
+    { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewRestartButton model =
     Icon.viewRestart
-        { focus = focus
+        { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = RestartApp
         , title = "Restart the application"
         }
 
 
-viewDismissButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
-viewDismissButton dismissMsg focus =
+viewDismissButton :
+    Window.Msg
+    -> { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewDismissButton dismissMsg model =
     Icon.viewDismiss
-        { focus = focus
+        { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow dismissMsg
         , title = "Dismiss the window"
         }
 
 
-viewCollapseButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
-viewCollapseButton collapseMsg focus =
+viewCollapseButton :
+    Window.Msg
+    -> { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewCollapseButton collapseMsg model =
     Icon.viewCollapse
-        { focus = focus
+        { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow collapseMsg
         , title = "Collapse the window"
         }
 
 
-viewExpandButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
-viewExpandButton expandMsg focus =
+viewExpandButton :
+    Window.Msg
+    -> { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewExpandButton expandMsg model =
     Icon.viewExpand
-        { focus = focus
+        { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow expandMsg
         , title = "Expand the window"
         }
 
 
-viewDownloadButton : Maybe (msg -> Encode.Value) -> Maybe Icon -> Html (Msg model msg)
-viewDownloadButton encodeMsg focus =
+viewDownloadButton :
+    Maybe (msg -> Encode.Value)
+    -> { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewDownloadButton encodeMsg model =
     if encodeMsg /= Nothing then
         Icon.viewDownload
-            { focus = focus
+            { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = DownloadSessionWithDate
             , title = "Download session"
@@ -541,11 +592,14 @@ viewDownloadButton encodeMsg focus =
         Element.viewNothing
 
 
-viewUploadButton : Bool -> Maybe Icon -> Html (Msg model msg)
-viewUploadButton isImportEnabled focus =
+viewUploadButton :
+    Bool
+    -> { config | focus : Maybe Icon }
+    -> Html (Msg model msg)
+viewUploadButton isImportEnabled model =
     if isImportEnabled then
         Icon.viewUpload
-            { focus = focus
+            { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = SelectSessionFile
             , title = "Upload session"
@@ -557,22 +611,21 @@ viewUploadButton isImportEnabled focus =
 
 viewModelButton :
     Maybe (model -> Encode.Value)
-    -> Bool
-    -> Maybe Icon
+    -> { config | focus : Maybe Icon, isModelVisible : Bool }
     -> Html (Msg model msg)
-viewModelButton encodeModel isModelVisible focus =
+viewModelButton encodeModel model =
     if encodeModel /= Nothing then
         Icon.viewModel
-            { focus = focus
+            { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleModelVisible
             , title =
-                if isModelVisible then
+                if model.isModelVisible then
                     "Hide model"
 
                 else
                     "View model"
-            , isEnabled = isModelVisible
+            , isEnabled = model.isModelVisible
             }
 
     else
@@ -637,6 +690,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , window = window
             , focus = Nothing
             , modelView = JsonTree.defaultState
+            , rangeInput = Range.init
             }
         )
         (Decode.field "history"
@@ -743,27 +797,6 @@ recordMsg src =
 
         _ ->
             History.record
-
-
-replayKeyDecoder : History model msg -> Decoder (Msg model msg)
-replayKeyDecoder history =
-    let
-        replayBy diff =
-            ReplayApp (History.currentIndex history + diff)
-
-        toReplayMsg keyCode =
-            case keyCode of
-                37 ->
-                    Decode.succeed (replayBy -1)
-
-                39 ->
-                    Decode.succeed (replayBy 1)
-
-                _ ->
-                    Decode.fail ""
-    in
-    Decode.andThen toReplayMsg
-        (Decode.field "keyCode" Decode.int)
 
 
 

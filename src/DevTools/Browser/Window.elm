@@ -182,7 +182,7 @@ view msg model { collapsed, expanded } =
             , style "position" "fixed"
             , style "border" "1px solid #cccccc"
             , style "background-color" "#f3f3f3"
-            , style "transition" "box-shadow .25s ease-out, transform .25s ease-out"
+            , style "transition" "box-shadow .25s .25s ease-out, transform .25s .25s ease-out"
             , style "box-shadow"
                 (if isMoving model then
                     "0px 1px 8px -4px"
