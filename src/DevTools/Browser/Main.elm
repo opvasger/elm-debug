@@ -46,10 +46,10 @@ type alias Model model msg =
     , description : String
 
     -- Layout
+    , modelView : JsonTree.State
     , isModelVisible : Bool
     , window : Window.Model
     , focus : Maybe Icon
-    , modelView : JsonTree.State
     }
 
 
@@ -72,10 +72,10 @@ type Msg model msg
     | InputTitle String
     | InputDescription String
       -- Layout
+    | UpdateModelView JsonTree.State
     | ToggleModelVisible
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
-    | UpdateModelView JsonTree.State
 
 
 defaultTitle : String
@@ -440,6 +440,7 @@ viewDevTools config model =
             \expandMsg ->
                 [ viewModelButton config.encodeModel model.isModelVisible model.focus
                 , viewRestartButton model.focus
+                , viewToggleReplayButton model.history model.focus
                 , viewDownloadButton config.encodeMsg model.focus
                 , viewUploadButton config.isImportEnabled model.focus
                 , viewExpandButton expandMsg model.focus
@@ -457,9 +458,29 @@ viewDevTools config model =
                 []
             , foot =
                 [ viewRestartButton model.focus
+                , viewToggleReplayButton model.history model.focus
                 ]
             }
         }
+
+
+viewToggleReplayButton : History model msg -> Maybe Icon -> Html (Msg model msg)
+viewToggleReplayButton history focus =
+    if History.isReplay history then
+        Icon.viewPlay
+            { focus = focus
+            , onFocus = UpdateFocus
+            , onClick = ToggleAppReplay
+            , title = "Start the application"
+            }
+
+    else
+        Icon.viewPause
+            { focus = focus
+            , onFocus = UpdateFocus
+            , onClick = ToggleAppReplay
+            , title = "Pause the application"
+            }
 
 
 viewRestartButton : Maybe Icon -> Html (Msg model msg)
