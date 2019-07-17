@@ -35,6 +35,7 @@ type Msg
     | StopMove
     | ResizeViewport ( Int, Int )
     | ToggleCollapsed
+    | Dismiss
 
 
 collapsedHeight : Int
@@ -121,6 +122,12 @@ update msg model =
         ToggleCollapsed ->
             { model | isCollapsed = not model.isCollapsed }
 
+        Dismiss ->
+            { model
+                | isCollapsed = True
+                , position = model.viewport
+            }
+
 
 shrinkCollapsed : Bool -> ( Int, Int ) -> ( Int, Int )
 shrinkCollapsed isCollapsed ( width, height ) =
@@ -137,7 +144,7 @@ view :
     ->
         { collapsed : Msg -> List (Html msg)
         , expanded :
-            { head : Msg -> List (Html msg)
+            { head : Msg -> Msg -> List (Html msg)
             , body : List (Html msg)
             , foot : List (Html msg)
             }
@@ -210,7 +217,7 @@ view msg model { collapsed, expanded } =
                         |> Maybe.withDefault "grab"
                     )
                 ]
-                (expanded.head ToggleCollapsed)
+                (expanded.head ToggleCollapsed Dismiss)
             , div
                 [ style "display" "flex"
                 , style "flex-direction" "column"

@@ -439,23 +439,46 @@ viewDevTools config model =
         { collapsed =
             \expandMsg ->
                 [ viewModelButton config.encodeModel model.isModelVisible model.focus
+                , viewRestartButton model.focus
                 , viewDownloadButton config.encodeMsg model.focus
                 , viewUploadButton config.isImportEnabled model.focus
                 , viewExpandButton expandMsg model.focus
                 ]
         , expanded =
             { head =
-                \collapseMsg ->
+                \collapseMsg dismissMsg ->
                     [ viewModelButton config.encodeModel model.isModelVisible model.focus
                     , viewDownloadButton config.encodeMsg model.focus
                     , viewUploadButton config.isImportEnabled model.focus
+                    , viewDismissButton dismissMsg model.focus
                     , viewCollapseButton collapseMsg model.focus
                     ]
             , body =
                 []
             , foot =
-                []
+                [ viewRestartButton model.focus
+                ]
             }
+        }
+
+
+viewRestartButton : Maybe Icon -> Html (Msg model msg)
+viewRestartButton focus =
+    Icon.viewRestart
+        { focus = focus
+        , onFocus = UpdateFocus
+        , onClick = RestartApp
+        , title = "Restart the application"
+        }
+
+
+viewDismissButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
+viewDismissButton dismissMsg focus =
+    Icon.viewDismiss
+        { focus = focus
+        , onFocus = UpdateFocus
+        , onClick = UpdateWindow dismissMsg
+        , title = "Dismiss the window"
         }
 
 
