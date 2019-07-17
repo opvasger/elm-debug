@@ -167,9 +167,9 @@ view msg model { collapsed, expanded } =
 
         ( left, top ) =
             clampPos ( 0, 0 )
-                (diffPos
-                    (shrinkCollapsed model.isCollapsed model.size)
-                    model.viewport
+                (model.viewport
+                    |> diffPos (shrinkCollapsed model.isCollapsed model.size)
+                    |> diffPos ( 20, 20 )
                 )
                 model.position
     in
@@ -182,6 +182,21 @@ view msg model { collapsed, expanded } =
             , style "position" "fixed"
             , style "border" "1px solid #cccccc"
             , style "background-color" "#f3f3f3"
+            , style "transition" "box-shadow .25s ease-out, transform .25s ease-out"
+            , style "box-shadow"
+                (if isMoving model then
+                    "0px 1px 8px -4px"
+
+                 else
+                    "0px 0px 6px -4px"
+                )
+            , style "transform"
+                (if isMoving model then
+                    "translate(0px, -1px)"
+
+                 else
+                    "translate(0px, 0px)"
+                )
             , style "z-index" (String.fromInt 2147483647)
             , style "left" (px left)
             , style "top" (px top)

@@ -39,7 +39,7 @@ viewJson config =
             [ case JsonTree.parseValue (config.encodeValue config.value) of
                 Ok tree ->
                     div
-                        [ style "padding" "5vh 0vw 5vh 5vh"
+                        [ style "padding" "20px 0vw 20px 20px"
                         ]
                         [ JsonTree.view tree
                             { onSelect = Nothing
