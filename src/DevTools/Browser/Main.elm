@@ -434,57 +434,101 @@ viewDevTools :
     -> Model model msg
     -> Html (Msg model msg)
 viewDevTools config model =
-    let
-        viewModelButton =
-            case config.encodeModel of
-                Just encodeModel ->
-                    Icon.viewModel
-                        { focus = model.focus
-                        , onFocus = UpdateFocus
-                        , onClick = ToggleModelVisible
-                        , title =
-                            if model.isModelVisible then
-                                "Hide model"
-
-                            else
-                                "View model"
-                        , isEnabled = model.isModelVisible
-                        }
-
-                Nothing ->
-                    Element.viewNothing
-    in
     Window.view UpdateWindow
         model.window
         { collapsed =
             \expandMsg ->
-                [ viewModelButton
-                , Icon.viewExpand
-                    { focus = model.focus
-                    , onFocus = UpdateFocus
-                    , onClick = UpdateWindow expandMsg
-                    , title = "Expand the window"
-                    }
+                [ viewModelButton config.encodeModel model.isModelVisible model.focus
+                , viewDownloadButton config.encodeMsg model.focus
+                , viewUploadButton config.isImportEnabled model.focus
+                , viewExpandButton expandMsg model.focus
                 ]
         , expanded =
             { head =
                 \collapseMsg ->
-                    [ viewModelButton
-                    , Icon.viewCollapse
-                        { focus = model.focus
-                        , onFocus = UpdateFocus
-                        , onClick = UpdateWindow collapseMsg
-                        , title = "Collapse the window"
-                        }
+                    [ viewModelButton config.encodeModel model.isModelVisible model.focus
+                    , viewDownloadButton config.encodeMsg model.focus
+                    , viewUploadButton config.isImportEnabled model.focus
+                    , viewCollapseButton collapseMsg model.focus
                     ]
             , body =
-                [ Html.text "body"
-                ]
+                []
             , foot =
-                [ Html.text "foot"
-                ]
+                []
             }
         }
+
+
+viewCollapseButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
+viewCollapseButton collapseMsg focus =
+    Icon.viewCollapse
+        { focus = focus
+        , onFocus = UpdateFocus
+        , onClick = UpdateWindow collapseMsg
+        , title = "Collapse the window"
+        }
+
+
+viewExpandButton : Window.Msg -> Maybe Icon -> Html (Msg model msg)
+viewExpandButton expandMsg focus =
+    Icon.viewExpand
+        { focus = focus
+        , onFocus = UpdateFocus
+        , onClick = UpdateWindow expandMsg
+        , title = "Expand the window"
+        }
+
+
+viewDownloadButton : Maybe (msg -> Encode.Value) -> Maybe Icon -> Html (Msg model msg)
+viewDownloadButton encodeMsg focus =
+    if encodeMsg /= Nothing then
+        Icon.viewDownload
+            { focus = focus
+            , onFocus = UpdateFocus
+            , onClick = DownloadSessionWithDate
+            , title = "Download session"
+            }
+
+    else
+        Element.viewNothing
+
+
+viewUploadButton : Bool -> Maybe Icon -> Html (Msg model msg)
+viewUploadButton isImportEnabled focus =
+    if isImportEnabled then
+        Icon.viewUpload
+            { focus = focus
+            , onFocus = UpdateFocus
+            , onClick = SelectSessionFile
+            , title = "Upload session"
+            }
+
+    else
+        Element.viewNothing
+
+
+viewModelButton :
+    Maybe (model -> Encode.Value)
+    -> Bool
+    -> Maybe Icon
+    -> Html (Msg model msg)
+viewModelButton encodeModel isModelVisible focus =
+    if encodeModel /= Nothing then
+        Icon.viewModel
+            { focus = focus
+            , onFocus = UpdateFocus
+            , onClick = ToggleModelVisible
+            , title =
+                if isModelVisible then
+                    "Hide model"
+
+                else
+                    "View model"
+            , isEnabled = isModelVisible
+            }
+
+    else
+        Element.viewNothing
 
 
 viewModel :

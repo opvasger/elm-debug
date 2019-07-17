@@ -1,8 +1,10 @@
 module DevTools.Browser.Element.Icon exposing
     ( Icon
     , viewCollapse
+    , viewDownload
     , viewExpand
     , viewModel
+    , viewUpload
     )
 
 import Html exposing (Html)
@@ -15,6 +17,8 @@ type Icon
     = Collapse
     | Expand
     | ViewModel
+    | Upload
+    | Download
 
 
 viewCollapse :
@@ -100,6 +104,62 @@ viewModel config =
               else
                 fill "#6e6e6e"
             , d "M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z"
+            ]
+            []
+        ]
+
+
+viewUpload :
+    { onFocus : Maybe Icon -> msg
+    , onClick : msg
+    , title : String
+    , focus : Maybe Icon
+    }
+    -> Html msg
+viewUpload config =
+    svg
+        [ style "width:20px;height:20px;cursor:pointer;"
+        , viewBox "0 0 24 24"
+        , onMouseOver (config.onFocus (Just Upload))
+        , onMouseOut (config.onFocus Nothing)
+        , onClick config.onClick
+        ]
+        [ title [] [ text config.title ]
+        , path
+            [ if config.focus == Just Upload then
+                fill "black"
+
+              else
+                fill "#6e6e6e"
+            , d "M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"
+            ]
+            []
+        ]
+
+
+viewDownload :
+    { onFocus : Maybe Icon -> msg
+    , onClick : msg
+    , title : String
+    , focus : Maybe Icon
+    }
+    -> Html msg
+viewDownload config =
+    svg
+        [ style "width:20px;height:20px;cursor:pointer;"
+        , viewBox "0 0 24 24"
+        , onMouseOver (config.onFocus (Just Download))
+        , onMouseOut (config.onFocus Nothing)
+        , onClick config.onClick
+        ]
+        [ title [] [ text config.title ]
+        , path
+            [ if config.focus == Just Download then
+                fill "black"
+
+              else
+                fill "#6e6e6e"
+            , d "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
             ]
             []
         ]
