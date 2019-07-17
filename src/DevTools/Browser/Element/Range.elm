@@ -59,10 +59,6 @@ view :
         }
     -> Html msg
 view model config =
-    let
-        _ =
-            Debug.log "config" config
-    in
     div
         [ style "display" "flex"
         , style "flex-direction" "row"
