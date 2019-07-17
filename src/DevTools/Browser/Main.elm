@@ -280,13 +280,7 @@ update config msg model =
                     cache
                         ( model
                         , File.Download.string
-                            (case model.title of
-                                "" ->
-                                    defaultTitle
-
-                                title ->
-                                    title
-                            )
+                            (toSessionTitle time model.title)
                             "application/json"
                             (encodeSession encodeMsg model)
                         )
@@ -455,7 +449,17 @@ viewDevTools config model =
                     , viewCollapseButton collapseMsg model.focus
                     ]
             , body =
-                []
+                [ Element.viewText
+                    { value = model.title
+                    , placeholder = defaultTitle
+                    , onInput = InputTitle
+                    }
+                , Element.viewTextArea
+                    { value = model.description
+                    , placeholder = descriptionPlaceholder
+                    , onInput = InputDescription
+                    }
+                ]
             , foot =
                 [ viewRestartButton model.focus
                 , viewToggleReplayButton model.history model.focus
@@ -677,6 +681,20 @@ cacheSession config ( model, cmd ) =
             ( model, cmd )
 
 
+toSessionTitle : Time.Posix -> String -> String
+toSessionTitle time title =
+    let
+        fileTitle =
+            case title of
+                "" ->
+                    defaultTitle
+
+                _ ->
+                    title
+    in
+    fileTitle ++ "." ++ printUtcDate time ++ ".json"
+
+
 
 -- SessionDecodeError
 
@@ -727,10 +745,6 @@ recordMsg src =
             History.record
 
 
-
---
-
-
 replayKeyDecoder : History model msg -> Decoder (Msg model msg)
 replayKeyDecoder history =
     let
@@ -752,6 +766,10 @@ replayKeyDecoder history =
         (Decode.field "keyCode" Decode.int)
 
 
+
+-- Helpers
+
+
 dropCmd :
     (msg -> model -> ( model, Cmd msg ))
     -> msg
@@ -769,3 +787,62 @@ resultToTask result =
 
         Err error ->
             Task.fail error
+
+
+printUtcDate : Time.Posix -> String
+printUtcDate time =
+    List.foldl (++)
+        ""
+        [ Time.toYear Time.utc time
+            |> String.fromInt
+            |> String.right 2
+        , "-"
+        , Time.toMonth Time.utc time
+            |> monthNumber
+            |> String.fromInt
+            |> String.padLeft 2 '0'
+        , "-"
+        , Time.toDay Time.utc time
+            |> String.fromInt
+            |> String.padLeft 2 '0'
+        ]
+
+
+monthNumber : Time.Month -> Int
+monthNumber month =
+    case month of
+        Time.Jan ->
+            1
+
+        Time.Feb ->
+            2
+
+        Time.Mar ->
+            3
+
+        Time.Apr ->
+            4
+
+        Time.May ->
+            5
+
+        Time.Jun ->
+            6
+
+        Time.Jul ->
+            7
+
+        Time.Aug ->
+            8
+
+        Time.Sep ->
+            9
+
+        Time.Oct ->
+            10
+
+        Time.Nov ->
+            11
+
+        Time.Dec ->
+            12

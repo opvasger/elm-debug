@@ -1,10 +1,13 @@
 module DevTools.Browser.Element exposing
     ( viewJson
     , viewNothing
+    , viewText
+    , viewTextArea
     )
 
-import Html exposing (Html, div, text)
-import Html.Attributes exposing (style)
+import Html exposing (Html, div, input, text, textarea)
+import Html.Attributes exposing (placeholder, spellcheck, style, type_, value)
+import Html.Events exposing (onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import JsonTree
@@ -52,3 +55,45 @@ viewJson config =
 
     else
         text ""
+
+
+viewText :
+    { onInput : String -> msg
+    , placeholder : String
+    , value : String
+    }
+    -> Html msg
+viewText config =
+    input
+        [ style "outline" "none"
+        , style "border" "none"
+        , style "padding" "3.5px"
+        , style "font-weight" "bold"
+        , type_ "text"
+        , spellcheck False
+        , placeholder config.placeholder
+        , value config.value
+        , onInput config.onInput
+        ]
+        []
+
+
+viewTextArea :
+    { onInput : String -> msg
+    , placeholder : String
+    , value : String
+    }
+    -> Html msg
+viewTextArea config =
+    textarea
+        [ style "outline" "none"
+        , style "border" "none"
+        , style "resize" "none"
+        , style "height" "100%"
+        , style "padding" "3.5px"
+        , spellcheck False
+        , placeholder config.placeholder
+        , value config.value
+        , onInput config.onInput
+        ]
+        []

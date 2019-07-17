@@ -106,7 +106,13 @@ update msg model =
                     case model.movePosition of
                         Just movePosition ->
                             model.position
-                                |> clampPos ( 0, 0 ) (diffPos (shrinkCollapsed model.isCollapsed model.size) model.viewport)
+                                |> clampPos ( 0, 0 )
+                                    (diffPos
+                                        (shrinkCollapsed model.isCollapsed
+                                            model.size
+                                        )
+                                        model.viewport
+                                    )
                                 |> diffPos (diffPos position movePosition)
 
                         Nothing ->
@@ -202,6 +208,21 @@ view msg model { collapsed, expanded } =
             , style "top" (px top)
             , style "width" (px width)
             , style "height" (px height)
+            , style "transition" "box-shadow .25s ease-out, transform .25s ease-out"
+            , style "box-shadow"
+                (if isMoving model then
+                    "0px 1px 8px -4px"
+
+                 else
+                    "0px 0px 6px -4px"
+                )
+            , style "transform"
+                (if isMoving model then
+                    "translate(0px, -1px)"
+
+                 else
+                    "translate(0px, 0px)"
+                )
             ]
             [ div
                 [ style "display" "flex"
