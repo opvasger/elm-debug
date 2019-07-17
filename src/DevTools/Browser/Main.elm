@@ -21,6 +21,7 @@ import History.Decode
 import Html exposing (Html)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
+import JsonTree
 import Task exposing (Task)
 import Throttle
 import Time
@@ -48,6 +49,7 @@ type alias Model model msg =
     , isModelVisible : Bool
     , window : Window.Model
     , focus : Maybe Icon
+    , modelView : JsonTree.State
     }
 
 
@@ -64,7 +66,7 @@ type Msg model msg
     | DownloadSession Time.Posix
     | SelectSessionFile
     | DecodeSession File
-    | SessionDecoded (Result Decode.Error (Model model msg))
+    | LoadSession (Result Decode.Error (Model model msg))
     | UpdateCacheThrottle
       -- Report
     | InputTitle String
@@ -73,6 +75,7 @@ type Msg model msg
     | ToggleModelVisible
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
+    | UpdateModelView JsonTree.State
 
 
 defaultTitle : String
@@ -135,7 +138,9 @@ initSession updateApp msgDecoder fromCache initApp =
     in
     case Decode.decodeString decoder fromCache of
         Ok model ->
-            ( model, Cmd.none )
+            ( model
+            , Cmd.map UpdateWindow (Tuple.second (Window.init True))
+            )
 
         Err decodeError ->
             initWith (CacheError decodeError) initApp
@@ -156,9 +161,11 @@ initWith decodeError ( model, cmd ) =
       , title = ""
       , window = Tuple.first (Window.init True)
       , focus = Nothing
+      , modelView = JsonTree.defaultState
       }
     , Cmd.batch
         [ Cmd.map (UpdateApp FromInit) cmd
+        , Cmd.map UpdateWindow (Tuple.second (Window.init True))
         ]
     )
 
@@ -317,13 +324,13 @@ update config msg model =
                     , File.toString file
                         |> Task.map decodeSession
                         |> Task.andThen resultToTask
-                        |> Task.attempt SessionDecoded
+                        |> Task.attempt LoadSession
                     )
 
                 _ ->
                     ( model, Cmd.none )
 
-        SessionDecoded result ->
+        LoadSession result ->
             case ( config.toCache, config.encodeMsg ) of
                 ( Just toCache, Just encodeMsg ) ->
                     case result of
@@ -382,6 +389,11 @@ update config msg model =
 
         UpdateFocus maybeIcon ->
             ( { model | focus = maybeIcon }
+            , Cmd.none
+            )
+
+        UpdateModelView state ->
+            ( { model | modelView = state }
             , Cmd.none
             )
 
@@ -488,7 +500,8 @@ viewModel config model =
                 { isVisible = model.isModelVisible
                 , value = History.currentModel model.history
                 , encodeValue = encodeModel
-                , noMsg = DoNothing
+                , onUpdate = UpdateModelView
+                , state = model.modelView
                 }
 
         Nothing ->
@@ -531,6 +544,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , description = description
             , window = window
             , focus = Nothing
+            , modelView = JsonTree.defaultState
             }
         )
         (Decode.field "history"

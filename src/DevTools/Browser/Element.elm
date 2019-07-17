@@ -19,7 +19,8 @@ viewJson :
     { isVisible : Bool
     , value : model
     , encodeValue : model -> Encode.Value
-    , noMsg : msg
+    , onUpdate : JsonTree.State -> msg
+    , state : JsonTree.State
     }
     -> Html msg
 viewJson config =
@@ -39,10 +40,10 @@ viewJson config =
                         ]
                         [ JsonTree.view tree
                             { onSelect = Nothing
-                            , toMsg = always config.noMsg
+                            , toMsg = config.onUpdate
                             , colors = JsonTree.defaultColors
                             }
-                            JsonTree.defaultState
+                            config.state
                         ]
 
                 Err error ->
