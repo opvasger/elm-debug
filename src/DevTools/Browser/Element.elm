@@ -26,6 +26,7 @@ viewRow =
         [ style "display" "flex"
         , style "flex-direction" "row"
         , style "flex-grow" "1"
+        , style "justify-content" "space-evenly"
         ]
 
 

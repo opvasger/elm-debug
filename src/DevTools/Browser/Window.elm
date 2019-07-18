@@ -242,7 +242,7 @@ view msg model { collapsed, expanded } =
             [ div
                 [ style "display" "flex"
                 , style "flex-direction" "row"
-                , style "justify-content" "flex-end"
+                , style "justify-content" "space-evenly"
                 , style "align-items" "center"
                 , style "height" (px 25)
                 , style "border-bottom" "1px solid #cccccc"
@@ -264,7 +264,7 @@ view msg model { collapsed, expanded } =
             , div
                 [ style "display" "flex"
                 , style "flex-direction" "row"
-                , style "justify-content" "flex-end"
+                , style "justify-content" "space-evenly"
                 , style "align-items" "center"
                 , style "height" (px 25)
                 , style "border-top" "1px solid #cccccc"

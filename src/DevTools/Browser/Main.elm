@@ -52,6 +52,7 @@ type alias Model model msg =
     , isModelVisible : Bool
     , window : Window.Model
     , focus : Maybe Icon
+    , page : Page
     }
 
 
@@ -74,8 +75,9 @@ type Msg model msg
     | InputTitle String
     | InputDescription String
       -- Layout
-    | UpdateModelView JsonTree.State
+    | OpenPage Page
     | ToggleModelVisible
+    | UpdateModelView JsonTree.State
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
     | UpdateRange Range.Msg
@@ -166,6 +168,7 @@ initWith decodeError ( model, cmd ) =
       , focus = Nothing
       , modelView = JsonTree.defaultState
       , rangeInput = Range.init
+      , page = Report
       }
     , Cmd.batch
         [ Cmd.map (UpdateApp FromInit) cmd
@@ -382,6 +385,12 @@ update config msg model =
                 , Cmd.none
                 )
 
+        OpenPage page ->
+            cache
+                ( { model | page = page }
+                , Cmd.none
+                )
+
         UpdateWindow windowMsg ->
             cache
                 ( { model | window = Window.update windowMsg model.window }
@@ -459,23 +468,41 @@ viewDevTools config model =
                     , viewDownloadButton config.encodeMsg model
                     , viewUploadButton config.isImportEnabled model
                     , Element.viewDivider
-                    , Element.viewRow []
+                    , Icon.viewReport
+                        { focus = model.focus
+                        , isActive = model.page == Report
+                        , onClick = OpenPage Report
+                        , onFocus = UpdateFocus
+                        , title = "View report"
+                        }
+                    , Icon.viewSettings
+                        { focus = model.focus
+                        , isActive = model.page == Settings
+                        , onClick = OpenPage Settings
+                        , onFocus = UpdateFocus
+                        , title = "View settings"
+                        }
+                    , Icon.viewMessages
+                        { focus = model.focus
+                        , isActive = model.page == Messages
+                        , onClick = OpenPage Messages
+                        , onFocus = UpdateFocus
+                        , title = "View messages"
+                        }
                     , Element.viewDivider
                     , viewDismissButton dismissMsg model
                     , viewCollapseButton collapseMsg model
                     ]
             , body =
-                [ Element.viewText
-                    { value = model.title
-                    , placeholder = defaultTitle
-                    , onInput = InputTitle
-                    }
-                , Element.viewTextArea
-                    { value = model.description
-                    , placeholder = descriptionPlaceholder
-                    , onInput = InputDescription
-                    }
-                ]
+                case model.page of
+                    Report ->
+                        viewReportPage model
+
+                    Settings ->
+                        viewSettingsPage model
+
+                    Messages ->
+                        viewMessagesPage model
             , foot =
                 [ viewRestartButton model
                 , viewReplayRange model
@@ -483,6 +510,37 @@ viewDevTools config model =
                 ]
             }
         }
+
+
+viewSettingsPage :
+    config
+    -> List (Html (Msg model msg))
+viewSettingsPage model =
+    []
+
+
+viewMessagesPage :
+    config
+    -> List (Html (Msg model msg))
+viewMessagesPage model =
+    []
+
+
+viewReportPage :
+    { config | title : String, description : String }
+    -> List (Html (Msg model msg))
+viewReportPage model =
+    [ Element.viewText
+        { value = model.title
+        , placeholder = defaultTitle
+        , onInput = InputTitle
+        }
+    , Element.viewTextArea
+        { value = model.description
+        , placeholder = descriptionPlaceholder
+        , onInput = InputDescription
+        }
+    ]
 
 
 viewReplayRange :
@@ -654,6 +712,50 @@ viewModel config model =
 
 
 
+-- Page
+
+
+type Page
+    = Report
+    | Settings
+    | Messages
+
+
+encodePage : Page -> Encode.Value
+encodePage page =
+    Encode.string <|
+        case page of
+            Report ->
+                "report"
+
+            Settings ->
+                "settings"
+
+            Messages ->
+                "messages"
+
+
+pageDecoder : Decoder Page
+pageDecoder =
+    Decode.andThen
+        (\text ->
+            case text of
+                "report" ->
+                    Decode.succeed Report
+
+                "messages" ->
+                    Decode.succeed Messages
+
+                "settings" ->
+                    Decode.succeed Settings
+
+                _ ->
+                    Decode.fail ("'" ++ text ++ "' is not of the page-type")
+        )
+        Decode.string
+
+
+
 -- Session
 
 
@@ -667,6 +769,7 @@ encodeSession encodeMsg model =
             , ( "title", Encode.string model.title )
             , ( "description", Encode.string model.description )
             , ( "window", Window.encode model.window )
+            , ( "page", encodePage model.page )
             ]
 
 
@@ -677,8 +780,8 @@ sessionDecoder :
     -> History.Decode.Strategy
     -> Decoder (Model model msg)
 sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
-    Decode.map6
-        (\history decodeStrategy isModelVisible title description window ->
+    Decode.map7
+        (\history decodeStrategy isModelVisible title description window page ->
             { history = history
             , initCmd = cmd
             , decodeError = NoError
@@ -691,6 +794,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , focus = Nothing
             , modelView = JsonTree.defaultState
             , rangeInput = Range.init
+            , page = page
             }
         )
         (Decode.field "history"
@@ -706,6 +810,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
         (Decode.field "title" Decode.string)
         (Decode.field "description" Decode.string)
         (Decode.field "window" Window.decoder)
+        (Decode.field "page" pageDecoder)
 
 
 sessionStrategyDecoder : Decoder History.Decode.Strategy
