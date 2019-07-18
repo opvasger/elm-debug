@@ -2,13 +2,12 @@ module DevTools.Browser.Element exposing
     ( viewDivider
     , viewJson
     , viewNothing
-    , viewRow
     , viewText
     , viewTextArea
     )
 
 import Html exposing (Html, div, input, text, textarea)
-import Html.Attributes exposing (placeholder, spellcheck, style, type_, value)
+import Html.Attributes exposing (disabled, placeholder, spellcheck, style, type_, value)
 import Html.Events exposing (onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -18,16 +17,6 @@ import JsonTree
 viewNothing : Html msg
 viewNothing =
     text ""
-
-
-viewRow : List (Html msg) -> Html msg
-viewRow =
-    div
-        [ style "display" "flex"
-        , style "flex-direction" "row"
-        , style "flex-grow" "1"
-        , style "justify-content" "space-evenly"
-        ]
 
 
 viewJson :
@@ -73,6 +62,8 @@ viewText :
     { onInput : String -> msg
     , placeholder : String
     , value : String
+    , disabled : Bool
+    , disabledPlaceholder : String
     }
     -> Html msg
 viewText config =
@@ -82,8 +73,15 @@ viewText config =
         , style "padding" "3.5px"
         , style "font-weight" "bold"
         , type_ "text"
+        , disabled config.disabled
         , spellcheck False
-        , placeholder config.placeholder
+        , placeholder
+            (if config.disabled then
+                config.disabledPlaceholder
+
+             else
+                config.placeholder
+            )
         , value config.value
         , onInput config.onInput
         ]
@@ -94,6 +92,8 @@ viewTextArea :
     { onInput : String -> msg
     , placeholder : String
     , value : String
+    , disabled : Bool
+    , disabledPlaceholder : String
     }
     -> Html msg
 viewTextArea config =
@@ -103,8 +103,16 @@ viewTextArea config =
         , style "resize" "none"
         , style "height" "100%"
         , style "padding" "3.5px"
+        , style "overflow-y" "scroll"
+        , disabled config.disabled
         , spellcheck False
-        , placeholder config.placeholder
+        , placeholder
+            (if config.disabled then
+                config.disabledPlaceholder
+
+             else
+                config.placeholder
+            )
         , value config.value
         , onInput config.onInput
         ]

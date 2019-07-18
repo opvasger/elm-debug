@@ -73,7 +73,7 @@ viewExpand :
 viewExpand config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 26 26"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just Expand))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -102,7 +102,7 @@ viewModel :
 viewModel config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "-6 -1 30 28"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just ViewModel))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -217,7 +217,7 @@ viewRestart :
 viewRestart config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "-1 -1 26 26"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just Restart))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -245,7 +245,7 @@ viewPlay :
 viewPlay config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "2 2 22 22"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just Play))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -302,7 +302,7 @@ viewSettings :
 viewSettings config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 26 26"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just ViewSettings))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -334,7 +334,7 @@ viewReport :
 viewReport config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 26 26"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just ViewReport))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
@@ -366,7 +366,7 @@ viewMessages :
 viewMessages config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 26 26"
+        , viewBox "0 0 24 24"
         , onMouseOver (config.onFocus (Just ViewMessages))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick

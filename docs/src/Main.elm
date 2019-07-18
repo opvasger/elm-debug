@@ -60,12 +60,7 @@ devToolFeatures =
     , DevTools.ViewModel encodeModel
     , DevTools.ImportSession msgDecoder
     , DevTools.ExportSession encodeMsg
-    , DevTools.CacheSession
-        { encodeMsg = encodeMsg
-        , msgDecoder = msgDecoder
-        , fromCache = .devTools
-        , toCache = toCache
-        }
+    , DevTools.CacheSession { encodeMsg = encodeMsg, msgDecoder = msgDecoder, fromCache = .devTools, toCache = toCache }
     ]
 
 

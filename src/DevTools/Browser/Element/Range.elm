@@ -72,7 +72,7 @@ view model config =
         ]
         [ div
             [ style "width" "100%"
-            , style "margin" "0px 5px"
+            , style "margin" "0px 2px"
             , style "height" "2px"
             , style "pointer-events" "none"
             , if model.isMouseOver then

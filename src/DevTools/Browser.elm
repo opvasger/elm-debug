@@ -31,7 +31,7 @@ sandbox :
 sandbox features app =
     let
         config =
-            List.foldl enableFeature noFeatures features
+            List.foldl unlockFeature noFeatures features
     in
     Browser.document
         { init =
@@ -41,6 +41,7 @@ sandbox features app =
                     , msgDecoder = config.msgDecoder
                     , init = ( app.init, Cmd.none )
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
+                    , isExportEnabled = config.encodeMsg /= Nothing
                     }
         , view =
             Main.view
@@ -79,7 +80,7 @@ element :
 element features app =
     let
         config =
-            List.foldl enableFeature noFeatures features
+            List.foldl unlockFeature noFeatures features
     in
     Browser.element
         { init =
@@ -89,6 +90,7 @@ element features app =
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
+                    , isExportEnabled = config.encodeMsg /= Nothing
                     }
         , view =
             Main.view
@@ -130,7 +132,7 @@ document :
 document features app =
     let
         config =
-            List.foldl enableFeature noFeatures features
+            List.foldl unlockFeature noFeatures features
     in
     Browser.document
         { init =
@@ -140,6 +142,7 @@ document features app =
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
+                    , isExportEnabled = config.encodeMsg /= Nothing
                     }
         , view =
             Main.view
@@ -180,7 +183,7 @@ application :
 application features app =
     let
         config =
-            List.foldl enableFeature noFeatures features
+            List.foldl unlockFeature noFeatures features
     in
     Browser.application
         { init =
@@ -190,6 +193,7 @@ application features app =
                     , msgDecoder = config.msgDecoder
                     , init = app.init flags url key
                     , fromCache = Maybe.andThen (\fn -> fn flags) config.fromCache
+                    , isExportEnabled = config.encodeMsg /= Nothing
                     }
         , view =
             Main.view
@@ -256,11 +260,11 @@ noFeatures =
     }
 
 
-enableFeature :
+unlockFeature :
     Feature flags model msg
     -> Config flags model msg
     -> Config flags model msg
-enableFeature feature config =
+unlockFeature feature config =
     case feature of
         ViewModel fn ->
             { config | encodeModel = Just fn }

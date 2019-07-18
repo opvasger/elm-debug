@@ -83,9 +83,22 @@ type Msg model msg
     | UpdateRange Range.Msg
 
 
+noTitle : String
+noTitle =
+    "No comments included."
+
+
 defaultTitle : String
 defaultTitle =
     "devtools-session"
+
+
+noDescription : String
+noDescription =
+    """ 💡 You can edit these fields if
+       you unlock features to cache
+       or export your session.
+"""
 
 
 descriptionPlaceholder : String
@@ -114,24 +127,30 @@ init :
         , update : msg -> model -> ( model, Cmd msg )
         , msgDecoder : Maybe (Decoder msg)
         , fromCache : Maybe String
+        , isExportEnabled : Bool
     }
     -> ( Model model msg, Cmd (Msg model msg) )
 init config =
     case ( config.msgDecoder, config.fromCache ) of
         ( Just msgDecoder, Just fromCache ) ->
-            initSession config.update msgDecoder fromCache config.init
+            initSession config.update msgDecoder fromCache config
 
         _ ->
-            initWith NoError config.init
+            initWith NoError config
 
 
 initSession :
     (msg -> model -> ( model, Cmd msg ))
     -> Decoder msg
     -> String
-    -> ( model, Cmd msg )
+    ->
+        { config
+            | init : ( model, Cmd msg )
+            , msgDecoder : Maybe (Decoder msg)
+            , isExportEnabled : Bool
+        }
     -> ( Model model msg, Cmd (Msg model msg) )
-initSession updateApp msgDecoder fromCache initApp =
+initSession updateApp msgDecoder fromCache config =
     let
         strategy =
             fromCache
@@ -139,40 +158,45 @@ initSession updateApp msgDecoder fromCache initApp =
                 |> Result.withDefault History.Decode.NoErrors
 
         decoder =
-            sessionDecoder (dropCmd updateApp) msgDecoder initApp strategy
+            sessionDecoder (dropCmd updateApp) msgDecoder config.init strategy
     in
     case Decode.decodeString decoder fromCache of
         Ok model ->
             ( model
-            , Cmd.map UpdateWindow (Tuple.second (Window.init True))
+            , Cmd.map UpdateWindow (Tuple.second (Window.init (not config.isExportEnabled)))
             )
 
         Err decodeError ->
-            initWith (CacheError decodeError) initApp
+            initWith (CacheError decodeError) config
 
 
 initWith :
     SessionDecodeError
-    -> ( model, Cmd msg )
+    ->
+        { config
+            | init : ( model, Cmd msg )
+            , isExportEnabled : Bool
+            , msgDecoder : Maybe (Decoder msg)
+        }
     -> ( Model model msg, Cmd (Msg model msg) )
-initWith decodeError ( model, cmd ) =
-    ( { history = History.init model
-      , initCmd = cmd
+initWith decodeError config =
+    ( { history = History.init (Tuple.first config.init)
+      , initCmd = Tuple.second config.init
       , decodeError = decodeError
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
       , isModelVisible = False
       , description = ""
       , title = ""
-      , window = Tuple.first (Window.init True)
+      , window = Tuple.first (Window.init (not config.isExportEnabled))
       , focus = Nothing
       , modelView = JsonTree.defaultState
       , rangeInput = Range.init
       , page = Report
       }
     , Cmd.batch
-        [ Cmd.map (UpdateApp FromInit) cmd
-        , Cmd.map UpdateWindow (Tuple.second (Window.init True))
+        [ Cmd.map (UpdateApp FromInit) (Tuple.second config.init)
+        , Cmd.map UpdateWindow (Tuple.second (Window.init (not config.isExportEnabled)))
         ]
     )
 
@@ -454,12 +478,34 @@ viewDevTools config model =
         { collapsed =
             \expandMsg ->
                 [ viewModelButton config.encodeModel model
-                , Element.viewDivider
+                , if config.encodeModel /= Nothing then
+                    Element.viewDivider
+
+                  else
+                    Element.viewNothing
                 , viewRestartButton model
                 , viewReplayRange model
                 , viewToggleReplayButton model
-                , Element.viewDivider
-                , viewExpandButton expandMsg model
+                , if
+                    config.encodeMsg
+                        /= Nothing
+                        || config.isCacheEnabled
+                        || config.isImportEnabled
+                  then
+                    Element.viewDivider
+
+                  else
+                    Element.viewNothing
+                , if
+                    config.encodeMsg
+                        /= Nothing
+                        || config.isCacheEnabled
+                        || config.isImportEnabled
+                  then
+                    viewExpandButton expandMsg model
+
+                  else
+                    Element.viewNothing
                 ]
         , expanded =
             { head =
@@ -482,13 +528,17 @@ viewDevTools config model =
                         , onFocus = UpdateFocus
                         , title = "View settings"
                         }
-                    , Icon.viewMessages
-                        { focus = model.focus
-                        , isActive = model.page == Messages
-                        , onClick = OpenPage Messages
-                        , onFocus = UpdateFocus
-                        , title = "View messages"
-                        }
+                    , if config.encodeMsg /= Nothing then
+                        Icon.viewMessages
+                            { focus = model.focus
+                            , isActive = model.page == Messages
+                            , onClick = OpenPage Messages
+                            , onFocus = UpdateFocus
+                            , title = "View messages"
+                            }
+
+                      else
+                        Element.viewNothing
                     , Element.viewDivider
                     , viewDismissButton dismissMsg model
                     , viewCollapseButton collapseMsg model
@@ -496,7 +546,11 @@ viewDevTools config model =
             , body =
                 case model.page of
                     Report ->
-                        viewReportPage model
+                        viewReportPage
+                            { title = model.title
+                            , description = model.description
+                            , isExportEnabled = config.encodeMsg /= Nothing
+                            }
 
                     Settings ->
                         viewSettingsPage model
@@ -527,18 +581,25 @@ viewMessagesPage model =
 
 
 viewReportPage :
-    { config | title : String, description : String }
+    { title : String
+    , description : String
+    , isExportEnabled : Bool
+    }
     -> List (Html (Msg model msg))
-viewReportPage model =
+viewReportPage config =
     [ Element.viewText
-        { value = model.title
+        { value = config.title
         , placeholder = defaultTitle
         , onInput = InputTitle
+        , disabled = not config.isExportEnabled
+        , disabledPlaceholder = noTitle
         }
     , Element.viewTextArea
-        { value = model.description
+        { value = config.description
         , placeholder = descriptionPlaceholder
         , onInput = InputDescription
+        , disabled = not config.isExportEnabled
+        , disabledPlaceholder = noDescription
         }
     ]
 
