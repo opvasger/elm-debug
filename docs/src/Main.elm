@@ -257,7 +257,7 @@ viewFoot =
                 ]
                 (viewFootColumn "..."
                     [ ( "0.18 debugger", "https://elm-lang.org/blog/the-perfect-bug-report" )
-                    , ( "bret's principle", "https://www.youtube.com/watch?v=PUv66718DII" )
+                    , ( "bret's principle", "https://youtu.be/PUv66718DII?t=5" )
                     ]
                 )
             ]
