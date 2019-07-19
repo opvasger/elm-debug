@@ -66,13 +66,13 @@ ignoreSelectOnMove window html =
         html
 
 
-init : Bool -> ( Model, Cmd Msg )
-init isCollapsed =
-    ( { position = ( 50, 50 )
+init : ( Model, Cmd Msg )
+init =
+    ( { position = ( 20000, 20000 )
       , movePosition = Nothing
       , size = ( 200, 250 )
       , viewport = ( 500, 500 )
-      , isCollapsed = isCollapsed
+      , isCollapsed = True
       }
     , Task.perform (ResizeViewport << viewportToSize)
         Browser.Dom.getViewport

@@ -176,7 +176,7 @@ initSession updateApp msgDecoder fromCache config =
     case Decode.decodeString decoder fromCache of
         Ok model ->
             ( model
-            , Cmd.map UpdateWindow (Tuple.second (Window.init (not config.isExportEnabled)))
+            , Cmd.map UpdateWindow (Tuple.second Window.init)
             )
 
         Err decodeError ->
@@ -201,15 +201,15 @@ initWith decodeError config =
       , isModelVisible = False
       , comments = ""
       , title = ""
-      , window = Tuple.first (Window.init (not config.isExportEnabled))
+      , window = Tuple.first Window.init
       , focus = Nothing
       , modelView = JsonTree.defaultState
       , rangeInput = Range.init
-      , page = Report
+      , page = Messages
       }
     , Cmd.batch
         [ Cmd.map (UpdateApp FromInit) (Tuple.second config.init)
-        , Cmd.map UpdateWindow (Tuple.second (Window.init (not config.isExportEnabled)))
+        , Cmd.map UpdateWindow (Tuple.second Window.init)
         ]
     )
 
@@ -533,6 +533,17 @@ viewDevTools config model =
                     , viewDownloadButton config.encodeMsg model
                     , viewUploadButton config.isImportEnabled model
                     , Element.viewDivider
+                    , if config.encodeMsg /= Nothing then
+                        Icon.viewMessages
+                            { focus = model.focus
+                            , isActive = model.page == Messages
+                            , onClick = OpenPage Messages
+                            , onFocus = UpdateFocus
+                            , title = "View messages"
+                            }
+
+                      else
+                        Element.viewNothing
                     , Icon.viewReport
                         { focus = model.focus
                         , isActive = model.page == Report
@@ -547,17 +558,6 @@ viewDevTools config model =
                         , onFocus = UpdateFocus
                         , title = "View settings"
                         }
-                    , if config.encodeMsg /= Nothing then
-                        Icon.viewMessages
-                            { focus = model.focus
-                            , isActive = model.page == Messages
-                            , onClick = OpenPage Messages
-                            , onFocus = UpdateFocus
-                            , title = "View messages"
-                            }
-
-                      else
-                        Element.viewNothing
                     , Element.viewDivider
                     , viewDismissButton dismissMsg model
                     , viewCollapseButton collapseMsg model
