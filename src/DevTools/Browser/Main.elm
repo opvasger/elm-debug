@@ -56,8 +56,9 @@ type alias Model model msg =
 
 
 type Msg model msg
-    = -- App
-      UpdateApp MsgSource msg
+    = DoNothing
+      -- App
+    | UpdateApp MsgSource msg
     | RestartApp
     | ReplayApp Int
     | ToggleAppReplay
@@ -71,7 +72,7 @@ type Msg model msg
     | UpdateCacheThrottle
       -- Report
     | InputTitle String
-    | InputDescription String
+    | InputComments String
       -- Layout
     | OpenPage Page
     | ToggleModelVisible
@@ -81,22 +82,9 @@ type Msg model msg
     | UpdateRange Range.Msg
 
 
-noTitle : String
-noTitle =
-    "No comments included."
-
-
 defaultTitle : String
 defaultTitle =
     "devtools-session"
-
-
-noDescription : String
-noDescription =
-    """ 💡 You can edit these fields if
-       you unlock features to cache
-       or export your session.
-"""
 
 
 commentsPlaceholder : String
@@ -111,6 +99,33 @@ commentsPlaceholder =
 
  ⌗   Which Git-branch/commit
        is this session for?
+"""
+
+
+noCommentsTitle : String
+noCommentsTitle =
+    "No comments included."
+
+
+noCommentsPlaceholder : String
+noCommentsPlaceholder =
+    """ 💡 You can edit these fields
+       if you unlock features to
+       export or cache your 
+       session.
+"""
+
+
+noSettingsTitle : String
+noSettingsTitle =
+    "No settings available."
+
+
+noSettingsPlaceholder : String
+noSettingsPlaceholder =
+    """ 💡 You can configure how
+       session-caching works
+       if you unlock the feature.
 """
 
 
@@ -260,6 +275,9 @@ update config msg model =
                     |> Cmd.map (UpdateApp FromUpdate)
                 )
 
+        DoNothing ->
+            ( model, Cmd.none )
+
         RestartApp ->
             cache
                 ( { model
@@ -396,7 +414,7 @@ update config msg model =
                 , Cmd.none
                 )
 
-        InputDescription text ->
+        InputComments text ->
             cache
                 ( { model | comments = text }
                 , Cmd.none
@@ -613,7 +631,20 @@ viewSettingsPage isCacheEnabled model =
             ]
 
       else
-        Element.viewNothing
+        Element.viewText
+            { disabled = True
+            , disabledPlaceholder = noSettingsTitle
+            , onInput = always DoNothing
+            , placeholder = ""
+            , value = ""
+            }
+    , Element.viewTextArea
+        { disabled = True
+        , disabledPlaceholder = noSettingsPlaceholder
+        , onInput = always DoNothing
+        , placeholder = ""
+        , value = ""
+        }
     ]
 
 
@@ -636,14 +667,14 @@ viewReportPage config =
         , placeholder = defaultTitle
         , onInput = InputTitle
         , disabled = not config.isExportEnabled
-        , disabledPlaceholder = noTitle
+        , disabledPlaceholder = noCommentsTitle
         }
     , Element.viewTextArea
         { value = config.comments
         , placeholder = commentsPlaceholder
-        , onInput = InputDescription
+        , onInput = InputComments
         , disabled = not config.isExportEnabled
-        , disabledPlaceholder = noDescription
+        , disabledPlaceholder = noCommentsPlaceholder
         }
     ]
 
