@@ -28,7 +28,7 @@ viewColumnWithTitle title children =
         , style "flex-direction" "column"
         , style "border-bottom" "1px solid #cccccc"
         , style "font" "400 11px system-ui"
-        , style "padding-bottom" "5px"
+        , style "padding-bottom" "10px"
         , style "margin-bottom" "10px"
         ]
         (div
