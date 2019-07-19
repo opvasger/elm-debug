@@ -614,8 +614,8 @@ viewSettingsPage :
         }
     -> List (Html (Msg model msg))
 viewSettingsPage isCacheEnabled model =
-    [ if isCacheEnabled then
-        Element.viewColumnWithTitle "Read from cache until the"
+    if isCacheEnabled then
+        [ Element.viewColumnWithTitle "Read from cache until the"
             [ Element.viewRow
                 [ Html.text "first unrecognized message."
                 , viewDecodeStrategyInput History.Decode.UntilError 1 model
@@ -629,23 +629,24 @@ viewSettingsPage isCacheEnabled model =
                 , viewDecodeStrategyInput History.Decode.NoErrors 0 model
                 ]
             ]
+        ]
 
-      else
-        Element.viewText
+    else
+        [ Element.viewText
             { disabled = True
             , disabledPlaceholder = noSettingsTitle
             , onInput = always DoNothing
             , placeholder = ""
             , value = ""
             }
-    , Element.viewTextArea
-        { disabled = True
-        , disabledPlaceholder = noSettingsPlaceholder
-        , onInput = always DoNothing
-        , placeholder = ""
-        , value = ""
-        }
-    ]
+        , Element.viewTextArea
+            { disabled = True
+            , disabledPlaceholder = noSettingsPlaceholder
+            , onInput = always DoNothing
+            , placeholder = ""
+            , value = ""
+            }
+        ]
 
 
 viewMessagesPage :
@@ -1005,31 +1006,13 @@ describeStrategy : History.Decode.Strategy -> String
 describeStrategy strategy =
     case strategy of
         History.Decode.NoErrors ->
-            """Replay messages if there is no errors.
-
-This setting will fail to read
-a session from cache if any
-messages aren't recognized."""
+            "This setting will fail to read a session from cache if any messages aren't recognized."
 
         History.Decode.UntilError ->
-            """Replay messages until the first error.
-
-
-This setting will read a
-session from cache capturing
-all messages up until the first
-error. This is a great default,
-as it captures a valid sequence
-of messages."""
+            "This setting will read a session from cache capturing all messages up until the first error. This is a great default, as it captures a valid sequence of messages."
 
         History.Decode.SkipErrors ->
-            """Replay messages and skip errors.
-
-This setting is optimized for
-capturing as many messages as
-possible from a cached session.
-This can result in jarring app
-states."""
+            "This setting is optimized for capturing as many messages as possible from a cached session. This can result in jarring app states."
 
 
 
