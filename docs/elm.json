@@ -16,7 +16,7 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
-            "klazuka/elm-json-tree-view": "2.0.0",
+            "klazuka/elm-json-tree-view": "2.1.0",
             "mdgriffith/elm-ui": "1.1.0"
         },
         "indirect": {

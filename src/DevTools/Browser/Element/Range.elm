@@ -91,6 +91,7 @@ view model config =
                         ++ "%"
                     )
                 , style "pointer-events" "none"
+                , style "transition" "width .2s"
                 , style "height" "2px"
                 , style "background-color" "#89b3ee"
                 ]

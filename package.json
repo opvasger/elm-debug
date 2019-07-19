@@ -13,6 +13,7 @@
     "bench": "cd perf && elm make --output benchmark.html Benchmark/Main.elm && live-server benchmark.html",
     "docs": "npm run docs:serve & npm run docs:watch",
     "docs:win": "start npm run docs:serve && npm run docs:watch",
+    "____________________SUBCOMMANDS": "____________________",
     "docs:serve": "live-server --no-css-inject --no-browser --watch=dist docs",
     "docs:watch": "nodemon --ext elm --exec \"cd docs && elm make src/Main.elm --output=dist/main.js\"",
     "docs:build": "cd docs && time (elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js) && stat -f 'size    %z bytes' dist/main.js && rm dist/main.temp.js"
@@ -31,10 +32,10 @@
   "dependencies": {},
   "devDependencies": {
     "elm": "0.19.0-bugfix6",
+    "elm-format": "0.8.1",
     "elm-json": "0.2.0",
     "elm-test": "0.19.0-rev6",
     "elm-xref": "4.0.0",
-    "elm-format": "0.8.1",
     "google-closure-compiler": "20190415.0.0",
     "live-server": "1.2.1",
     "nodemon": "1.19.0"

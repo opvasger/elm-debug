@@ -102,7 +102,7 @@ viewModel :
 viewModel config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
-        , viewBox "0 0 24 24"
+        , viewBox "-2 0 26 26"
         , onMouseOver (config.onFocus (Just ViewModel))
         , onMouseOut (config.onFocus Nothing)
         , onClick config.onClick
