@@ -9,7 +9,6 @@ module DevTools.Browser.Main exposing
     )
 
 import Browser
-import Browser.Events
 import DevTools.Browser.Element as Element
 import DevTools.Browser.Element.Icon as Icon exposing (Icon)
 import DevTools.Browser.Element.Range as Range
@@ -44,7 +43,7 @@ type alias Model model msg =
 
     -- Report
     , title : String
-    , description : String
+    , comments : String
 
     -- Layout
     , modelView : JsonTree.State
@@ -57,9 +56,8 @@ type alias Model model msg =
 
 
 type Msg model msg
-    = DoNothing
-      -- App
-    | UpdateApp MsgSource msg
+    = -- App
+      UpdateApp MsgSource msg
     | RestartApp
     | ReplayApp Int
     | ToggleAppReplay
@@ -101,8 +99,8 @@ noDescription =
 """
 
 
-descriptionPlaceholder : String
-descriptionPlaceholder =
+commentsPlaceholder : String
+commentsPlaceholder =
     """Take a moment to describe what you're doing!
 
  🐞 Did you encounter a bug
@@ -186,7 +184,7 @@ initWith decodeError config =
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
       , isModelVisible = False
-      , description = ""
+      , comments = ""
       , title = ""
       , window = Tuple.first (Window.init (not config.isExportEnabled))
       , focus = Nothing
@@ -247,9 +245,6 @@ update config msg model =
                 }
     in
     case msg of
-        DoNothing ->
-            ( model, Cmd.none )
-
         UpdateApp src appMsg ->
             cache
                 ( { model
@@ -359,22 +354,26 @@ update config msg model =
                     ( model, Cmd.none )
 
         LoadSession result ->
-            case ( config.toCache, config.encodeMsg ) of
-                ( Just toCache, Just encodeMsg ) ->
-                    case result of
-                        Ok sessionModel ->
-                            cache
-                                ( sessionModel
-                                , Cmd.none
-                                )
-
-                        Err error ->
-                            ( { model | decodeError = ImportError error }
+            if
+                config.toCache
+                    /= Nothing
+                    && config.encodeMsg
+                    /= Nothing
+            then
+                case result of
+                    Ok sessionModel ->
+                        cache
+                            ( sessionModel
                             , Cmd.none
                             )
 
-                _ ->
-                    ( model, Cmd.none )
+                    Err error ->
+                        ( { model | decodeError = ImportError error }
+                        , Cmd.none
+                        )
+
+            else
+                ( model, Cmd.none )
 
         UpdateCacheThrottle ->
             case ( config.toCache, config.encodeMsg ) of
@@ -399,7 +398,7 @@ update config msg model =
 
         InputDescription text ->
             cache
-                ( { model | description = text }
+                ( { model | comments = text }
                 , Cmd.none
                 )
 
@@ -550,7 +549,7 @@ viewDevTools config model =
                     Report ->
                         viewReportPage
                             { title = model.title
-                            , description = model.description
+                            , comments = model.comments
                             , isExportEnabled = config.encodeMsg /= Nothing
                             }
 
@@ -568,23 +567,49 @@ viewDevTools config model =
         }
 
 
+viewDecodeStrategyInput :
+    History.Decode.Strategy
+    -> Int
+    ->
+        { config
+            | decodeStrategy : History.Decode.Strategy
+            , focus : Maybe Icon
+        }
+    -> Html (Msg model msg)
+viewDecodeStrategyInput strategy key config =
+    Icon.viewCheckbox
+        { focus = config.focus
+        , isActive = config.decodeStrategy == strategy
+        , onClick = UseDecodeStrategy strategy
+        , onFocus = UpdateFocus
+        , title = describeStrategy strategy
+        , key = key
+        }
+
+
 viewSettingsPage :
-    config
+    { config
+        | decodeStrategy : History.Decode.Strategy
+        , focus : Maybe Icon
+    }
     -> List (Html (Msg model msg))
 viewSettingsPage model =
-    []
+    [ viewDecodeStrategyInput History.Decode.NoErrors 0 model
+    , viewDecodeStrategyInput History.Decode.UntilError 1 model
+    , viewDecodeStrategyInput History.Decode.SkipErrors 2 model
+    ]
 
 
 viewMessagesPage :
     config
     -> List (Html (Msg model msg))
-viewMessagesPage model =
+viewMessagesPage _ =
     []
 
 
 viewReportPage :
     { title : String
-    , description : String
+    , comments : String
     , isExportEnabled : Bool
     }
     -> List (Html (Msg model msg))
@@ -597,8 +622,8 @@ viewReportPage config =
         , disabledPlaceholder = noTitle
         }
     , Element.viewTextArea
-        { value = config.description
-        , placeholder = descriptionPlaceholder
+        { value = config.comments
+        , placeholder = commentsPlaceholder
         , onInput = InputDescription
         , disabled = not config.isExportEnabled
         , disabledPlaceholder = noDescription
@@ -715,7 +740,11 @@ viewDownloadButton encodeMsg model =
 
 viewUploadButton :
     Bool
-    -> { config | focus : Maybe Icon }
+    ->
+        { config
+            | focus : Maybe Icon
+            , decodeError : SessionDecodeError
+        }
     -> Html (Msg model msg)
 viewUploadButton isImportEnabled model =
     if isImportEnabled then
@@ -723,7 +752,8 @@ viewUploadButton isImportEnabled model =
             { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = SelectSessionFile
-            , title = "Upload session"
+            , hasFailed = model.decodeError /= NoError
+            , title = printSessionDecodeError "Upload session" model.decodeError
             }
 
     else
@@ -830,7 +860,7 @@ encodeSession encodeMsg model =
             , ( "isModelVisible", Encode.bool model.isModelVisible )
             , ( "decodeStrategy", History.Decode.encodeStrategy model.decodeStrategy )
             , ( "title", Encode.string model.title )
-            , ( "description", Encode.string model.description )
+            , ( "comments", Encode.string model.comments )
             , ( "window", Window.encode model.window )
             , ( "page", encodePage model.page )
             , ( "modelView", JsonTree.stateToJson model.modelView )
@@ -845,7 +875,7 @@ sessionDecoder :
     -> Decoder (Model model msg)
 sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
     Decode.map8
-        (\history decodeStrategy isModelVisible title description window page modelView ->
+        (\history decodeStrategy isModelVisible title comments window page modelView ->
             { history = history
             , initCmd = cmd
             , decodeError = NoError
@@ -853,7 +883,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , isModelVisible = isModelVisible
             , cacheThrottle = Throttle.init
             , title = title
-            , description = description
+            , comments = comments
             , window = window
             , focus = Nothing
             , modelView = modelView
@@ -872,7 +902,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
         sessionStrategyDecoder
         (Decode.field "isModelVisible" Decode.bool)
         (Decode.field "title" Decode.string)
-        (Decode.field "description" Decode.string)
+        (Decode.field "comments" Decode.string)
         (Decode.field "window" Window.decoder)
         (Decode.field "page" pageDecoder)
         (Decode.field "modelView" JsonTree.stateFromJson)
@@ -920,6 +950,41 @@ toSessionTitle time title =
 
 
 
+-- History decoding
+
+
+describeStrategy : History.Decode.Strategy -> String
+describeStrategy strategy =
+    case strategy of
+        History.Decode.NoErrors ->
+            """Replay messages if there is no errors.
+
+This setting will fail to read
+a session from cache if any
+messages aren't recognized."""
+
+        History.Decode.UntilError ->
+            """Replay messages until the first error.
+
+
+This setting will read a
+session from cache capturing
+all messages up until the first
+error. This is a great default,
+as it captures a valid sequence
+of messages."""
+
+        History.Decode.SkipErrors ->
+            """Replay messages and skip errors.
+
+This setting is optimized for
+capturing as many messages as
+possible from a cached session.
+This can result in jarring app
+states."""
+
+
+
 -- SessionDecodeError
 
 
@@ -929,11 +994,11 @@ type SessionDecodeError
     | ImportError Decode.Error
 
 
-printSessionDecodeError : SessionDecodeError -> String
-printSessionDecodeError error =
+printSessionDecodeError : String -> SessionDecodeError -> String
+printSessionDecodeError default error =
     case error of
         NoError ->
-            ""
+            default
 
         CacheError decodeError ->
             Decode.errorToString decodeError

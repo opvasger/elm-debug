@@ -8,7 +8,7 @@ module DevTools.Browser.Element.Range exposing
     )
 
 import Browser.Events
-import Html exposing (Html, div, text)
+import Html exposing (Html, div)
 import Html.Attributes exposing (style)
 import Html.Events exposing (stopPropagationOn)
 import Json.Decode as Decode exposing (Decoder)

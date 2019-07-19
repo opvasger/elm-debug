@@ -1,5 +1,6 @@
 module DevTools.Browser.Element.Icon exposing
     ( Icon
+    , viewCheckbox
     , viewCollapse
     , viewDismiss
     , viewDownload
@@ -30,6 +31,7 @@ type Icon
     | Restart
     | Play
     | Pause
+    | Checkbox Int
     | ViewReport
     | ViewMessages
     | ViewSettings
@@ -128,6 +130,7 @@ viewUpload :
     , onClick : msg
     , title : String
     , focus : Maybe Icon
+    , hasFailed : Bool
     }
     -> Html msg
 viewUpload config =
@@ -140,7 +143,10 @@ viewUpload config =
         ]
         [ title [] [ text config.title ]
         , path
-            [ if config.focus == Just Upload then
+            [ if config.hasFailed then
+                fill "red"
+
+              else if config.focus == Just Upload then
                 fill "black"
 
               else
@@ -382,6 +388,43 @@ viewMessages config =
               else
                 fill "#6e6e6e"
             , d "M3,13V11H17V13H3M3,19V17H17V19H3M3,7V5H17V7H3M20,8V5H19V4H21V8H20M19,17V16H22V20H19V19H21V18.5H20V17.5H21V17H19M21.25,10C21.67,10 22,10.34 22,10.75C22,10.95 21.92,11.14 21.79,11.27L20.12,13H22V14H19V13.08L21,11H19V10H21.25Z"
+            ]
+            []
+        ]
+
+
+viewCheckbox :
+    { onFocus : Maybe Icon -> msg
+    , onClick : msg
+    , title : String
+    , focus : Maybe Icon
+    , isActive : Bool
+    , key : Int
+    }
+    -> Html msg
+viewCheckbox config =
+    svg
+        [ style "width:20px;height:20px;cursor:pointer;"
+        , viewBox "0 0 24 24"
+        , onMouseOver (config.onFocus (Just (Checkbox config.key)))
+        , onMouseOut (config.onFocus Nothing)
+        , onClick config.onClick
+        ]
+        [ title [] [ text config.title ]
+        , path
+            [ if config.isActive then
+                fill "#60b5cc"
+
+              else if config.focus == Just (Checkbox config.key) then
+                fill "black"
+
+              else
+                fill "#6e6e6e"
+            , if config.isActive then
+                d "M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+
+              else
+                d "M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
             ]
             []
         ]

@@ -11,7 +11,7 @@ import Browser
 import Browser.Navigation
 import DevTools.Browser.Main as Main
 import Html exposing (Html)
-import Json.Decode as Decode exposing (Decoder)
+import Json.Decode exposing (Decoder)
 import Json.Encode as Encode
 import Url exposing (Url)
 
