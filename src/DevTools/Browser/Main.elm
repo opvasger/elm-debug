@@ -415,6 +415,18 @@ update config msg model =
                 , Cmd.none
                 )
 
+        UpdateModelView state ->
+            cache
+                ( { model | modelView = state }
+                , Cmd.none
+                )
+
+        UpdateRange rangeMsg ->
+            cache
+                ( { model | rangeInput = Range.update rangeMsg model.rangeInput }
+                , Cmd.none
+                )
+
         UpdateWindow windowMsg ->
             cache
                 ( { model | window = Window.update windowMsg model.window }
@@ -423,16 +435,6 @@ update config msg model =
 
         UpdateFocus maybeIcon ->
             ( { model | focus = maybeIcon }
-            , Cmd.none
-            )
-
-        UpdateModelView state ->
-            ( { model | modelView = state }
-            , Cmd.none
-            )
-
-        UpdateRange rangeMsg ->
-            ( { model | rangeInput = Range.update rangeMsg model.rangeInput }
             , Cmd.none
             )
 
@@ -831,6 +833,7 @@ encodeSession encodeMsg model =
             , ( "description", Encode.string model.description )
             , ( "window", Window.encode model.window )
             , ( "page", encodePage model.page )
+            , ( "modelView", JsonTree.stateToJson model.modelView )
             ]
 
 
@@ -841,8 +844,8 @@ sessionDecoder :
     -> History.Decode.Strategy
     -> Decoder (Model model msg)
 sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
-    Decode.map7
-        (\history decodeStrategy isModelVisible title description window page ->
+    Decode.map8
+        (\history decodeStrategy isModelVisible title description window page modelView ->
             { history = history
             , initCmd = cmd
             , decodeError = NoError
@@ -853,7 +856,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , description = description
             , window = window
             , focus = Nothing
-            , modelView = JsonTree.defaultState
+            , modelView = modelView
             , rangeInput = Range.init
             , page = page
             }
@@ -872,6 +875,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
         (Decode.field "description" Decode.string)
         (Decode.field "window" Window.decoder)
         (Decode.field "page" pageDecoder)
+        (Decode.field "modelView" JsonTree.stateFromJson)
 
 
 sessionStrategyDecoder : Decoder History.Decode.Strategy
