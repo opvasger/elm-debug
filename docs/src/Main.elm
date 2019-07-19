@@ -42,9 +42,9 @@ type Msg
 port toCache : String -> Cmd msg
 
 
-main : DevTools.Program Flags Model Msg
 main =
     DevTools.application devToolFeatures
+        -- Browser.application
         { init = init
         , update = update
         , view = view
