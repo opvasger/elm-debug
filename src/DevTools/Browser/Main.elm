@@ -615,7 +615,7 @@ viewSettingsPage :
     -> List (Html (Msg model msg))
 viewSettingsPage isCacheEnabled model =
     if isCacheEnabled then
-        [ Element.viewColumnWithTitle "Read from cache until the"
+        [ Element.viewColumnWithTitle "Read from cache until the..."
             [ Element.viewRow
                 [ Html.text "first unrecognized message."
                 , viewDecodeStrategyInput History.Decode.UntilError 1 model

@@ -260,6 +260,7 @@ view msg model { collapsed, expanded } =
                 , style "flex-grow" "1"
                 , style "background-color" "white"
                 , style "padding" "10px"
+                , style "overflow" "hidden scroll"
                 ]
                 expanded.body
             , div
