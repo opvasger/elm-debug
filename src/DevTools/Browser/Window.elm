@@ -259,6 +259,7 @@ view msg model { collapsed, expanded } =
                 , style "flex-direction" "column"
                 , style "flex-grow" "1"
                 , style "background-color" "white"
+                , style "padding" "10px"
                 ]
                 expanded.body
             , div

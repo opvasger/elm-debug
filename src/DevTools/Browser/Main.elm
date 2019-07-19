@@ -554,7 +554,7 @@ viewDevTools config model =
                             }
 
                     Settings ->
-                        viewSettingsPage model
+                        viewSettingsPage config.isCacheEnabled model
 
                     Messages ->
                         viewMessagesPage model
@@ -588,15 +588,32 @@ viewDecodeStrategyInput strategy key config =
 
 
 viewSettingsPage :
-    { config
-        | decodeStrategy : History.Decode.Strategy
-        , focus : Maybe Icon
-    }
+    Bool
+    ->
+        { config
+            | decodeStrategy : History.Decode.Strategy
+            , focus : Maybe Icon
+        }
     -> List (Html (Msg model msg))
-viewSettingsPage model =
-    [ viewDecodeStrategyInput History.Decode.NoErrors 0 model
-    , viewDecodeStrategyInput History.Decode.UntilError 1 model
-    , viewDecodeStrategyInput History.Decode.SkipErrors 2 model
+viewSettingsPage isCacheEnabled model =
+    [ if isCacheEnabled then
+        Element.viewColumnWithTitle "Read from cache until the"
+            [ Element.viewRow
+                [ Html.text "first unrecognized message."
+                , viewDecodeStrategyInput History.Decode.UntilError 1 model
+                ]
+            , Element.viewRow
+                [ Html.text "end, skipping unrecognized."
+                , viewDecodeStrategyInput History.Decode.SkipErrors 2 model
+                ]
+            , Element.viewRow
+                [ Html.text "end if all was recognized."
+                , viewDecodeStrategyInput History.Decode.NoErrors 0 model
+                ]
+            ]
+
+      else
+        Element.viewNothing
     ]
 
 

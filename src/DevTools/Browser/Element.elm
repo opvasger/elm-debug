@@ -1,7 +1,9 @@
 module DevTools.Browser.Element exposing
-    ( viewDivider
+    ( viewColumnWithTitle
+    , viewDivider
     , viewJson
     , viewNothing
+    , viewRow
     , viewText
     , viewTextArea
     )
@@ -17,6 +19,35 @@ import JsonTree
 viewNothing : Html msg
 viewNothing =
     text ""
+
+
+viewColumnWithTitle : String -> List (Html msg) -> Html msg
+viewColumnWithTitle title children =
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "column"
+        , style "border-bottom" "1px solid #cccccc"
+        , style "font" "400 11px system-ui"
+        , style "padding-bottom" "5px"
+        ]
+        (div
+            [ style "padding-bottom" "5px"
+            , style "font-weight" "bold"
+            ]
+            [ text title ]
+            :: children
+        )
+
+
+viewRow : List (Html msg) -> Html msg
+viewRow =
+    div
+        [ style "display" "flex"
+        , style "flex-direction" "row"
+        , style "flex-grow" "1"
+        , style "align-items" "center"
+        , style "justify-content" "space-between"
+        ]
 
 
 viewJson :
@@ -70,7 +101,6 @@ viewText config =
     input
         [ style "outline" "none"
         , style "border" "none"
-        , style "padding" "3.5px"
         , style "font-weight" "bold"
         , type_ "text"
         , disabled config.disabled
@@ -102,7 +132,6 @@ viewTextArea config =
         , style "border" "none"
         , style "resize" "none"
         , style "height" "100%"
-        , style "padding" "3.5px"
         , style "overflow-y" "scroll"
         , disabled config.disabled
         , spellcheck False
