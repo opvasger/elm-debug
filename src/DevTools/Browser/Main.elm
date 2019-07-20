@@ -687,11 +687,20 @@ viewReplayRange :
     }
     -> Html (Msg model msg)
 viewReplayRange model =
+    let
+        ( length, index ) =
+            ( History.length model.history, History.currentIndex model.history )
+    in
     Range.view model.rangeInput
         { onUpdate = UpdateRange
         , onMove = ReplayApp
-        , max = History.length model.history
-        , value = History.currentIndex model.history
+        , max = length
+        , value = index
+        , title =
+            "State "
+                ++ String.fromInt (index + 1)
+                ++ " of "
+                ++ String.fromInt (length + 1)
         }
 
 

@@ -9,7 +9,7 @@ module DevTools.Browser.Element.Range exposing
 
 import Browser.Events
 import Html exposing (Html, div)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (style, title)
 import Html.Events exposing (stopPropagationOn)
 import Json.Decode as Decode exposing (Decoder)
 
@@ -54,6 +54,7 @@ view :
         { config
             | onUpdate : Msg -> msg
             , onMove : Int -> msg
+            , title : String
             , max : Int
             , value : Int
         }
@@ -66,6 +67,7 @@ view model config =
         , style "flex-grow" "1"
         , style "height" "15px"
         , style "cursor" "pointer"
+        , title config.title
         , stopPropagationOn "click" (clickDecoder config)
         , stopPropagationOn "mouseover" (Decode.succeed ( config.onUpdate ToggleMouseOver, True ))
         , stopPropagationOn "mouseout" (Decode.succeed ( config.onUpdate ToggleMouseOver, True ))
