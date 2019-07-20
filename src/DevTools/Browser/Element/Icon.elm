@@ -2,6 +2,7 @@ module DevTools.Browser.Element.Icon exposing
     ( Icon
     , viewCheckbox
     , viewCollapse
+    , viewComments
     , viewDismiss
     , viewDownload
     , viewExpand
@@ -9,7 +10,6 @@ module DevTools.Browser.Element.Icon exposing
     , viewModel
     , viewPause
     , viewPlay
-    , viewReport
     , viewRestart
     , viewSettings
     , viewUpload
@@ -329,7 +329,7 @@ viewSettings config =
         ]
 
 
-viewReport :
+viewComments :
     { onFocus : Maybe Icon -> msg
     , onClick : msg
     , title : String
@@ -337,7 +337,7 @@ viewReport :
     , isActive : Bool
     }
     -> Html msg
-viewReport config =
+viewComments config =
     svg
         [ style "width:20px;height:20px;cursor:pointer;"
         , viewBox "0 0 24 24"

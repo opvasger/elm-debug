@@ -21,6 +21,17 @@ viewNothing =
     text ""
 
 
+viewDivider : Html msg
+viewDivider =
+    div
+        [ style "height" "15px"
+        , style "width" "1px"
+        , style "background-color" "#cccccc"
+        , style "margin" "0 3.5px"
+        ]
+        []
+
+
 viewColumnWithTitle : String -> List (Html msg) -> Html msg
 viewColumnWithTitle title children =
     div
@@ -28,8 +39,7 @@ viewColumnWithTitle title children =
         , style "flex-direction" "column"
         , style "border-bottom" "1px solid #cccccc"
         , style "font" "400 11px system-ui"
-        , style "padding-bottom" "10px"
-        , style "margin-bottom" "10px"
+        , style "padding" "10px"
         ]
         (div
             [ style "padding-bottom" "5px"
@@ -103,6 +113,7 @@ viewText config =
         [ style "outline" "none"
         , style "border" "none"
         , style "font-weight" "bold"
+        , style "padding" "5px 10px 0px 10px"
         , type_ "text"
         , disabled config.disabled
         , spellcheck False
@@ -134,6 +145,7 @@ viewTextArea config =
         , style "resize" "none"
         , style "height" "100%"
         , style "overflow-y" "scroll"
+        , style "padding" "10px"
         , disabled config.disabled
         , spellcheck False
         , placeholder
@@ -145,16 +157,5 @@ viewTextArea config =
             )
         , value config.value
         , onInput config.onInput
-        ]
-        []
-
-
-viewDivider : Html msg
-viewDivider =
-    div
-        [ style "height" "15px"
-        , style "width" "1px"
-        , style "background-color" "#cccccc"
-        , style "margin" "0 3.5px"
         ]
         []

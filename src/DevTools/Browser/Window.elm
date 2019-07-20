@@ -257,10 +257,9 @@ view msg model { collapsed, expanded } =
             , div
                 [ style "display" "flex"
                 , style "flex-direction" "column"
-                , style "flex-grow" "1"
+                , style "height" "calc(100% - 52px)"
                 , style "background-color" "white"
-                , style "padding" "10px"
-                , style "overflow" "hidden scroll"
+                , style "overflow" "scroll"
                 ]
                 expanded.body
             , div

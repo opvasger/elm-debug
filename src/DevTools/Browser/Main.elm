@@ -41,7 +41,7 @@ type alias Model model msg =
     , decodeError : SessionDecodeError
     , cacheThrottle : Throttle.Model
 
-    -- Report
+    -- Comments
     , title : String
     , comments : String
 
@@ -70,7 +70,7 @@ type Msg model msg
     | DecodeSession File
     | LoadSession (Result Decode.Error (Model model msg))
     | UpdateCacheThrottle
-      -- Report
+      -- Comments
     | InputTitle String
     | InputComments String
       -- Layout
@@ -544,10 +544,10 @@ viewDevTools config model =
 
                       else
                         Element.viewNothing
-                    , Icon.viewReport
+                    , Icon.viewComments
                         { focus = model.focus
-                        , isActive = model.page == Report
-                        , onClick = OpenPage Report
+                        , isActive = model.page == Comments
+                        , onClick = OpenPage Comments
                         , onFocus = UpdateFocus
                         , title = "View report"
                         }
@@ -564,8 +564,8 @@ viewDevTools config model =
                     ]
             , body =
                 case model.page of
-                    Report ->
-                        viewReportPage
+                    Comments ->
+                        viewCommentsPage
                             { title = model.title
                             , comments = model.comments
                             , isExportEnabled = config.encodeMsg /= Nothing
@@ -652,17 +652,17 @@ viewSettingsPage isCacheEnabled model =
 viewMessagesPage :
     config
     -> List (Html (Msg model msg))
-viewMessagesPage _ =
+viewMessagesPage model =
     []
 
 
-viewReportPage :
+viewCommentsPage :
     { title : String
     , comments : String
     , isExportEnabled : Bool
     }
     -> List (Html (Msg model msg))
-viewReportPage config =
+viewCommentsPage config =
     [ Element.viewText
         { value = config.title
         , placeholder = defaultTitle
@@ -858,7 +858,7 @@ viewModel config model =
 
 
 type Page
-    = Report
+    = Comments
     | Settings
     | Messages
 
@@ -867,7 +867,7 @@ encodePage : Page -> Encode.Value
 encodePage page =
     Encode.string <|
         case page of
-            Report ->
+            Comments ->
                 "report"
 
             Settings ->
@@ -883,7 +883,7 @@ pageDecoder =
         (\text ->
             case text of
                 "report" ->
-                    Decode.succeed Report
+                    Decode.succeed Comments
 
                 "messages" ->
                     Decode.succeed Messages
