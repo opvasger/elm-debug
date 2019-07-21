@@ -696,11 +696,7 @@ viewReplayRange model =
         , onMove = ReplayApp
         , max = length
         , value = index
-        , title =
-            "State "
-                ++ String.fromInt (index + 1)
-                ++ " of "
-                ++ String.fromInt (length + 1)
+        , title = "Replay application states"
         }
 
 
