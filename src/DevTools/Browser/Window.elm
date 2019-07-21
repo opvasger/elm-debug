@@ -182,7 +182,11 @@ view msg model { collapsed, expanded } =
             , style "position" "fixed"
             , style "border" "1px solid #cccccc"
             , style "background-color" "#f3f3f3"
-            , style "transition" "box-shadow .25s .25s ease-out, transform .25s .25s ease-out"
+            , if isMoving model then
+                style "transition" "box-shadow .25s ease-out .5s, transform .25s ease-out .5s"
+
+              else
+                style "transition" "box-shadow .25s, transform .25s"
             , style "box-shadow"
                 (if isMoving model then
                     "0px 1px 8px -4px"
@@ -223,7 +227,11 @@ view msg model { collapsed, expanded } =
             , style "top" (px top)
             , style "width" (px width)
             , style "height" (px height)
-            , style "transition" "box-shadow .25s ease-out, transform .25s ease-out"
+            , if isMoving model then
+                style "transition" "box-shadow .25s ease-out .5s, transform .25s ease-out .5s"
+
+              else
+                style "transition" "box-shadow .25s, transform .25s"
             , style "box-shadow"
                 (if isMoving model then
                     "0px 1px 8px -4px"
