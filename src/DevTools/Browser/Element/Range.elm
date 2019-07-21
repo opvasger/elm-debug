@@ -8,7 +8,7 @@ module DevTools.Browser.Element.Range exposing
     )
 
 import Browser.Events
-import Html exposing (Html, div)
+import Html exposing (Html, div, text)
 import Html.Attributes exposing (style, title)
 import Html.Events exposing (stopPropagationOn)
 import Json.Decode as Decode exposing (Decoder)
@@ -62,7 +62,7 @@ view :
 view model config =
     div
         [ style "display" "flex"
-        , style "flex-direction" "row"
+        , style "flex-direction" "column"
         , style "align-items" "center"
         , style "flex-grow" "1"
         , style "height" "15px"
@@ -73,15 +73,24 @@ view model config =
         , stopPropagationOn "mouseout" (Decode.succeed ( config.onUpdate ToggleMouseOver, True ))
         ]
         [ div
+            [ style "font-size" "8px"
+            , style "color" "#6e6e6e"
+            , style "margin" "-4px 0"
+            , style "font-family" "monospace"
+            , style "font-weight" "bold"
+            , style "left" "0px"
+            , style "align-self" "flex-end"
+            , style "margin-right" "1"
+            ]
+            [ text (String.fromInt config.value) ]
+        , div
             [ style "width" "100%"
-            , style "margin" "0px 2px"
-            , style "height" "2px"
+            , style "margin-top" "4.5px"
+            , style "height" "4px"
+            , style "border-radius" "5px"
             , style "pointer-events" "none"
-            , if model.isMouseOver then
-                style "background-color" "black"
-
-              else
-                style "background-color" "#6e6e6e"
+            , style "background-color" "#6e6e6e"
+            , style "background-image" "linear-gradient(to top, rgba(0,0,0,.3), rgba(0,0,0,0))"
             ]
             [ div
                 [ style "width"
@@ -94,7 +103,8 @@ view model config =
                     )
                 , style "pointer-events" "none"
                 , style "transition" "width .2s"
-                , style "height" "2px"
+                , style "height" "4px"
+                , style "border-radius" "5px"
                 , style "background-color" "#89b3ee"
                 ]
                 []
