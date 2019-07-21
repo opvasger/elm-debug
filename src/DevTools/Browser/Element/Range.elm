@@ -80,7 +80,16 @@ view model config =
             , style "font-weight" "bold"
             , style "left" "0px"
             , style "align-self" "flex-end"
-            , style "margin-right" "1"
+            , style "transition" "margin-right .2s ease-in"
+            , style "margin-right"
+                (String.fromFloat
+                    (97
+                        - toFloat config.value
+                        * 97
+                        / toFloat config.max
+                    )
+                    ++ "%"
+                )
             ]
             [ text (String.fromInt config.value) ]
         , div
@@ -102,7 +111,7 @@ view model config =
                         ++ "%"
                     )
                 , style "pointer-events" "none"
-                , style "transition" "width .2s"
+                , style "transition" "width .2s ease-in"
                 , style "height" "4px"
                 , style "border-radius" "5px"
                 , style "background-color" "#89b3ee"
