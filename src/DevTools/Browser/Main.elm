@@ -618,15 +618,15 @@ viewSettingsPage isCacheEnabled model =
         [ Element.viewColumnWithTitle "Read from cache until the..."
             [ Element.viewRow
                 [ Html.text "first unrecognized message."
-                , viewDecodeStrategyInput History.Decode.UntilError 1 model
+                , viewDecodeStrategyInput History.Decode.UntilError 0 model
                 ]
             , Element.viewRow
                 [ Html.text "end, skipping unrecognized."
-                , viewDecodeStrategyInput History.Decode.SkipErrors 2 model
+                , viewDecodeStrategyInput History.Decode.SkipErrors 1 model
                 ]
             , Element.viewRow
                 [ Html.text "end if all was recognized."
-                , viewDecodeStrategyInput History.Decode.NoErrors 0 model
+                , viewDecodeStrategyInput History.Decode.NoErrors 2 model
                 ]
             ]
         ]

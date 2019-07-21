@@ -1,7 +1,7 @@
 module Benchmark.History exposing (suite)
 
 import Benchmark exposing (Benchmark, benchmark)
-import Benchmark.Fixtures as Fixtures
+import Benchmark.Fixture as Fixture
 import History exposing (History)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -28,8 +28,8 @@ record =
         \_ ->
             List.foldl
                 (History.record (+))
-                Fixtures.emptyIntHistory
-                Fixtures.oneTo99
+                Fixture.emptyIntHistory
+                Fixture.oneTo99
 
 
 recordForever : Benchmark
@@ -38,8 +38,8 @@ recordForever =
         \_ ->
             List.foldl
                 (History.recordForever (+))
-                Fixtures.emptyIntHistory
-                Fixtures.oneTo99
+                Fixture.emptyIntHistory
+                Fixture.oneTo99
 
 
 replay : Benchmark
@@ -48,8 +48,8 @@ replay =
         \_ ->
             List.foldl
                 (History.replay (+))
-                Fixtures.largeIntHistory
-                Fixtures.oneTo99
+                Fixture.largeIntHistory
+                Fixture.oneTo99
 
 
 toggleReplay : Benchmark
@@ -58,7 +58,7 @@ toggleReplay =
         \_ ->
             History.toggleReplay (+)
                 (History.toggleReplay (+)
-                    Fixtures.largeIntHistory
+                    Fixture.largeIntHistory
                 )
 
 
@@ -69,13 +69,13 @@ encode =
         (\_ ->
             History.encode
                 Encode.int
-                Fixtures.intRangeHistory
+                Fixture.intRangeHistory
         )
         "only duplicates recorded"
         (\_ ->
             History.encode
                 Encode.int
-                Fixtures.repeatIntHistory
+                Fixture.repeatIntHistory
         )
 
 
@@ -84,7 +84,7 @@ initialModel =
     benchmark "initialModel" <|
         \_ ->
             History.initialModel
-                Fixtures.largeIntHistory
+                Fixture.largeIntHistory
 
 
 noErrorsDecoder : Benchmark
@@ -94,13 +94,13 @@ noErrorsDecoder =
         (\_ ->
             Decode.decodeValue
                 (History.noErrorsDecoder (+) Decode.int 0)
-                Fixtures.intRangeHistoryJson
+                Fixture.intRangeHistoryJson
         )
         "only duplicates recorded"
         (\_ ->
             Decode.decodeValue
                 (History.noErrorsDecoder (+) Decode.int 0)
-                Fixtures.repeatIntHistoryJson
+                Fixture.repeatIntHistoryJson
         )
 
 
@@ -111,13 +111,13 @@ untilErrorDecoder =
         (\_ ->
             Decode.decodeValue
                 (History.untilErrorDecoder (+) Decode.int 0)
-                Fixtures.intRangeHistoryJson
+                Fixture.intRangeHistoryJson
         )
         "only duplicates recorded"
         (\_ ->
             Decode.decodeValue
                 (History.untilErrorDecoder (+) Decode.int 0)
-                Fixtures.repeatIntHistoryJson
+                Fixture.repeatIntHistoryJson
         )
 
 
@@ -128,11 +128,11 @@ skipErrorsDecoder =
         (\_ ->
             Decode.decodeValue
                 (History.skipErrorsDecoder (+) Decode.int 0)
-                Fixtures.intRangeHistoryJson
+                Fixture.intRangeHistoryJson
         )
         "only duplicates recorded"
         (\_ ->
             Decode.decodeValue
                 (History.skipErrorsDecoder (+) Decode.int 0)
-                Fixtures.repeatIntHistoryJson
+                Fixture.repeatIntHistoryJson
         )
