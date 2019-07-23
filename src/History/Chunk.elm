@@ -14,7 +14,7 @@ module History.Chunk exposing
 
 type Chunk model msg
     = Record (List msg) model
-    | Replay model (List msg)
+    | Replay (Replay model msg)
 
 
 init : model -> Chunk model msg
@@ -25,7 +25,7 @@ init =
 isReplay : Chunk model msg -> Bool
 isReplay chunk =
     case chunk of
-        Replay _ _ ->
+        Replay _ ->
             True
 
         Record _ _ ->
@@ -36,9 +36,9 @@ toggle : Chunk model msg -> Chunk model msg
 toggle chunk =
     case chunk of
         Record msgs model ->
-            Replay model (List.reverse msgs)
+            Replay ( model, List.reverse msgs )
 
-        Replay model msgs ->
+        Replay ( model, msgs ) ->
             Record (List.reverse msgs) model
 
 
@@ -48,14 +48,14 @@ insert msg chunk =
         Record msgs model ->
             Record (msg :: msgs) model
 
-        Replay _ _ ->
+        Replay _ ->
             insert msg (toggle chunk)
 
 
 toReplay : Chunk model msg -> Replay model msg
 toReplay chunk =
     case chunk of
-        Replay model msgs ->
+        Replay ( model, msgs ) ->
             ( model, msgs )
 
         Record _ _ ->
@@ -63,8 +63,8 @@ toReplay chunk =
 
 
 fromReplay : Replay model msg -> Chunk model msg
-fromReplay ( model, msgs ) =
-    Replay model msgs
+fromReplay =
+    Replay
 
 
 
