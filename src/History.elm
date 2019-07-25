@@ -76,8 +76,8 @@ toggleReplay update history =
     if isReplay history then
         history
             |> toState
-            >> State.rewindToCurrent
-            >> State.invalidatePersisted update
+            |> State.rewindToCurrent
+            |> State.invalidatePersisted update
             |> State.optimizeForRecord
             |> History
 
