@@ -2,7 +2,6 @@ module History.Decode exposing
     ( Strategy(..)
     , encodeStrategy
     , fromStrategy
-    , strategies
     , strategyDecoder
     )
 
@@ -15,14 +14,6 @@ type Strategy
     = NoErrors
     | UntilError
     | SkipErrors
-
-
-strategies : List Strategy
-strategies =
-    [ NoErrors
-    , UntilError
-    , SkipErrors
-    ]
 
 
 encodeStrategy : Strategy -> Encode.Value
