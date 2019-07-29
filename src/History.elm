@@ -3,6 +3,7 @@ module History exposing
     , currentIndex
     , currentModel
     , encode
+    , indexedRange
     , init
     , initialModel
     , isReplay
@@ -62,6 +63,12 @@ initialModel : History model msg -> model
 initialModel =
     toState
         >> State.toInitialModel
+
+
+indexedRange : Int -> Int -> History model msg -> List ( Int, msg )
+indexedRange from to =
+    toState
+        >> State.toIndexedMsgRange from to
 
 
 restart : History model msg -> History model msg

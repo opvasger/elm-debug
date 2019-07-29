@@ -5,6 +5,7 @@ module History.Chunk exposing
     , init
     , insert
     , isReplay
+    , range
     , replay
     , rewind
     , toReplay
@@ -83,3 +84,8 @@ replay update index ( model, msgs ) =
 rewind : Int -> Replay model msg -> Replay model msg
 rewind index =
     Tuple.mapSecond (List.take index)
+
+
+range : Int -> Int -> Replay model msg -> List msg
+range from to ( _, msgs ) =
+    List.take to (List.drop from msgs)

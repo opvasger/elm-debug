@@ -19,6 +19,7 @@ suite =
         , skipErrorsDecoder
         , toggleReplay
         , untilErrorDecoder
+        , indexedRange
         ]
 
 
@@ -50,6 +51,13 @@ replay =
                 (History.replay (+))
                 Fixture.largeIntHistory
                 Fixture.oneTo99
+
+
+indexedRange : Benchmark
+indexedRange =
+    benchmark "indexedRange" <|
+        \_ ->
+            History.indexedRange 50 550 Fixture.largeIntHistory
 
 
 toggleReplay : Benchmark
