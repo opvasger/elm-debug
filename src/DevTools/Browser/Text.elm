@@ -195,10 +195,6 @@ printUtcDate time =
         ]
 
 
-
--- Helpers
-
-
 monthToInt : Time.Month -> Int
 monthToInt month =
     case month of

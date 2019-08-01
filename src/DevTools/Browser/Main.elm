@@ -33,20 +33,13 @@ import Time
 
 
 type alias Model model msg =
-    { -- App
-      history : History model msg
+    { history : History model msg
     , initCmd : Cmd msg
-
-    -- Session
     , decodeStrategy : History.Decode.Strategy
     , decodeError : SessionDecodeError
     , cacheThrottle : Throttle.Model
-
-    -- Comments
     , title : String
     , comments : String
-
-    -- Layout
     , modelView : JsonTree.State
     , rangeInput : Range.Model
     , isModelVisible : Bool
@@ -58,12 +51,10 @@ type alias Model model msg =
 
 type Msg model msg
     = DoNothing
-      -- App
     | UpdateApp MsgSource msg
     | RestartApp
     | ReplayApp Int
     | ToggleAppReplay
-      -- Session
     | UseDecodeStrategy History.Decode.Strategy
     | DownloadSessionWithDate
     | DownloadSession Time.Posix
@@ -71,10 +62,8 @@ type Msg model msg
     | DecodeSession File
     | LoadSession (Result Decode.Error (Model model msg))
     | UpdateCacheThrottle
-      -- Comments
     | InputTitle String
     | InputComments String
-      -- Layout
     | OpenPage Page
     | ToggleModelVisible
     | UpdateModelView JsonTree.State
