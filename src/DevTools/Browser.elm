@@ -1,11 +1,26 @@
 module DevTools.Browser exposing
-    ( Feature(..)
-    , Program
-    , application
-    , document
-    , element
-    , sandbox
+    ( Program, sandbox, element, document, application
+    , Feature(..)
     )
+
+{-| This module helps you develop Elm programs by providing you with additional information and tooling. This is presented at runtime as a small UI-element.
+
+
+# Programs
+
+@docs Program, sandbox, element, document, application
+
+
+# Features
+
+This API is incremental, and comes with some default features that doesn't require any user-defined functions:
+
+1.  Restart your application by resetting the state and performing initial commands.
+2.  Navigate previous states of your application fast and easily. The application is paused during this navigation, but can be resumed from any of those states. Be aware that messages produced by the initial command CANNOT be removed from the history, and will persist unless until you restart it.
+
+@docs Feature
+
+-}
 
 import Browser
 import Browser.Navigation
@@ -16,10 +31,14 @@ import Json.Encode as Encode
 import Url exposing (Url)
 
 
+{-| These program-constructors are generally meant for development purposes. The API mirror [`elm/browser`](https://package.elm-lang.org/packages/elm/browser/latest/Browser), so you can easily toggle your program between development and production.
+-}
 type alias Program flags model msg =
     Platform.Program flags (Main.Model model msg) (Main.Msg model msg)
 
 
+{-| Create a “sandboxed” program that cannot communicate with the outside world. More about that [here](https://package.elm-lang.org/packages/elm/browser/latest/Browser#sandbox).
+-}
 sandbox :
     List (Feature flags model msg)
     ->
@@ -68,6 +87,8 @@ sandbox features app =
         }
 
 
+{-| Create an HTML element managed by Elm. More about that [here](https://package.elm-lang.org/packages/elm/browser/latest/Browser#element).
+-}
 element :
     List (Feature flags model msg)
     ->
@@ -120,6 +141,8 @@ element features app =
         }
 
 
+{-| Create an HTML document managed by Elm. More about that [here](https://package.elm-lang.org/packages/elm/browser/latest/Browser#document).
+-}
 document :
     List (Feature flags model msg)
     ->
@@ -169,6 +192,8 @@ document features app =
         }
 
 
+{-| Create an application that manages Url changes. More about that [here](https://package.elm-lang.org/packages/elm/browser/latest/Browser#application).
+-}
 application :
     List (Feature flags model msg)
     ->
@@ -224,10 +249,34 @@ application features app =
         }
 
 
+{-| You can unlock additional features that can aid you during development, depending on what you need:
 
--- Feature
+
+### ViewModel
+
+Sometimes it can be useful to inspect the state of your model over time. By providing a JSON-encoder for the model of your application, you can inspect it in real-time, and easily understand what values you're dealing with and how they changed over time.
 
 
+### ViewMsgs
+
+Messages drive interaction in Elm applications due to [The Elm Architecture](https://guide.elm-lang.org/architecture). By providing a JSON-encoder for messages in your application, you unlock a list of all interactions. This can give you more insight into what interactions were produced, which order they appeared in and where they came from.
+
+
+### ExportSession
+
+TODO
+
+
+### ImportSession
+
+TODO
+
+
+### CacheSession
+
+TODO
+
+-}
 type Feature flags model msg
     = ViewModel (model -> Encode.Value)
     | ViewMsgs (msg -> Encode.Value)
