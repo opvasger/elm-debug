@@ -255,7 +255,7 @@ viewFoot =
                 , height fill
                 , paddingXY 0 30
                 ]
-                (viewFootColumn "..."
+                (viewFootColumn "⭐"
                     [ ( "0.18 debugger", "https://elm-lang.org/blog/the-perfect-bug-report" )
                     , ( "bret's principle", "https://youtu.be/PUv66718DII?t=5" )
                     ]

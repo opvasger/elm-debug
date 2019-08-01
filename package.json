@@ -13,7 +13,6 @@
     "bench": "npm run bench:serve & npm run bench:watch",
     "docs": "npm run docs:serve & npm run docs:watch",
     "docs:win": "start npm run docs:serve && npm run docs:watch",
-    "SUBCOMMANDS": "────────────────────────────────────────────────",
     "bench:serve": "live-server --no-css-inject perf/benchmark.html",
     "docs:serve": "live-server --no-css-inject --watch=dist docs",
     "bench:watch": "nodemon --ext elm --exec \"cd perf && elm make Benchmark/Main.elm --output=benchmark.html\"",
