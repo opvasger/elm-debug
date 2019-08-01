@@ -264,17 +264,25 @@ Messages drive interaction in Elm applications due to [The Elm Architecture](htt
 
 ### ExportSession
 
-TODO
+A session contains all interactions with your application + devtools during development/debugging. This state can be exported to a JSON-file, which can be really useful for, for example, bug-reports. If you have a QA-team, they would probobably appreciate receiving a bug-report where they can reliably reproduce the error you encountered, along with a description and relevant date-information. This is all built into this feature.
+
+I suggest attaching a git-hash to this message to ensure they're running the same code as you.
 
 
 ### ImportSession
 
-TODO
+This is the other half of `ExportSession`, which will have to be defined if anyone will want to load the bug-report you produced. These two features are separate to facilitate producing bug-reports without having an up-front way to load them.
 
 
 ### CacheSession
 
-TODO
+If devtools is provided a way to persist messages between browser-reloads, you can essentially maintain state during development. The really cool thing about this is that because of the way Elm (and its architecture) works, the only way that you can break your application-state is modifying/removing constructors for your message-type. This is VERY predictable because modifying these constructors is the essence of rendering them impossible in the first place:
+
+  - If `LogIn` is modified/removed, does it even make any sense to `ViewAccount`? Probably not.
+  - Are your application-messages as coupled as `LogIn` and `ViewAccount` obviously would be? If not, you have to option to modify how this feature works. You get to choose between:
+    1.  Read from the cache until the first incompatible message. If `LogIn` is modified, `ViewAccount` will never happen.
+    2.  Read from the cache and skip incompatible messages. This can work unpredictably if messages are coupled tightly, but works great if they're not.
+    3.  Read from the cache if all messages are compatible. This is how the `ImportSession`-feature works.
 
 -}
 type Feature flags model msg
