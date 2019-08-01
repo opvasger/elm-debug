@@ -2,7 +2,7 @@ module DevTools.Browser.Text exposing
     ( collapseWindowTitle
     , commentsPageTitle
     , commentsPlaceholder
-    , defaultFileName
+    , defaultSessionTitle
     , dissmissWindowTitle
     , downloadSessionTitle
     , expandWindowTitle
@@ -15,6 +15,7 @@ module DevTools.Browser.Text exposing
     , pauseAppTitle
     , printFileName
     , printModelViewTitle
+    , printStrategyDescription
     , printUtcDate
     , replayRangeTitle
     , restartAppTitle
@@ -23,11 +24,12 @@ module DevTools.Browser.Text exposing
     , uploadSessionTitle
     )
 
+import History.Decode
 import Time
 
 
-defaultFileName : String
-defaultFileName =
+defaultSessionTitle : String
+defaultSessionTitle =
     "devtools-session"
 
 
@@ -147,13 +149,26 @@ jsonMimeType =
     "application/json"
 
 
+printStrategyDescription : History.Decode.Strategy -> String
+printStrategyDescription strategy =
+    case strategy of
+        History.Decode.NoErrors ->
+            "This setting will fail to read a session from cache if any messages aren't recognized."
+
+        History.Decode.UntilError ->
+            "This setting will read a session from cache capturing all messages up until the first error. This is a great default, as it captures a valid sequence of messages."
+
+        History.Decode.SkipErrors ->
+            "This setting is optimized for capturing as many messages as possible from a cached session. This can result in jarring app states."
+
+
 printFileName : Time.Posix -> String -> String
 printFileName time title =
     let
         fileTitle =
             case title of
                 "" ->
-                    defaultFileName
+                    defaultSessionTitle
 
                 _ ->
                     title

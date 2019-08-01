@@ -596,7 +596,7 @@ viewDecodeStrategyInput strategy key config =
         , isActive = config.decodeStrategy == strategy
         , onClick = UseDecodeStrategy strategy
         , onFocus = UpdateFocus
-        , title = describeStrategy strategy
+        , title = Text.printStrategyDescription strategy
         , key = key
         }
 
@@ -674,7 +674,7 @@ viewCommentsPage :
 viewCommentsPage config =
     [ Element.viewTextInput
         { value = config.title
-        , placeholder = Text.defaultFileName
+        , placeholder = Text.defaultSessionTitle
         , onInput = InputTitle
         , disabled = not config.isExportEnabled
         , disabledPlaceholder = Text.noCommentsTitle
@@ -901,7 +901,7 @@ pageDecoder =
                     Decode.succeed Settings
 
                 _ ->
-                    Decode.fail ("'" ++ text ++ "' is not of the page-type")
+                    Decode.fail ("'" ++ text ++ "' cannot be decoded into a page")
         )
         Decode.string
 
@@ -991,23 +991,6 @@ cacheSession config ( model, cmd ) =
 
         _ ->
             ( model, cmd )
-
-
-
--- History decoding
-
-
-describeStrategy : History.Decode.Strategy -> String
-describeStrategy strategy =
-    case strategy of
-        History.Decode.NoErrors ->
-            "This setting will fail to read a session from cache if any messages aren't recognized."
-
-        History.Decode.UntilError ->
-            "This setting will read a session from cache capturing all messages up until the first error. This is a great default, as it captures a valid sequence of messages."
-
-        History.Decode.SkipErrors ->
-            "This setting is optimized for capturing as many messages as possible from a cached session. This can result in jarring app states."
 
 
 
