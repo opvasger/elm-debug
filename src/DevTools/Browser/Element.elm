@@ -2,10 +2,11 @@ module DevTools.Browser.Element exposing
     ( viewColumnWithTitle
     , viewDivider
     , viewJson
+    , viewMsg
     , viewNothing
     , viewRow
-    , viewText
-    , viewTextArea
+    , viewTextInput
+    , viewTextInputArea
     )
 
 import Html exposing (Html, div, input, text, textarea)
@@ -30,6 +31,26 @@ viewDivider =
         , style "margin" "0 3.5px"
         ]
         []
+
+
+viewMsg : (msg -> Encode.Value) -> Int -> msg -> Html otherMsg
+viewMsg encodeMsg index msg =
+    div
+        [ style "font" "400 11px system-ui"
+        , style "height" "20px"
+        , style "display" "flex"
+        , style "align-items" "center"
+        , style "flex-direction" "row"
+        , style "padding" "4px"
+        ]
+        [ div
+            []
+            [ text (Encode.encode 0 (encodeMsg msg))
+            ]
+        , div
+            []
+            [ text (String.fromInt index) ]
+        ]
 
 
 viewColumnWithTitle : String -> List (Html msg) -> Html msg
@@ -100,7 +121,7 @@ viewJson config =
         viewNothing
 
 
-viewText :
+viewTextInput :
     { onInput : String -> msg
     , placeholder : String
     , value : String
@@ -108,7 +129,7 @@ viewText :
     , disabledPlaceholder : String
     }
     -> Html msg
-viewText config =
+viewTextInput config =
     input
         [ style "outline" "none"
         , style "border" "none"
@@ -130,7 +151,7 @@ viewText config =
         []
 
 
-viewTextArea :
+viewTextInputArea :
     { onInput : String -> msg
     , placeholder : String
     , value : String
@@ -138,7 +159,7 @@ viewTextArea :
     , disabledPlaceholder : String
     }
     -> Html msg
-viewTextArea config =
+viewTextInputArea config =
     textarea
         [ style "outline" "none"
         , style "border" "none"

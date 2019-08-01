@@ -12,6 +12,7 @@ import Browser
 import DevTools.Browser.Element as Element
 import DevTools.Browser.Element.Icon as Icon exposing (Icon)
 import DevTools.Browser.Element.Range as Range
+import DevTools.Browser.Text as Text
 import DevTools.Browser.Window as Window
 import File exposing (File)
 import File.Download
@@ -82,53 +83,6 @@ type Msg model msg
     | UpdateRange Range.Msg
 
 
-defaultTitle : String
-defaultTitle =
-    "devtools-session"
-
-
-commentsPlaceholder : String
-commentsPlaceholder =
-    """Take a moment to describe what you're doing!
-
- 🐞 Did you encounter a bug
-       you want to report?
-
- 💭 Do you want to write a
-       note before leaving?
-
- ⌗   Which Git-branch/commit
-       is this session for?
-"""
-
-
-noCommentsTitle : String
-noCommentsTitle =
-    "No comments included."
-
-
-noCommentsPlaceholder : String
-noCommentsPlaceholder =
-    """ 💡 You can edit these fields
-       if you unlock features to
-       export or cache your 
-       session.
-"""
-
-
-noSettingsTitle : String
-noSettingsTitle =
-    "No settings available."
-
-
-noSettingsPlaceholder : String
-noSettingsPlaceholder =
-    """ 💡 You can configure how
-       session-caching works
-       if you unlock the feature.
-"""
-
-
 urlUpdate : msg -> Msg model msg
 urlUpdate =
     UpdateApp FromUrl
@@ -146,24 +100,23 @@ init :
 init config =
     case ( config.msgDecoder, config.fromCache ) of
         ( Just msgDecoder, Just fromCache ) ->
-            initSession config.update msgDecoder fromCache config
+            initSession config msgDecoder fromCache
 
         _ ->
-            initWith NoError config
+            initWith config NoError
 
 
 initSession :
-    (msg -> model -> ( model, Cmd msg ))
+    { config
+        | init : ( model, Cmd msg )
+        , msgDecoder : Maybe (Decoder msg)
+        , isExportEnabled : Bool
+        , update : msg -> model -> ( model, Cmd msg )
+    }
     -> Decoder msg
     -> String
-    ->
-        { config
-            | init : ( model, Cmd msg )
-            , msgDecoder : Maybe (Decoder msg)
-            , isExportEnabled : Bool
-        }
     -> ( Model model msg, Cmd (Msg model msg) )
-initSession updateApp msgDecoder fromCache config =
+initSession config msgDecoder fromCache =
     let
         strategy =
             fromCache
@@ -171,7 +124,10 @@ initSession updateApp msgDecoder fromCache config =
                 |> Result.withDefault History.Decode.NoErrors
 
         decoder =
-            sessionDecoder (dropCmd updateApp) msgDecoder config.init strategy
+            sessionDecoder (dropCmd config.update)
+                msgDecoder
+                config.init
+                strategy
     in
     case Decode.decodeString decoder fromCache of
         Ok model ->
@@ -180,19 +136,18 @@ initSession updateApp msgDecoder fromCache config =
             )
 
         Err decodeError ->
-            initWith (CacheError decodeError) config
+            initWith config (CacheError decodeError)
 
 
 initWith :
-    SessionDecodeError
-    ->
-        { config
-            | init : ( model, Cmd msg )
-            , isExportEnabled : Bool
-            , msgDecoder : Maybe (Decoder msg)
-        }
+    { config
+        | init : ( model, Cmd msg )
+        , isExportEnabled : Bool
+        , msgDecoder : Maybe (Decoder msg)
+    }
+    -> SessionDecodeError
     -> ( Model model msg, Cmd (Msg model msg) )
-initWith decodeError config =
+initWith config decodeError =
     ( { history = History.init (Tuple.first config.init)
       , initCmd = Tuple.second config.init
       , decodeError = decodeError
@@ -326,9 +281,8 @@ update config msg model =
                 Just encodeMsg ->
                     cache
                         ( model
-                        , File.Download.string
-                            (toSessionTitle time model.title)
-                            "application/json"
+                        , File.Download.string (Text.printFileName time model.title)
+                            Text.jsonMimeType
                             (encodeSession encodeMsg model)
                         )
 
@@ -343,8 +297,7 @@ update config msg model =
 
             else
                 ( model
-                , File.Select.file
-                    [ "application/json" ]
+                , File.Select.file [ Text.jsonMimeType ]
                     DecodeSession
                 )
 
@@ -494,95 +447,138 @@ viewDevTools :
 viewDevTools config model =
     Window.view UpdateWindow
         model.window
-        { collapsed =
-            \expandMsg ->
-                [ viewModelButton config.encodeModel model
-                , if config.encodeModel /= Nothing then
-                    Element.viewDivider
-
-                  else
-                    Element.viewNothing
-                , viewRestartButton model
-                , viewReplayRange model
-                , viewToggleReplayButton model
-                , if
-                    config.encodeMsg
-                        /= Nothing
-                        || config.isCacheEnabled
-                        || config.isImportEnabled
-                  then
-                    Element.viewDivider
-
-                  else
-                    Element.viewNothing
-                , if
-                    config.encodeMsg
-                        /= Nothing
-                        || config.isCacheEnabled
-                        || config.isImportEnabled
-                  then
-                    viewExpandButton expandMsg model
-
-                  else
-                    Element.viewNothing
-                ]
+        { collapsed = viewDevToolsCollapsed config model
         , expanded =
-            { head =
-                \collapseMsg dismissMsg ->
-                    [ viewModelButton config.encodeModel model
-                    , viewDownloadButton config.encodeMsg model
-                    , viewUploadButton config.isImportEnabled model
-                    , Element.viewDivider
-                    , if config.encodeMsg /= Nothing then
-                        Icon.viewMessages
-                            { focus = model.focus
-                            , isActive = model.page == Messages
-                            , onClick = OpenPage Messages
-                            , onFocus = UpdateFocus
-                            , title = "View messages"
-                            }
-
-                      else
-                        Element.viewNothing
-                    , Icon.viewComments
-                        { focus = model.focus
-                        , isActive = model.page == Comments
-                        , onClick = OpenPage Comments
-                        , onFocus = UpdateFocus
-                        , title = "View report"
-                        }
-                    , Icon.viewSettings
-                        { focus = model.focus
-                        , isActive = model.page == Settings
-                        , onClick = OpenPage Settings
-                        , onFocus = UpdateFocus
-                        , title = "View settings"
-                        }
-                    , Element.viewDivider
-                    , viewDismissButton dismissMsg model
-                    , viewCollapseButton collapseMsg model
-                    ]
-            , body =
-                case model.page of
-                    Comments ->
-                        viewCommentsPage
-                            { title = model.title
-                            , comments = model.comments
-                            , isExportEnabled = config.encodeMsg /= Nothing
-                            }
-
-                    Settings ->
-                        viewSettingsPage config.isCacheEnabled model
-
-                    Messages ->
-                        viewMessagesPage model
-            , foot =
-                [ viewRestartButton model
-                , viewReplayRange model
-                , viewToggleReplayButton model
-                ]
+            { head = viewDevToolsHead config model
+            , body = viewDevToolsBody config model
+            , foot = viewDevToolsFoot model
             }
         }
+
+
+viewDevToolsCollapsed :
+    { config
+        | encodeMsg : Maybe (msg -> Encode.Value)
+        , encodeModel : Maybe (model -> Encode.Value)
+        , isImportEnabled : Bool
+        , isCacheEnabled : Bool
+    }
+    -> Model model msg
+    -> Window.Msg
+    -> List (Html (Msg model msg))
+viewDevToolsCollapsed config model expandMsg =
+    [ viewModelButton config.encodeModel model
+    , if config.encodeModel /= Nothing then
+        Element.viewDivider
+
+      else
+        Element.viewNothing
+    , viewRestartButton model
+    , viewReplayRange model
+    , viewToggleReplayButton model
+    , if
+        config.encodeMsg
+            /= Nothing
+            || config.isCacheEnabled
+            || config.isImportEnabled
+      then
+        Element.viewDivider
+
+      else
+        Element.viewNothing
+    , if
+        config.encodeMsg
+            /= Nothing
+            || config.isCacheEnabled
+            || config.isImportEnabled
+      then
+        viewExpandButton expandMsg model
+
+      else
+        Element.viewNothing
+    ]
+
+
+viewDevToolsHead :
+    { config
+        | encodeMsg : Maybe (msg -> Encode.Value)
+        , encodeModel : Maybe (model -> Encode.Value)
+        , isImportEnabled : Bool
+    }
+    -> Model model msg
+    -> Window.Msg
+    -> Window.Msg
+    -> List (Html (Msg model msg))
+viewDevToolsHead config model collapseMsg dismissMsg =
+    [ viewModelButton config.encodeModel model
+    , viewDownloadButton config.encodeMsg model
+    , viewUploadButton config.isImportEnabled model
+    , Element.viewDivider
+    , if config.encodeMsg /= Nothing then
+        Icon.viewMessages
+            { focus = model.focus
+            , isActive = model.page == Messages
+            , onClick = OpenPage Messages
+            , onFocus = UpdateFocus
+            , title = Text.messagesPageTitle
+            }
+
+      else
+        Element.viewNothing
+    , Icon.viewComments
+        { focus = model.focus
+        , isActive = model.page == Comments
+        , onClick = OpenPage Comments
+        , onFocus = UpdateFocus
+        , title = Text.commentsPageTitle
+        }
+    , Icon.viewSettings
+        { focus = model.focus
+        , isActive = model.page == Settings
+        , onClick = OpenPage Settings
+        , onFocus = UpdateFocus
+        , title = Text.settingsPageTitle
+        }
+    , Element.viewDivider
+    , viewDismissButton dismissMsg model
+    , viewCollapseButton collapseMsg model
+    ]
+
+
+viewDevToolsBody :
+    { config
+        | encodeMsg : Maybe (msg -> Encode.Value)
+        , encodeModel : Maybe (model -> Encode.Value)
+        , isImportEnabled : Bool
+        , isCacheEnabled : Bool
+    }
+    -> Model model msg
+    -> List (Html (Msg model msg))
+viewDevToolsBody config model =
+    case model.page of
+        Comments ->
+            viewCommentsPage
+                { title = model.title
+                , comments = model.comments
+                , isExportEnabled = config.encodeMsg /= Nothing
+                }
+
+        Settings ->
+            viewSettingsPage config.isCacheEnabled model
+
+        Messages ->
+            viewMessagesPage
+                { history = model.history
+                , encodeMsg = config.encodeMsg
+                }
+
+
+viewDevToolsFoot : Model model msg -> List (Html (Msg model msg))
+viewDevToolsFoot model =
+    [ viewRestartButton model
+    , viewReplayRange model
+    , viewToggleReplayButton model
+    ]
 
 
 viewDecodeStrategyInput :
@@ -632,16 +628,16 @@ viewSettingsPage isCacheEnabled model =
         ]
 
     else
-        [ Element.viewText
+        [ Element.viewTextInput
             { disabled = True
-            , disabledPlaceholder = noSettingsTitle
+            , disabledPlaceholder = Text.noSettingsTitle
             , onInput = always DoNothing
             , placeholder = ""
             , value = ""
             }
-        , Element.viewTextArea
+        , Element.viewTextInputArea
             { disabled = True
-            , disabledPlaceholder = noSettingsPlaceholder
+            , disabledPlaceholder = Text.noSettingsPlaceholder
             , onInput = always DoNothing
             , placeholder = ""
             , value = ""
@@ -650,10 +646,23 @@ viewSettingsPage isCacheEnabled model =
 
 
 viewMessagesPage :
-    config
+    { config
+        | history : History model msg
+        , encodeMsg : Maybe (msg -> Encode.Value)
+    }
     -> List (Html (Msg model msg))
-viewMessagesPage model =
-    []
+viewMessagesPage config =
+    case config.encodeMsg of
+        Just encodeMsg ->
+            List.map (mapPair (Element.viewMsg encodeMsg))
+                (History.indexedRange
+                    0
+                    9
+                    config.history
+                )
+
+        Nothing ->
+            []
 
 
 viewCommentsPage :
@@ -663,19 +672,19 @@ viewCommentsPage :
     }
     -> List (Html (Msg model msg))
 viewCommentsPage config =
-    [ Element.viewText
+    [ Element.viewTextInput
         { value = config.title
-        , placeholder = defaultTitle
+        , placeholder = Text.defaultFileName
         , onInput = InputTitle
         , disabled = not config.isExportEnabled
-        , disabledPlaceholder = noCommentsTitle
+        , disabledPlaceholder = Text.noCommentsTitle
         }
-    , Element.viewTextArea
+    , Element.viewTextInputArea
         { value = config.comments
-        , placeholder = commentsPlaceholder
+        , placeholder = Text.commentsPlaceholder
         , onInput = InputComments
         , disabled = not config.isExportEnabled
-        , disabledPlaceholder = noCommentsPlaceholder
+        , disabledPlaceholder = Text.noCommentsPlaceholder
         }
     ]
 
@@ -696,7 +705,7 @@ viewReplayRange model =
         , onMove = ReplayApp
         , max = length
         , value = index
-        , title = "Replay application states"
+        , title = Text.replayRangeTitle
         }
 
 
@@ -712,7 +721,7 @@ viewToggleReplayButton model =
             { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleAppReplay
-            , title = "Start the application"
+            , title = Text.startAppTitle
             }
 
     else
@@ -720,7 +729,7 @@ viewToggleReplayButton model =
             { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleAppReplay
-            , title = "Pause the application"
+            , title = Text.pauseAppTitle
             }
 
 
@@ -732,7 +741,7 @@ viewRestartButton model =
         { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = RestartApp
-        , title = "Restart the application"
+        , title = Text.restartAppTitle
         }
 
 
@@ -745,7 +754,7 @@ viewDismissButton dismissMsg model =
         { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow dismissMsg
-        , title = "Dismiss the window"
+        , title = Text.dissmissWindowTitle
         }
 
 
@@ -758,7 +767,7 @@ viewCollapseButton collapseMsg model =
         { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow collapseMsg
-        , title = "Collapse the window"
+        , title = Text.collapseWindowTitle
         }
 
 
@@ -771,7 +780,7 @@ viewExpandButton expandMsg model =
         { focus = model.focus
         , onFocus = UpdateFocus
         , onClick = UpdateWindow expandMsg
-        , title = "Expand the window"
+        , title = Text.expandWindowTitle
         }
 
 
@@ -785,7 +794,7 @@ viewDownloadButton encodeMsg model =
             { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = DownloadSessionWithDate
-            , title = "Download session"
+            , title = Text.downloadSessionTitle
             }
 
     else
@@ -807,7 +816,7 @@ viewUploadButton isImportEnabled model =
             , onFocus = UpdateFocus
             , onClick = SelectSessionFile
             , hasFailed = model.decodeError /= NoError
-            , title = printSessionDecodeError "Upload session" model.decodeError
+            , title = printSessionDecodeError Text.uploadSessionTitle model.decodeError
             }
 
     else
@@ -824,12 +833,7 @@ viewModelButton encodeModel model =
             { focus = model.focus
             , onFocus = UpdateFocus
             , onClick = ToggleModelVisible
-            , title =
-                if model.isModelVisible then
-                    "Hide model"
-
-                else
-                    "View model"
+            , title = Text.printModelViewTitle model.isModelVisible
             , isEnabled = model.isModelVisible
             }
 
@@ -989,20 +993,6 @@ cacheSession config ( model, cmd ) =
             ( model, cmd )
 
 
-toSessionTitle : Time.Posix -> String -> String
-toSessionTitle time title =
-    let
-        fileTitle =
-            case title of
-                "" ->
-                    defaultTitle
-
-                _ ->
-                    title
-    in
-    fileTitle ++ "." ++ printUtcDate time ++ ".json"
-
-
 
 -- History decoding
 
@@ -1074,6 +1064,11 @@ recordMsg src =
 -- Helpers
 
 
+mapPair : (a -> b -> c) -> ( a, b ) -> c
+mapPair fn ( a, b ) =
+    fn a b
+
+
 dropCmd :
     (msg -> model -> ( model, Cmd msg ))
     -> msg
@@ -1091,62 +1086,3 @@ resultToTask result =
 
         Err error ->
             Task.fail error
-
-
-printUtcDate : Time.Posix -> String
-printUtcDate time =
-    List.foldl (++)
-        ""
-        [ Time.toYear Time.utc time
-            |> String.fromInt
-            |> String.right 2
-        , "-"
-        , Time.toMonth Time.utc time
-            |> monthNumber
-            |> String.fromInt
-            |> String.padLeft 2 '0'
-        , "-"
-        , Time.toDay Time.utc time
-            |> String.fromInt
-            |> String.padLeft 2 '0'
-        ]
-
-
-monthNumber : Time.Month -> Int
-monthNumber month =
-    case month of
-        Time.Jan ->
-            1
-
-        Time.Feb ->
-            2
-
-        Time.Mar ->
-            3
-
-        Time.Apr ->
-            4
-
-        Time.May ->
-            5
-
-        Time.Jun ->
-            6
-
-        Time.Jul ->
-            7
-
-        Time.Aug ->
-            8
-
-        Time.Sep ->
-            9
-
-        Time.Oct ->
-            10
-
-        Time.Nov ->
-            11
-
-        Time.Dec ->
-            12

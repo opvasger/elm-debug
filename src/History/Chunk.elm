@@ -88,4 +88,4 @@ rewind index =
 
 range : Int -> Int -> Replay model msg -> List msg
 range from to ( _, msgs ) =
-    List.take to (List.drop from msgs)
+    List.take (to - from) (List.drop from msgs)

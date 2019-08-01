@@ -154,14 +154,23 @@ toReplay index state =
 toIndexedMsgRange : Int -> Int -> State model msg -> List ( Int, msg )
 toIndexedMsgRange from to state =
     let
+        length =
+            msgLength state
+
+        fromIndex =
+            clamp 0 length from
+
+        toIndex =
+            clamp 0 length to
+
         fromChunkIndex =
-            from // maxChunkLength
+            fromIndex // maxChunkLength
 
         toChunkIndex =
-            to // maxChunkLength
+            toIndex // maxChunkLength
 
         fromChunkMsgs =
-            Chunk.range (modBy maxChunkLength from) to (toReplay from state)
+            Chunk.range (modBy maxChunkLength fromIndex) toIndex (toReplay fromIndex state)
 
         middleChunkMsgs =
             if toChunkIndex - fromChunkIndex > 1 then
@@ -174,12 +183,12 @@ toIndexedMsgRange from to state =
 
         toChunkMsgs =
             if fromChunkIndex /= toChunkIndex then
-                Chunk.range 0 (modBy maxChunkLength to) (toReplay to state)
+                Chunk.range 0 (modBy maxChunkLength toIndex) (toReplay toIndex state)
 
             else
                 []
     in
-    List.indexedMap (\index msg -> ( index + from, msg ))
+    List.indexedMap (\index msg -> ( index + fromIndex, msg ))
         (fromChunkMsgs ++ middleChunkMsgs ++ toChunkMsgs)
 
 
