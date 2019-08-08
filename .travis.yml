@@ -9,6 +9,7 @@ cache:
 install:
   - npm install -g elm@0.19.0-bugfix6
   - npm install -g elm-test@0.19.0-rev6
+  - npm install -g google-closure-compiler@20190415.0.0
 
 script:
   - npm run build
