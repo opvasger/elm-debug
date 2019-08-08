@@ -188,7 +188,7 @@ toIndexedMsgRange from to state =
             else
                 []
     in
-    List.indexedMap (\index msg -> ( index + fromIndex, msg ))
+    List.indexedMap (\index msg -> ( index + 1 + fromIndex, msg ))
         (fromChunkMsgs ++ middleChunkMsgs ++ toChunkMsgs)
 
 

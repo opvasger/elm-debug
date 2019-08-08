@@ -643,12 +643,8 @@ viewMessagesPage :
 viewMessagesPage config =
     case config.encodeMsg of
         Just encodeMsg ->
-            List.map (mapPair (Element.viewMsg encodeMsg))
-                (History.indexedRange
-                    0
-                    9
-                    config.history
-                )
+            List.map (mapPair (Element.viewMsg ReplayApp encodeMsg))
+                (History.indexedRange 0 9 config.history)
 
         Nothing ->
             []

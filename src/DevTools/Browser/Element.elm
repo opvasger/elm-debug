@@ -11,7 +11,7 @@ module DevTools.Browser.Element exposing
 
 import Html exposing (Html, div, input, text, textarea)
 import Html.Attributes exposing (disabled, placeholder, spellcheck, style, type_, value)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import JsonTree
@@ -33,8 +33,17 @@ viewDivider =
         []
 
 
-viewMsg : (msg -> Encode.Value) -> Int -> msg -> Html otherMsg
-viewMsg encodeMsg index msg =
+viewMsg : (Int -> otherMsg) -> (msg -> Encode.Value) -> Int -> msg -> Html otherMsg
+viewMsg clickMsg encodeMsg index msg =
+    let
+        ( title, args ) =
+            case Decode.decodeValue (Decode.keyValuePairs Decode.value) (encodeMsg msg) of
+                Ok (( key, value ) :: _) ->
+                    ( key, Encode.encode 0 value )
+
+                _ ->
+                    ( "", Encode.encode 0 (encodeMsg msg) )
+    in
     div
         [ style "font" "400 11px system-ui"
         , style "height" "20px"
@@ -42,14 +51,20 @@ viewMsg encodeMsg index msg =
         , style "align-items" "center"
         , style "flex-direction" "row"
         , style "padding" "4px"
+        , style "cursor" "pointer"
+        , onClick (clickMsg index)
         ]
         [ div
-            []
-            [ text (Encode.encode 0 (encodeMsg msg))
+            [ style "display" "flex"
             ]
-        , div
-            []
-            [ text (String.fromInt index) ]
+            [ text title
+            , div
+                [ style "display" "flex"
+                , style "color" "#cccccc"
+                ]
+                [ text args ]
+            ]
+        , text (String.fromInt index)
         ]
 
 
