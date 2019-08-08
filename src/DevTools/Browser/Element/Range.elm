@@ -59,7 +59,7 @@ view :
             , value : Int
         }
     -> Html msg
-view model config =
+view _ config =
     div
         [ style "display" "flex"
         , style "flex-direction" "column"
