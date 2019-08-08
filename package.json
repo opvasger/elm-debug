@@ -6,7 +6,7 @@
     "elm-devtools": "src/cli.js"
   },
   "scripts": {
-    "build": "elm make --output=/dev/null && time (npm run docs:build)",
+    "build": "elm make --output=/dev/null && time npm run docs:build",
     "xref": "elm-xref",
     "format": "elm-format --yes src/",
     "test": "elm-test tests",
