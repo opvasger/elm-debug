@@ -1017,7 +1017,6 @@ type MsgSource
     | FromUrl
 
 
-
 recordMsg :
     MsgSource
     -> (msg -> model -> model)
@@ -1039,7 +1038,7 @@ recordMsg src =
 
 mapPair : (a -> b -> c) -> ( a, b ) -> c
 mapPair fn ( a, b ) =
-    fn a b 
+    fn a b
 
 
 dropCmd :

@@ -340,7 +340,7 @@ encodeMsg msg =
             Encode.object [ ( "ChangeUrl", Encode.string (Url.toString url) ) ]
 
         ResizeViewport x y ->
-            Encode.object [ ( "x", Encode.int x ), ( "y", Encode.int y ) ]
+            Encode.object [ ( "ResizeViewport", Encode.list Encode.int [ x, y ] ) ]
 
         MarioMsg marioMsg ->
             Mario.encodeMsg marioMsg
@@ -352,6 +352,6 @@ msgDecoder =
         [ Decode.field "RequestInternalUrl" (Decode.map (RequestUrl << Browser.Internal) urlDecoder)
         , Decode.field "RequestExternalUrl" (Decode.map (RequestUrl << Browser.External) Decode.string)
         , Decode.field "ChangeUrl" (Decode.map ChangeUrl urlDecoder)
-        , Decode.map2 ResizeViewport (Decode.field "x" Decode.int) (Decode.field "y" Decode.int)
+        , Decode.field "ResizeViewport" (Decode.map2 ResizeViewport (Decode.index 0 Decode.int) (Decode.index 1 Decode.int))
         , Decode.map MarioMsg Mario.msgDecoder
         ]
