@@ -17,7 +17,7 @@
     "docs:serve": "live-server --no-css-inject --watch=dist docs",
     "bench:watch": "nodemon --ext elm --exec \"cd perf && elm make Benchmark/Main.elm --output=benchmark.html\"",
     "docs:watch": "nodemon --ext elm --exec \"cd docs && elm make src/Main.elm --output=dist/main.js\"",
-    "docs:build": "cd docs && time (elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js) && stat -f 'size    %z bytes' dist/main.js && rm dist/main.temp.js"
+    "docs:build": "cd docs && time ( elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js ) && stat -f 'size    %z bytes' dist/main.js && rm dist/main.temp.js"
   },
   "repository": {
     "type": "git",
