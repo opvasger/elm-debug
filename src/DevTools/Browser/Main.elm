@@ -11,6 +11,7 @@ module DevTools.Browser.Main exposing
 import Browser
 import DevTools.Browser.Element as Element
 import DevTools.Browser.Element.Icon as Icon exposing (Icon)
+import DevTools.Browser.Element.LazyList as LazyList
 import DevTools.Browser.Element.Range as Range
 import DevTools.Browser.Text as Text
 import DevTools.Browser.Window as Window
@@ -624,6 +625,7 @@ viewSettingsPage isCacheEnabled model =
             }
         ]
 
+
 viewMessagesPage :
     { config
         | history : History model msg
@@ -641,8 +643,12 @@ viewMessagesPage config =
     in
     case config.encodeMsg of
         Just encodeMsg ->
-            List.map (Element.viewMsg << toViewMsgConfig encodeMsg)
-                (History.indexedRange 0 9 config.history)
+            [ LazyList.view
+                { queryElements = \from to -> History.indexedRange from to config.history
+                , viewElement = Element.viewMsg << toViewMsgConfig encodeMsg
+                , length = History.length config.history
+                }
+            ]
 
         Nothing ->
             []
