@@ -495,17 +495,6 @@ viewDevToolsHead config model collapseMsg dismissMsg =
     , viewDownloadButton config.encodeMsg model
     , viewUploadButton config.isImportEnabled model
     , Element.viewDivider
-    , if config.encodeMsg /= Nothing then
-        Icon.viewMessages
-            { focus = model.focus
-            , isActive = model.page == Messages
-            , onClick = OpenPage Messages
-            , onFocus = UpdateFocus
-            , title = Text.messagesPageTitle
-            }
-
-      else
-        Element.viewNothing
     , Icon.viewComments
         { focus = model.focus
         , isActive = model.page == Comments
@@ -520,6 +509,17 @@ viewDevToolsHead config model collapseMsg dismissMsg =
         , onFocus = UpdateFocus
         , title = Text.settingsPageTitle
         }
+    , if config.encodeMsg /= Nothing then
+        Icon.viewMessages
+            { focus = model.focus
+            , isActive = model.page == Messages
+            , onClick = OpenPage Messages
+            , onFocus = UpdateFocus
+            , title = Text.messagesPageTitle
+            }
+
+      else
+        Element.viewNothing
     , Element.viewDivider
     , viewDismissButton dismissMsg model
     , viewCollapseButton collapseMsg model
