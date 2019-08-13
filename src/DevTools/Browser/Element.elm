@@ -10,7 +10,7 @@ module DevTools.Browser.Element exposing
     )
 
 import Html exposing (Html, div, input, text, textarea)
-import Html.Attributes exposing (disabled, placeholder, spellcheck, style, type_, value)
+import Html.Attributes exposing (disabled, placeholder, spellcheck, style, title, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -33,38 +33,47 @@ viewDivider =
         []
 
 
-viewMsg : (Int -> otherMsg) -> (msg -> Encode.Value) -> Int -> msg -> Html otherMsg
-viewMsg clickMsg encodeMsg index msg =
+viewMsg :
+    { onClick : Int -> otherMsg
+    , encodeMsg : msg -> Encode.Value
+    , index : Int
+    , msg : msg
+    }
+    -> Html otherMsg
+viewMsg config =
     let
-        ( title, args ) =
-            case Decode.decodeValue (Decode.keyValuePairs Decode.value) (encodeMsg msg) of
+        ( name, args ) =
+            case Decode.decodeValue (Decode.keyValuePairs Decode.value) (config.encodeMsg config.msg) of
                 Ok (( key, value ) :: _) ->
                     ( key, Encode.encode 0 value )
 
                 _ ->
-                    ( "", Encode.encode 0 (encodeMsg msg) )
+                    ( "", Encode.encode 0 (config.encodeMsg config.msg) )
     in
     div
-        [ style "font" "400 11px system-ui"
+        [ style "display" "flex"
+        , style "font" "400 11px system-ui"
         , style "height" "20px"
-        , style "display" "flex"
-        , style "align-items" "center"
-        , style "flex-direction" "row"
-        , style "padding" "4px"
         , style "cursor" "pointer"
-        , onClick (clickMsg index)
+        , onClick (config.onClick config.index)
         ]
         [ div
             [ style "display" "flex"
             ]
-            [ text title
-            , div
-                [ style "display" "flex"
-                , style "color" "#cccccc"
-                ]
-                [ text args ]
+            [ text name ]
+        , div
+            [ style "display" "flex"
+            , style "overflow" "hidden"
+            , style "margin" "0 6px"
+            , style "color" "#cccccc"
+            , title args
             ]
-        , text (String.fromInt index)
+            [ text args ]
+        , div
+            [ style "display" "flex"
+            , style "margin-left" "auto"
+            ]
+            [ text (String.fromInt config.index) ]
         ]
 
 

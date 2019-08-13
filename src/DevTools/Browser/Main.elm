@@ -624,7 +624,6 @@ viewSettingsPage isCacheEnabled model =
             }
         ]
 
-
 viewMessagesPage :
     { config
         | history : History model msg
@@ -632,9 +631,17 @@ viewMessagesPage :
     }
     -> List (Html (Msg model msg))
 viewMessagesPage config =
+    let
+        toViewMsgConfig encodeMsg ( index, msg ) =
+            { onClick = ReplayApp
+            , encodeMsg = encodeMsg
+            , index = index
+            , msg = msg
+            }
+    in
     case config.encodeMsg of
         Just encodeMsg ->
-            List.map (mapPair (Element.viewMsg ReplayApp encodeMsg))
+            List.map (Element.viewMsg << toViewMsgConfig encodeMsg)
                 (History.indexedRange 0 9 config.history)
 
         Nothing ->
@@ -1018,11 +1025,6 @@ recordMsg src =
 
 
 -- Helpers
-
-
-mapPair : (a -> b -> c) -> ( a, b ) -> c
-mapPair fn ( a, b ) =
-    fn a b
 
 
 dropCmd :
