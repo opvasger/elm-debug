@@ -41,7 +41,6 @@ type alias Model model msg =
     , title : String
     , comments : String
     , modelView : JsonTree.State
-    , rangeInput : Range.Model
     , isModelVisible : Bool
     , window : Window.Model
     , focus : Maybe Icon
@@ -69,7 +68,6 @@ type Msg model msg
     | UpdateModelView JsonTree.State
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
-    | UpdateRange Range.Msg
 
 
 urlUpdate : msg -> Msg model msg
@@ -148,7 +146,6 @@ initWith config decodeError =
       , window = Tuple.first Window.init
       , focus = Nothing
       , modelView = JsonTree.defaultState
-      , rangeInput = Range.init
       , page = Messages
       }
     , Cmd.batch
@@ -377,12 +374,6 @@ update config msg model =
         UpdateModelView state ->
             cache
                 ( { model | modelView = state }
-                , Cmd.none
-                )
-
-        UpdateRange rangeMsg ->
-            cache
-                ( { model | rangeInput = Range.update rangeMsg model.rangeInput }
                 , Cmd.none
                 )
 
@@ -676,8 +667,7 @@ viewCommentsPage config =
 
 viewReplayRange :
     { config
-        | rangeInput : Range.Model
-        , history : History model msg
+        | history : History model msg
     }
     -> Html (Msg model msg)
 viewReplayRange model =
@@ -685,9 +675,8 @@ viewReplayRange model =
         ( length, index ) =
             ( History.length model.history, History.currentIndex model.history )
     in
-    Range.view model.rangeInput
-        { onUpdate = UpdateRange
-        , onMove = ReplayApp
+    Range.view
+        { onMove = ReplayApp
         , max = length
         , value = index
         , title = Text.replayRangeTitle
@@ -930,7 +919,6 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
             , window = window
             , focus = Nothing
             , modelView = modelView
-            , rangeInput = Range.init
             , page = page
             }
         )

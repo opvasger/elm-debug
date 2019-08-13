@@ -1,9 +1,5 @@
 module DevTools.Browser.Element.Range exposing
-    ( Model
-    , Msg
-    , init
-    , subscriptions
-    , update
+    ( subscriptions
     , view
     )
 
@@ -12,28 +8,6 @@ import Html exposing (Html, div, text)
 import Html.Attributes exposing (style, title)
 import Html.Events exposing (stopPropagationOn)
 import Json.Decode as Decode exposing (Decoder)
-
-
-type Msg
-    = ToggleMouseOver
-
-
-type alias Model =
-    { isMouseOver : Bool
-    }
-
-
-init : Model
-init =
-    { isMouseOver = False
-    }
-
-
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        ToggleMouseOver ->
-            { model | isMouseOver = not model.isMouseOver }
 
 
 subscriptions :
@@ -49,17 +23,14 @@ subscriptions config =
 
 
 view :
-    Model
-    ->
-        { config
-            | onUpdate : Msg -> msg
-            , onMove : Int -> msg
-            , title : String
-            , max : Int
-            , value : Int
-        }
+    { config
+        | onMove : Int -> msg
+        , title : String
+        , max : Int
+        , value : Int
+    }
     -> Html msg
-view _ config =
+view config =
     div
         [ style "display" "flex"
         , style "flex-direction" "column"
@@ -69,8 +40,6 @@ view _ config =
         , style "cursor" "pointer"
         , title config.title
         , stopPropagationOn "click" (clickDecoder config)
-        , stopPropagationOn "mouseover" (Decode.succeed ( config.onUpdate ToggleMouseOver, True ))
-        , stopPropagationOn "mouseout" (Decode.succeed ( config.onUpdate ToggleMouseOver, True ))
         ]
         [ div
             [ style "font-size" "8px"
