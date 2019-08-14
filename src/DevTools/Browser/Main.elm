@@ -142,7 +142,7 @@ initWith config decodeError =
       , decodeError = decodeError
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
-      , msgList = LazyList.init 9
+      , msgList = LazyList.init 10
       , isModelVisible = False
       , comments = ""
       , title = ""
@@ -651,7 +651,7 @@ viewMessagesPage config =
                 { queryElements = \from to -> History.indexedRange from to config.history
                 , viewElement = Element.viewMsg << toViewMsgConfig encodeMsg
                 , length = History.length config.history
-                , elementHeight = 20
+                , elementHeight = 18
                 }
             ]
 

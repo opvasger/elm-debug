@@ -54,8 +54,10 @@ viewMsg config =
         [ style "display" "flex"
         , style "font" "400 11px system-ui"
         , style "height" "20px"
+        , style "align-items" "center"
         , style "cursor" "pointer"
         , onClick (config.onClick config.index)
+        , title args
         ]
         [ div
             [ style "display" "flex"
@@ -66,7 +68,6 @@ viewMsg config =
             , style "overflow" "hidden"
             , style "margin" "0 6px"
             , style "color" "#cccccc"
-            , title args
             ]
             [ text args ]
         , div

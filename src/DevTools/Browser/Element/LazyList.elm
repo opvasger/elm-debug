@@ -39,11 +39,11 @@ view :
         , elementHeight : Int
         }
     -> Html msg
-view _ config =
+view model config =
     div
-        [ style "padding" "4px"
+        [ style "padding" "0 4px"
         ]
-        (List.map config.viewElement (config.queryElements (config.length - 9) config.length))
+        (List.map config.viewElement (config.queryElements model.fromIndex model.toIndex))
 
 
 decoder : Decoder Model

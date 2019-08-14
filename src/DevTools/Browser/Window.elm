@@ -70,7 +70,7 @@ init : ( Model, Cmd Msg )
 init =
     ( { position = ( 20000, 20000 )
       , movePosition = Nothing
-      , size = ( 200, 250 )
+      , size = ( 200, 252 )
       , viewport = ( 500, 500 )
       , isCollapsed = True
       }
