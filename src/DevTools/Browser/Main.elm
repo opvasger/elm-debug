@@ -39,6 +39,7 @@ type alias Model model msg =
     , decodeStrategy : History.Decode.Strategy
     , decodeError : SessionDecodeError
     , cacheThrottle : Throttle.Model
+    , msgList : LazyList.Model
     , title : String
     , comments : String
     , modelView : JsonTree.State
@@ -141,6 +142,7 @@ initWith config decodeError =
       , decodeError = decodeError
       , decodeStrategy = History.Decode.UntilError
       , cacheThrottle = Throttle.init
+      , msgList = LazyList.init 9
       , isModelVisible = False
       , comments = ""
       , title = ""
@@ -551,6 +553,7 @@ viewDevToolsBody config model =
             viewMessagesPage
                 { history = model.history
                 , encodeMsg = config.encodeMsg
+                , msgList = model.msgList
                 }
 
 
@@ -630,6 +633,7 @@ viewMessagesPage :
     { config
         | history : History model msg
         , encodeMsg : Maybe (msg -> Encode.Value)
+        , msgList : LazyList.Model
     }
     -> List (Html (Msg model msg))
 viewMessagesPage config =
@@ -643,10 +647,11 @@ viewMessagesPage config =
     in
     case config.encodeMsg of
         Just encodeMsg ->
-            [ LazyList.view
+            [ LazyList.view config.msgList
                 { queryElements = \from to -> History.indexedRange from to config.history
                 , viewElement = Element.viewMsg << toViewMsgConfig encodeMsg
                 , length = History.length config.history
+                , elementHeight = 20
                 }
             ]
 
@@ -909,6 +914,7 @@ encodeSession encodeMsg model =
             , ( "window", Window.encode model.window )
             , ( "page", encodePage model.page )
             , ( "modelView", JsonTree.stateToJson model.modelView )
+            , ( "msgList", LazyList.encode model.msgList )
             ]
 
 
@@ -919,37 +925,43 @@ sessionDecoder :
     -> History.Decode.Strategy
     -> Decoder (Model model msg)
 sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
-    Decode.map8
-        (\history decodeStrategy isModelVisible title comments window page modelView ->
-            { history = history
-            , initCmd = cmd
-            , decodeError = NoError
-            , decodeStrategy = decodeStrategy
-            , isModelVisible = isModelVisible
-            , cacheThrottle = Throttle.init
-            , title = title
-            , comments = comments
-            , window = window
-            , focus = Nothing
-            , modelView = modelView
-            , page = page
-            }
+    Decode.andThen
+        (\{ msgList } ->
+            Decode.map8
+                (\history decodeStrategy isModelVisible title comments window page modelView ->
+                    { history = history
+                    , initCmd = cmd
+                    , decodeError = NoError
+                    , decodeStrategy = decodeStrategy
+                    , isModelVisible = isModelVisible
+                    , cacheThrottle = Throttle.init
+                    , msgList = msgList
+                    , title = title
+                    , comments = comments
+                    , window = window
+                    , focus = Nothing
+                    , modelView = modelView
+                    , page = page
+                    }
+                )
+                (Decode.field "history"
+                    (History.Decode.fromStrategy strategy updateApp msgDecoder model)
+                )
+                sessionStrategyDecoder
+                (Decode.field "isModelVisible" Decode.bool)
+                (Decode.field "title" Decode.string)
+                (Decode.field "comments" Decode.string)
+                (Decode.field "window" Window.decoder)
+                (Decode.field "page" pageDecoder)
+                (Decode.field "modelView" JsonTree.stateFromJson)
         )
-        (Decode.field "history"
-            (History.Decode.fromStrategy
-                strategy
-                updateApp
-                msgDecoder
-                model
+        (Decode.map
+            (\msgList ->
+                { msgList = msgList
+                }
             )
+            (Decode.field "msgList" LazyList.decoder)
         )
-        sessionStrategyDecoder
-        (Decode.field "isModelVisible" Decode.bool)
-        (Decode.field "title" Decode.string)
-        (Decode.field "comments" Decode.string)
-        (Decode.field "window" Window.decoder)
-        (Decode.field "page" pageDecoder)
-        (Decode.field "modelView" JsonTree.stateFromJson)
 
 
 sessionStrategyDecoder : Decoder History.Decode.Strategy
