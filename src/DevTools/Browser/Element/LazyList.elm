@@ -1,6 +1,5 @@
 module DevTools.Browser.Element.LazyList exposing
     ( Model
-    , Msg
     , decoder
     , encode
     , init
@@ -17,10 +16,6 @@ type alias Model =
     { fromIndex : Int
     , toIndex : Int
     }
-
-
-type Msg
-    = ScrollTo Int
 
 
 init : Int -> Model
