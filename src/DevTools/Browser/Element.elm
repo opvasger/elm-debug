@@ -9,6 +9,7 @@ module DevTools.Browser.Element exposing
     , viewTextInputArea
     )
 
+import DevTools.Browser.MsgSource as MsgSource exposing (MsgSource)
 import Html exposing (Html, div, input, text, textarea)
 import Html.Attributes exposing (disabled, placeholder, spellcheck, style, title, type_, value)
 import Html.Events exposing (onClick, onInput)
@@ -38,6 +39,7 @@ viewMsg :
     , encodeMsg : msg -> Encode.Value
     , index : Int
     , msg : msg
+    , src : MsgSource
     }
     -> Html otherMsg
 viewMsg config =
@@ -61,12 +63,23 @@ viewMsg config =
         ]
         [ div
             [ style "display" "flex"
+            , style "background-color" "#cccccc"
+            , style "color" "white"
+            , style "border-radius" "1px"
+            , style "padding" "1px"
+            , style "min-width" "10px"
+            , style "justify-content" "center"
+            ]
+            [ text (MsgSource.toString config.src) ]
+        , div
+            [ style "display" "flex"
+            , style "margin-left" "4px"
             ]
             [ text name ]
         , div
             [ style "display" "flex"
             , style "overflow" "hidden"
-            , style "margin" "0 6px"
+            , style "margin" "0 4px"
             , style "color" "#cccccc"
             ]
             [ text args ]

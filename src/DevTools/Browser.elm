@@ -243,9 +243,9 @@ application features app =
                 , update = app.update
                 }
         , onUrlChange =
-            app.onUrlChange >> Main.urlUpdate
+            app.onUrlChange >> Main.navigationUpdate
         , onUrlRequest =
-            app.onUrlRequest >> Main.urlUpdate
+            app.onUrlRequest >> Main.navigationUpdate
         }
 
 

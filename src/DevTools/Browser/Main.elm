@@ -2,9 +2,9 @@ module DevTools.Browser.Main exposing
     ( Model
     , Msg
     , init
+    , navigationUpdate
     , subscriptions
     , update
-    , urlUpdate
     , view
     )
 
@@ -13,6 +13,7 @@ import DevTools.Browser.Element as Element
 import DevTools.Browser.Element.Icon as Icon exposing (Icon)
 import DevTools.Browser.Element.LazyList as LazyList
 import DevTools.Browser.Element.Range as Range
+import DevTools.Browser.MsgSource as MsgSource exposing (MsgSource)
 import DevTools.Browser.Text as Text
 import DevTools.Browser.Window as Window
 import File exposing (File)
@@ -34,7 +35,7 @@ import Time
 
 
 type alias Model model msg =
-    { history : History model msg
+    { history : History model ( msg, MsgSource )
     , initCmd : Cmd msg
     , decodeStrategy : History.Decode.Strategy
     , decodeError : SessionDecodeError
@@ -72,9 +73,9 @@ type Msg model msg
     | UpdateFocus (Maybe Icon)
 
 
-urlUpdate : msg -> Msg model msg
-urlUpdate =
-    UpdateApp FromUrl
+navigationUpdate : msg -> Msg model msg
+navigationUpdate =
+    UpdateApp MsgSource.Navigation
 
 
 init :
@@ -152,7 +153,7 @@ initWith config decodeError =
       , page = Messages
       }
     , Cmd.batch
-        [ Cmd.map (UpdateApp FromInit) (Tuple.second config.init)
+        [ Cmd.map (UpdateApp MsgSource.Init) (Tuple.second config.init)
         , Cmd.map UpdateWindow (Tuple.second Window.init)
         ]
     )
@@ -178,7 +179,7 @@ subscriptions config model =
                 }
 
           else
-            Sub.map (UpdateApp FromSubs)
+            Sub.map (UpdateApp MsgSource.Subscriptions)
                 (config.subscriptions
                     (History.currentModel model.history)
                 )
@@ -208,15 +209,14 @@ update config msg model =
             cache
                 ( { model
                     | history =
-                        recordMsg src
-                            (dropCmd config.update)
-                            appMsg
+                        recordMsg (dropCmd config.update << Tuple.first)
+                            ( appMsg, src )
                             model.history
                   }
                 , History.currentModel model.history
                     |> config.update appMsg
                     |> Tuple.second
-                    |> Cmd.map (UpdateApp FromUpdate)
+                    |> Cmd.map (UpdateApp MsgSource.Update)
                 )
 
         DoNothing ->
@@ -228,14 +228,14 @@ update config msg model =
                     | history =
                         History.restart model.history
                   }
-                , Cmd.map (UpdateApp FromInit) model.initCmd
+                , Cmd.map (UpdateApp MsgSource.Init) model.initCmd
                 )
 
         ReplayApp index ->
             cache
                 ( { model
                     | history =
-                        History.replay (dropCmd config.update)
+                        History.replay (dropCmd config.update << Tuple.first)
                             index
                             model.history
                   }
@@ -247,7 +247,7 @@ update config msg model =
                 ( { model
                     | history =
                         History.toggleReplay
-                            (dropCmd config.update)
+                            (dropCmd config.update << Tuple.first)
                             model.history
                   }
                 , Cmd.none
@@ -413,7 +413,7 @@ view config model =
     , body =
         viewDevTools config model
             :: Window.ignoreSelectOnMove model.window (viewModel config model)
-            :: List.map (Window.ignoreSelectOnMove model.window << Html.map (UpdateApp FromView))
+            :: List.map (Window.ignoreSelectOnMove model.window << Html.map (UpdateApp MsgSource.View))
                 app.body
     }
 
@@ -631,18 +631,19 @@ viewSettingsPage isCacheEnabled model =
 
 viewMessagesPage :
     { config
-        | history : History model msg
+        | history : History model ( msg, MsgSource )
         , encodeMsg : Maybe (msg -> Encode.Value)
         , msgList : LazyList.Model
     }
     -> List (Html (Msg model msg))
 viewMessagesPage config =
     let
-        toViewMsgConfig encodeMsg ( index, msg ) =
+        toViewMsgConfig encodeMsg ( index, ( msg, src ) ) =
             { onClick = ReplayApp
             , encodeMsg = encodeMsg
             , index = index
             , msg = msg
+            , src = src
             }
     in
     case config.encodeMsg of
@@ -685,7 +686,7 @@ viewCommentsPage config =
 
 viewReplayRange :
     { config
-        | history : History model msg
+        | history : History model ( msg, MsgSource )
     }
     -> Html (Msg model msg)
 viewReplayRange model =
@@ -703,7 +704,7 @@ viewReplayRange model =
 
 viewToggleReplayButton :
     { config
-        | history : History model msg
+        | history : History model ( msg, MsgSource )
         , focus : Maybe Icon
     }
     -> Html (Msg model msg)
@@ -906,7 +907,7 @@ encodeSession : (msg -> Encode.Value) -> Model model msg -> String
 encodeSession encodeMsg model =
     Encode.encode 0 <|
         Encode.object
-            [ ( "history", History.encode encodeMsg model.history )
+            [ ( "history", History.encode (encodePair encodeMsg MsgSource.encode) model.history )
             , ( "isModelVisible", Encode.bool model.isModelVisible )
             , ( "decodeStrategy", History.Decode.encodeStrategy model.decodeStrategy )
             , ( "title", Encode.string model.title )
@@ -945,7 +946,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
                     }
                 )
                 (Decode.field "history"
-                    (History.Decode.fromStrategy strategy updateApp msgDecoder model)
+                    (History.Decode.fromStrategy strategy (updateApp << Tuple.first) (pairDecoder msgDecoder MsgSource.decoder) model)
                 )
                 sessionStrategyDecoder
                 (Decode.field "isModelVisible" Decode.bool)
@@ -1018,27 +1019,18 @@ printSessionDecodeError default error =
 -- MsgSource
 
 
-type MsgSource
-    = FromInit
-    | FromUpdate
-    | FromSubs
-    | FromView
-    | FromUrl
-
-
 recordMsg :
-    MsgSource
-    -> (msg -> model -> model)
-    -> msg
-    -> History model msg
-    -> History model msg
-recordMsg src =
+    (( msg, MsgSource ) -> model -> model)
+    -> ( msg, MsgSource )
+    -> History model ( msg, MsgSource )
+    -> History model ( msg, MsgSource )
+recordMsg updateApp ( msg, src ) =
     case src of
-        FromInit ->
-            History.recordForever
+        MsgSource.Init ->
+            History.recordForever updateApp ( msg, src )
 
         _ ->
-            History.record
+            History.record updateApp ( msg, src )
 
 
 
@@ -1048,8 +1040,7 @@ recordMsg src =
 dropCmd :
     (msg -> model -> ( model, Cmd msg ))
     -> msg
-    -> model
-    -> model
+    -> (model -> model)
 dropCmd fn msg =
     Tuple.first << fn msg
 
@@ -1062,3 +1053,18 @@ resultToTask result =
 
         Err error ->
             Task.fail error
+
+
+encodePair : (a -> Encode.Value) -> (b -> Encode.Value) -> ( a, b ) -> Encode.Value
+encodePair encodeA encodeB ( a, b ) =
+    Encode.list identity
+        [ encodeA a
+        , encodeB b
+        ]
+
+
+pairDecoder : Decoder a -> Decoder b -> Decoder ( a, b )
+pairDecoder aDecoder bDecoder =
+    Decode.map2 Tuple.pair
+        (Decode.index 0 aDecoder)
+        (Decode.index 1 bDecoder)
