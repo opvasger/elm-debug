@@ -1,13 +1,16 @@
 module DevTools.Browser.Element.LazyList exposing
     ( Model
+    , Msg
     , decoder
     , encode
     , init
+    , update
     , view
     )
 
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
+import Html.Events exposing (on)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 
@@ -18,11 +21,24 @@ type alias Model =
     }
 
 
+type Msg
+    = ViewFrom Int
+
+
 init : Int -> Model
 init toIndex =
     { fromIndex = 0
     , toIndex = toIndex
     }
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        ViewFrom fromIndex ->
+            { fromIndex = fromIndex
+            , toIndex = fromIndex + (model.toIndex - model.fromIndex)
+            }
 
 
 view :
@@ -32,13 +48,27 @@ view :
         , queryElements : Int -> Int -> List a
         , length : Int
         , elementHeight : Int
+        , onUpdate : Msg -> msg
         }
     -> Html msg
 view model config =
     div
-        [ style "padding" "0 4px"
+        [ style "height" "100%"
+        , style "overflow" "scroll"
+        , on "scroll"
+            (Decode.at [ "target", "scrollTop" ]
+                (Decode.map
+                    (\pxFromTop ->
+                        config.onUpdate (ViewFrom (pxFromTop // config.elementHeight))
+                    )
+                    Decode.int
+                )
+            )
         ]
-        (List.map config.viewElement (config.queryElements model.fromIndex model.toIndex))
+        [ div [ style "height" (String.fromInt (config.elementHeight * model.fromIndex) ++ "px") ] []
+        , div [] (List.map config.viewElement (config.queryElements model.fromIndex model.toIndex))
+        , div [ style "height" (String.fromInt (config.elementHeight * (config.length - model.toIndex)) ++ "px") ] []
+        ]
 
 
 decoder : Decoder Model

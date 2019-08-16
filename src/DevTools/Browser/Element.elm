@@ -63,17 +63,17 @@ viewMsg config =
         ]
         [ div
             [ style "display" "flex"
-            , style "background-color" "#cccccc"
+            , style "background-color" "rgb(137, 179, 238)"
             , style "color" "white"
             , style "border-radius" "1px"
             , style "padding" "1px"
             , style "min-width" "10px"
             , style "justify-content" "center"
+            , style "margin" "0 4px"
             ]
             [ text (MsgSource.toString config.src) ]
         , div
             [ style "display" "flex"
-            , style "margin-left" "4px"
             ]
             [ text name ]
         , div
@@ -81,11 +81,13 @@ viewMsg config =
             , style "overflow" "hidden"
             , style "margin" "0 4px"
             , style "color" "#cccccc"
+            , style "font-size" "9px"
             ]
             [ text args ]
         , div
             [ style "display" "flex"
             , style "margin-left" "auto"
+            , style "margin-right" "4px"
             ]
             [ text (String.fromInt config.index) ]
         ]

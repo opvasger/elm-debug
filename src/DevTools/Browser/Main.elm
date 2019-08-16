@@ -14,6 +14,7 @@ import DevTools.Browser.Element.Icon as Icon exposing (Icon)
 import DevTools.Browser.Element.LazyList as LazyList
 import DevTools.Browser.Element.Range as Range
 import DevTools.Browser.MsgSource as MsgSource exposing (MsgSource)
+import DevTools.Browser.Page as Page exposing (Page)
 import DevTools.Browser.Text as Text
 import DevTools.Browser.Window as Window
 import File exposing (File)
@@ -71,6 +72,7 @@ type Msg model msg
     | UpdateModelView JsonTree.State
     | UpdateWindow Window.Msg
     | UpdateFocus (Maybe Icon)
+    | UpdateMsgList LazyList.Msg
 
 
 navigationUpdate : msg -> Msg model msg
@@ -150,7 +152,7 @@ initWith config decodeError =
       , window = Tuple.first Window.init
       , focus = Nothing
       , modelView = JsonTree.defaultState
-      , page = Messages
+      , page = Page.Messages
       }
     , Cmd.batch
         [ Cmd.map (UpdateApp MsgSource.Init) (Tuple.second config.init)
@@ -391,6 +393,11 @@ update config msg model =
             , Cmd.none
             )
 
+        UpdateMsgList lazyListMsg ->
+            ( { model | msgList = LazyList.update lazyListMsg model.msgList }
+            , Cmd.none
+            )
+
 
 view :
     { config
@@ -499,23 +506,23 @@ viewDevToolsHead config model collapseMsg dismissMsg =
     , Element.viewDivider
     , Icon.viewComments
         { focus = model.focus
-        , isActive = model.page == Comments
-        , onClick = OpenPage Comments
+        , isActive = model.page == Page.Comments
+        , onClick = OpenPage Page.Comments
         , onFocus = UpdateFocus
         , title = Text.commentsPageTitle
         }
     , Icon.viewSettings
         { focus = model.focus
-        , isActive = model.page == Settings
-        , onClick = OpenPage Settings
+        , isActive = model.page == Page.Settings
+        , onClick = OpenPage Page.Settings
         , onFocus = UpdateFocus
         , title = Text.settingsPageTitle
         }
     , if config.encodeMsg /= Nothing then
         Icon.viewMessages
             { focus = model.focus
-            , isActive = model.page == Messages
-            , onClick = OpenPage Messages
+            , isActive = model.page == Page.Messages
+            , onClick = OpenPage Page.Messages
             , onFocus = UpdateFocus
             , title = Text.messagesPageTitle
             }
@@ -539,17 +546,17 @@ viewDevToolsBody :
     -> List (Html (Msg model msg))
 viewDevToolsBody config model =
     case model.page of
-        Comments ->
+        Page.Comments ->
             viewCommentsPage
                 { title = model.title
                 , comments = model.comments
                 , isExportEnabled = config.encodeMsg /= Nothing
                 }
 
-        Settings ->
+        Page.Settings ->
             viewSettingsPage config.isCacheEnabled model
 
-        Messages ->
+        Page.Messages ->
             viewMessagesPage
                 { history = model.history
                 , encodeMsg = config.encodeMsg
@@ -653,6 +660,7 @@ viewMessagesPage config =
                 , viewElement = Element.viewMsg << toViewMsgConfig encodeMsg
                 , length = History.length config.history
                 , elementHeight = 18
+                , onUpdate = UpdateMsgList
                 }
             ]
 
@@ -856,50 +864,6 @@ viewModel config model =
 
 
 
--- Page
-
-
-type Page
-    = Comments
-    | Settings
-    | Messages
-
-
-encodePage : Page -> Encode.Value
-encodePage page =
-    Encode.string <|
-        case page of
-            Comments ->
-                "report"
-
-            Settings ->
-                "settings"
-
-            Messages ->
-                "messages"
-
-
-pageDecoder : Decoder Page
-pageDecoder =
-    Decode.andThen
-        (\text ->
-            case text of
-                "report" ->
-                    Decode.succeed Comments
-
-                "messages" ->
-                    Decode.succeed Messages
-
-                "settings" ->
-                    Decode.succeed Settings
-
-                _ ->
-                    Decode.fail ("'" ++ text ++ "' cannot be decoded into a page")
-        )
-        Decode.string
-
-
-
 -- Session
 
 
@@ -913,7 +877,7 @@ encodeSession encodeMsg model =
             , ( "title", Encode.string model.title )
             , ( "comments", Encode.string model.comments )
             , ( "window", Window.encode model.window )
-            , ( "page", encodePage model.page )
+            , ( "page", Page.encode model.page )
             , ( "modelView", JsonTree.stateToJson model.modelView )
             , ( "msgList", LazyList.encode model.msgList )
             ]
@@ -953,7 +917,7 @@ sessionDecoder updateApp msgDecoder ( model, cmd ) strategy =
                 (Decode.field "title" Decode.string)
                 (Decode.field "comments" Decode.string)
                 (Decode.field "window" Window.decoder)
-                (Decode.field "page" pageDecoder)
+                (Decode.field "page" Page.decoder)
                 (Decode.field "modelView" JsonTree.stateFromJson)
         )
         (Decode.map
