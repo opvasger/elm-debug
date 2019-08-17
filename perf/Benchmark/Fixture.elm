@@ -1,4 +1,4 @@
-module Benchmark.Fixtures exposing
+module Benchmark.Fixture exposing
     ( emptyIntHistory
     , intRangeHistory
     , intRangeHistoryJson

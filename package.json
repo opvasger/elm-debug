@@ -6,16 +6,18 @@
     "elm-devtools": "src/cli.js"
   },
   "scripts": {
-    "build": "elm make --output=/dev/null",
+    "build": "elm make --output=/dev/null && npm run docs:build",
     "xref": "elm-xref",
     "format": "elm-format --yes src/",
     "test": "elm-test tests",
-    "bench": "cd perf && elm reactor",
+    "bench": "npm run bench:serve & npm run bench:watch",
     "docs": "npm run docs:serve & npm run docs:watch",
     "docs:win": "start npm run docs:serve && npm run docs:watch",
-    "docs:serve": "live-server --no-css-inject --no-browser --watch=dist docs",
+    "bench:serve": "live-server --no-css-inject perf/benchmark.html",
+    "docs:serve": "live-server --no-css-inject --watch=dist docs",
+    "bench:watch": "nodemon --ext elm --exec \"cd perf && elm make Benchmark/Main.elm --output=benchmark.html\"",
     "docs:watch": "nodemon --ext elm --exec \"cd docs && elm make src/Main.elm --output=dist/main.js\"",
-    "docs:build": "cd docs && time (elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js) && stat -f 'size    %z bytes' dist/main.js && rm dist/main.temp.js"
+    "docs:build": "cd docs && elm make src/Main.elm --optimize --output=dist/main.temp.js && google-closure-compiler --js dist/main.temp.js --js_output_file dist/main.js && rm dist/main.temp.js"
   },
   "repository": {
     "type": "git",
@@ -31,10 +33,10 @@
   "dependencies": {},
   "devDependencies": {
     "elm": "0.19.0-bugfix6",
+    "elm-format": "0.8.1",
     "elm-json": "0.2.0",
     "elm-test": "0.19.0-rev6",
     "elm-xref": "4.0.0",
-    "elm-format": "0.8.1",
     "google-closure-compiler": "20190415.0.0",
     "live-server": "1.2.1",
     "nodemon": "1.19.0"

@@ -1,21 +1,21 @@
 module Mario exposing
-    ( encodeModel
+    ( Model
+    , Msg
+    , encodeModel
     , encodeMsg
     , init
     , msgDecoder
+    , resize
     , subscriptions
     , update
     , view
     )
 
-import Browser
-import Browser.Dom
 import Browser.Events
 import Html exposing (Html)
 import Html.Attributes
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Task
 
 
 type alias Velocity =
@@ -61,7 +61,6 @@ type alias Controls =
 
 type Msg
     = NextFrame Float
-    | WindowResize Int Int
     | Press Direction
     | Release Direction
 
@@ -70,24 +69,27 @@ type alias Model =
     { face : HorizontalDirection
     , position : Position
     , velocity : Velocity
-    , size : Size
     , controls : Controls
+    , size : Size
     }
 
 
-init : ( Model, Cmd Msg )
-init =
-    ( { face = Right
-      , position = Position 0 0
-      , velocity = Velocity 0 0
-      , size = Size 0 0
-      , controls = Controls False False False False
-      }
-    , Task.perform fromViewport Browser.Dom.getViewport
-    )
+init : Int -> Int -> Model
+init x y =
+    { face = Right
+    , position = Position 0 0
+    , velocity = Velocity 0 0
+    , size = Size x y
+    , controls = Controls False False False False
+    }
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+resize : Size -> Model -> Model
+resize size model =
+    { model | size = size }
+
+
+update : Msg -> Model -> Model
 update msg model =
     case msg of
         NextFrame latency ->
@@ -95,64 +97,40 @@ update msg model =
                 adjustedLatency =
                     latency / 10
             in
-            ( model
+            model
                 |> gravity adjustedLatency
                 |> jump
                 |> walk
                 |> physics adjustedLatency
-            , Cmd.none
-            )
-
-        WindowResize width height ->
-            ( physics 1
-                { model
-                    | size = Size width height
-                }
-            , Cmd.none
-            )
 
         Press dir ->
-            ( { model
+            { model
                 | controls = updateControls True dir model.controls
-              }
-            , Cmd.none
-            )
+            }
 
         Release dir ->
-            ( { model
+            { model
                 | controls = updateControls False dir model.controls
-              }
-            , Cmd.none
-            )
+            }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ Browser.Events.onAnimationFrameDelta NextFrame
-        , Browser.Events.onResize WindowResize
         , Browser.Events.onKeyDown (Decode.map Press (Decode.andThen toDirectionDecoder (Decode.field "key" Decode.string)))
         , Browser.Events.onKeyUp (Decode.map Release (Decode.andThen toDirectionDecoder (Decode.field "key" Decode.string)))
         ]
 
 
-view : Model -> Browser.Document Msg
-view model =
-    { title = "Example"
-    , body =
-        [ viewMario model
-        ]
-    }
-
-
-viewMario : Model -> Html Msg
-viewMario { face, position, velocity, size } =
+view : Model -> Html Msg
+view { face, position, velocity, size } =
     Html.img
-        [ Html.Attributes.style "position" "absolute"
+        [ Html.Attributes.alt "Mario"
+        , Html.Attributes.style "position" "absolute"
         , Html.Attributes.style "left" (toPx position.left)
         , Html.Attributes.style "top" (toPx (toFloat size.height - 35 - position.top))
         , Html.Attributes.src (toImageSrc position velocity face)
-        , Html.Attributes.alt "Mario"
         ]
         []
 
@@ -241,10 +219,10 @@ updateHorizontalVelocity { left, right } velocity =
     { velocity
         | horizontal =
             if left then
-                -1
+                -2
 
             else if right then
-                1
+                2
 
             else
                 0
@@ -307,18 +285,10 @@ toPx n =
     String.fromFloat n ++ "px"
 
 
-fromViewport : Browser.Dom.Viewport -> Msg
-fromViewport { scene } =
-    WindowResize (round scene.width) (round scene.height)
-
-
 msgDecoder : Decode.Decoder Msg
 msgDecoder =
     Decode.oneOf
         [ Decode.map NextFrame (Decode.field "Frame" Decode.float)
-        , Decode.map2 WindowResize
-            (Decode.at [ "Resize", "width" ] Decode.int)
-            (Decode.at [ "Resize", "height" ] Decode.int)
         , Decode.map Press (Decode.field "Press" (Decode.andThen toDirectionDecoder Decode.string))
         , Decode.map Release (Decode.field "Release" (Decode.andThen toDirectionDecoder Decode.string))
         ]
@@ -329,16 +299,6 @@ encodeMsg msg =
     case msg of
         NextFrame latency ->
             Encode.object [ ( "Frame", Encode.float latency ) ]
-
-        WindowResize width height ->
-            Encode.object
-                [ ( "Resize"
-                  , Encode.object
-                        [ ( "width", Encode.int width )
-                        , ( "height", Encode.int height )
-                        ]
-                  )
-                ]
 
         Press direction ->
             Encode.object

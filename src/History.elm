@@ -3,6 +3,7 @@ module History exposing
     , currentIndex
     , currentModel
     , encode
+    , indexedRange
     , init
     , initialModel
     , isReplay
@@ -11,7 +12,7 @@ module History exposing
     , record
     , recordForever
     , replay
-    , reset
+    , restart
     , skipErrorsDecoder
     , toggleReplay
     , untilErrorDecoder
@@ -64,8 +65,14 @@ initialModel =
         >> State.toInitialModel
 
 
-reset : History model msg -> History model msg
-reset =
+indexedRange : Int -> Int -> History model msg -> List ( Int, msg )
+indexedRange from to =
+    toState
+        >> State.toIndexedMsgRange from to
+
+
+restart : History model msg -> History model msg
+restart =
     toState
         >> State.toInitialModel
         >> init
@@ -76,8 +83,8 @@ toggleReplay update history =
     if isReplay history then
         history
             |> toState
-            >> State.rewindToCurrent
-            >> State.invalidatePersisted update
+            |> State.rewindToCurrent
+            |> State.invalidatePersisted update
             |> State.optimizeForRecord
             |> History
 

@@ -1,7 +1,6 @@
 module History.State exposing
     ( State
     , encode
-    , getReplay
     , init
     , insertLatest
     , insertPersisted
@@ -15,6 +14,7 @@ module History.State exposing
     , replayCurrent
     , rewindToCurrent
     , skipErrorsDecoder
+    , toIndexedMsgRange
     , toInitialModel
     , untilErrorDecoder
     , updateCurrent
@@ -104,7 +104,7 @@ rewindToCurrent state =
                 state.currentIndex // maxChunkLength
         in
         { state
-            | latestChunk = Chunk.fromReplay (Chunk.rewind state.currentIndex (getReplay state.currentIndex state))
+            | latestChunk = Chunk.fromReplay (Chunk.rewind state.currentIndex (toReplay state.currentIndex state))
             , latestLength = modBy maxChunkLength state.currentIndex
             , previousChunks = Array.slice 0 previousLength state.previousChunks
             , previousLength = previousLength
@@ -117,7 +117,7 @@ rewindToCurrent state =
 replayCurrent : (msg -> model -> model) -> Int -> State model msg -> State model msg
 replayCurrent update index state =
     { state
-        | currentModel = Chunk.replay update (modBy maxChunkLength index) (getReplay index state)
+        | currentModel = Chunk.replay update (modBy maxChunkLength index) (toReplay index state)
         , currentIndex = clamp 0 (msgLength state) index
     }
 
@@ -144,11 +144,52 @@ insertPrevious state =
         }
 
 
-getReplay : Int -> State model msg -> Chunk.Replay model msg
-getReplay index state =
+toReplay : Int -> State model msg -> Chunk.Replay model msg
+toReplay index state =
     state.previousChunks
         |> Array.get (index // maxChunkLength)
         |> Maybe.withDefault (Chunk.toReplay state.latestChunk)
+
+
+toIndexedMsgRange : Int -> Int -> State model msg -> List ( Int, msg )
+toIndexedMsgRange from to state =
+    let
+        length =
+            msgLength state
+
+        fromIndex =
+            clamp 0 length from
+
+        toIndex =
+            clamp 0 length to
+
+        fromChunkIndex =
+            fromIndex // maxChunkLength
+
+        toChunkIndex =
+            toIndex // maxChunkLength
+
+        fromChunkMsgs =
+            Chunk.range (modBy maxChunkLength fromIndex) toIndex (toReplay fromIndex state)
+
+        middleChunkMsgs =
+            if toChunkIndex - fromChunkIndex > 1 then
+                List.range (fromChunkIndex + 1) (toChunkIndex - 1)
+                    |> List.map (\index -> Tuple.second (toReplay index state))
+                    |> List.foldl (++) []
+
+            else
+                []
+
+        toChunkMsgs =
+            if fromChunkIndex /= toChunkIndex then
+                Chunk.range 0 (modBy maxChunkLength toIndex) (toReplay toIndex state)
+
+            else
+                []
+    in
+    List.indexedMap (\index msg -> ( index + 1 + fromIndex, msg ))
+        (fromChunkMsgs ++ middleChunkMsgs ++ toChunkMsgs)
 
 
 insertPersisted : msg -> State model msg -> State model msg
