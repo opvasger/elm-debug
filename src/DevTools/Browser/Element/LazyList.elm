@@ -65,9 +65,12 @@ view model config =
                 )
             )
         ]
-        [ div [ style "height" (String.fromInt (config.elementHeight * model.fromIndex) ++ "px") ] []
-        , div [] (List.map config.viewElement (config.queryElements model.fromIndex model.toIndex))
-        , div [ style "height" (String.fromInt (config.elementHeight * (config.length - model.toIndex)) ++ "px") ] []
+        [ div [ style "height" (String.fromInt (config.elementHeight * config.length) ++ "px") ]
+            [ div [ style "padding-top" (String.fromInt (config.elementHeight * model.fromIndex) ++ "px") ]
+                (List.map config.viewElement
+                    (config.queryElements model.fromIndex (model.toIndex + 1))
+                )
+            ]
         ]
 
 
